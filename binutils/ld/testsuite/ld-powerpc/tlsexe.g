@@ -1,12 +1,12 @@
 #source: tls.s
 #as: -a64
-#ld: -melf64ppc tmpdir/libtlslib.so
+#ld: tmpdir/libtlslib.so
 #objdump: -sj.got
 #target: powerpc64*-*-*
 
-.*: +file format elf64-powerpc
+.*
 
 Contents of section \.got:
-.* 00000000 10018620 ffffffff ffff8018  .*
+ 10010600 (00000000|00860110) (10018600|00000000) (ffffffff|1880ffff) (ffff8018|ffffffff)  .*
 .* 00000000 00000000 00000000 00000000  .*
-.* 00000000 00000000 00000000 00000000  .*
+.* 00000000 00000000 (ffffffff|5080ffff) (ffff8050|ffffffff)  .*

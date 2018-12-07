@@ -25,7 +25,5 @@ program main
   procedure(intf), pointer :: p_fun2 => null()
 
   if (associated(p_fun) .or. associated(p_fun2)) &
-    call abort ()
+    STOP 1
 end program main
-
-! { dg-final { cleanup-modules "mod_a" } }

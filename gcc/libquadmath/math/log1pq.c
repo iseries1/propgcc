@@ -1,15 +1,15 @@
 /*							log1pl.c
  *
  *      Relative error logarithm
- *	Natural logarithm of 1+x, 128-bit long double precision
+ *	Natural logarithm of 1+x for __float128 precision
  *
  *
  *
  * SYNOPSIS:
  *
- * long double x, y, log1pl();
+ * __float128 x, y, log1pl();
  *
- * y = log1pl( x );
+ * y = log1pq( x );
  *
  *
  *
@@ -36,7 +36,7 @@
  *    IEEE      -1, 8       100000      1.9e-34     4.3e-35
  */
 
-/* Copyright 2001 by Stephen L. Moshier 
+/* Copyright 2001 by Stephen L. Moshier
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -128,21 +128,31 @@ log1pq (__float128 xm1)
   /* Test for NaN or infinity input. */
   u.value = xm1;
   hx = u.words32.w0;
-  if (hx >= 0x7fff0000)
-    return xm1;
+  if ((hx & 0x7fffffff) >= 0x7fff0000)
+    return xm1 + fabsq (xm1);
 
   /* log1p(+- 0) = +- 0.  */
   if (((hx & 0x7fffffff) == 0)
       && (u.words32.w1 | u.words32.w2 | u.words32.w3) == 0)
     return xm1;
 
-  x = xm1 + 1.0Q;
+  if ((hx & 0x7fffffff) < 0x3f8e0000)
+    {
+      math_check_force_underflow (xm1);
+      if ((int) xm1 == 0)
+       return xm1;
+    }
+
+  if (xm1 >= 0x1p113Q)
+    x = xm1;
+  else
+    x = xm1 + 1.0Q;
 
   /* log1p(-1) = -inf */
   if (x <= 0.0Q)
     {
       if (x == 0.0Q)
-	return (-1.0Q / (x - x));
+	return (-1.0Q / zero);	/* log1p(-1) = -inf */
       else
 	return (zero / (x - x));
     }

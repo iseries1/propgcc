@@ -6,21 +6,26 @@
 
 extern "C" int printf (const char *, ...);
 
-struct A { A (); ~A (); int i; };
+extern void callme (void) throw();
 
-int
-foo ()
+void
+foo (int i)
 {
-  A a;
-  printf ("foo %d\n", a.i);
+  try {
+    printf ("foo %d\n", i);
+  } catch (...) {
+    callme();
+  }
 }
 
-int
-bar ()
+void
+bar (int i)
 {
-  A a;
-  __builtin_printf ("foo %d\n", a.i);
+  try {
+    __builtin_printf ("foo %d\n", i);
+  } catch (...) {
+    callme();
+  }
 }
 
 /* { dg-final { scan-tree-dump-times "resx" 2 "eh" } } */
-/* { dg-final { cleanup-tree-dump "eh" } } */

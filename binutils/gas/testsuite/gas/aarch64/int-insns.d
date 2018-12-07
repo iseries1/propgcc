@@ -1,5 +1,5 @@
 #objdump: -dr
-#as: -march=armv8-a
+#as: -march=armv8-a -mabi=lp64
 
 .*:     file format .*
 
@@ -13,8 +13,8 @@ Disassembly of section .text:
   10:	93c3fc41 	extr	x1, x2, x3, #63
   14:	93c30041 	extr	x1, x2, x3, #0
   18:	13837c41 	extr	w1, w2, w3, #31
-  1c:	9a9f17e1 	cset	x1, eq
-  20:	da9f13e1 	csetm	x1, eq
+  1c:	9a9f17e1 	cset	x1, eq  // eq = none
+  20:	da9f13e1 	csetm	x1, eq  // eq = none
   24:	71000021 	subs	w1, w1, #0x0
   28:	7100003f 	cmp	w1, #0x0
   2c:	4b0203e1 	neg	w1, w2
@@ -37,18 +37,18 @@ Disassembly of section .text:
   68:	8b430441 	add	x1, x2, x3, lsr #1
   6c:	91001ca5 	add	x5, x5, #0x7
   70:	71000421 	subs	w1, w1, #0x1
-  74:	d2800c82 	movz	x2, #0x64
-  78:	d2800c82 	movz	x2, #0x64
-  7c:	d2800c82 	movz	x2, #0x64
-  80:	d2a00c82 	movz	x2, #0x64, lsl #16
-  84:	d2a00c82 	movz	x2, #0x64, lsl #16
-  88:	d2c00c82 	movz	x2, #0x64, lsl #32
-  8c:	d2c00c82 	movz	x2, #0x64, lsl #32
-  90:	d2e00c82 	movz	x2, #0x64, lsl #48
-  94:	d2e00c82 	movz	x2, #0x64, lsl #48
-  98:	52800c81 	movz	w1, #0x64
-  9c:	52800c81 	movz	w1, #0x64
-  a0:	52a00c81 	movz	w1, #0x64, lsl #16
+  74:	d2800c82 	mov	x2, #0x64                  	// #100
+  78:	d2800c82 	mov	x2, #0x64                  	// #100
+  7c:	d2800c82 	mov	x2, #0x64                  	// #100
+  80:	d2a00c82 	mov	x2, #0x640000              	// #6553600
+  84:	d2a00c82 	mov	x2, #0x640000              	// #6553600
+  88:	d2c00c82 	mov	x2, #0x6400000000          	// #429496729600
+  8c:	d2c00c82 	mov	x2, #0x6400000000          	// #429496729600
+  90:	d2e00c82 	mov	x2, #0x64000000000000      	// #28147497671065600
+  94:	d2e00c82 	mov	x2, #0x64000000000000      	// #28147497671065600
+  98:	52800c81 	mov	w1, #0x64                  	// #100
+  9c:	52800c81 	mov	w1, #0x64                  	// #100
+  a0:	52a00c81 	mov	w1, #0x640000              	// #6553600
   a4:	8a030041 	and	x1, x2, x3
   a8:	0a0f015e 	and	w30, w10, w15
   ac:	12000041 	and	w1, w2, #0x1
@@ -64,17 +64,17 @@ Disassembly of section .text:
   d4:	92400c85 	and	x5, x4, #0xf
   d8:	0a230041 	bic	w1, w2, w3
   dc:	8a230041 	bic	x1, x2, x3
-  e0:	54000001 	b.ne	e0 <sp\+0x90>
+  e0:	54000001 	b\.ne	e0 <sp\+0x90>  // b\.any
   e4:	17ffffff 	b	e0 <sp\+0x90>
   e8:	14000001 	b	ec <sp\+0x9c>
-  ec:	54ffffa0 	b.eq	e0 <sp\+0x90>
-  f0:	54000001 	b.ne	f0 <sp\+0xa0>
+  ec:	54ffffa0 	b\.eq	e0 <sp\+0x90>  // b\.none
+  f0:	54000001 	b\.ne	f0 <sp\+0xa0>  // b\.any
   f4:	17ffffff 	b	f0 <sp\+0xa0>
   f8:	14000001 	b	fc <sp\+0xac>
-  fc:	54ffffa0 	b.eq	f0 <sp\+0xa0>
+  fc:	54ffffa0 	b\.eq	f0 <sp\+0xa0>  // b\.none
  100:	d61f0040 	br	x2
- 104:	54ffffc2 	b.cs	fc <sp\+0xac>
- 108:	54ffffa3 	b.cc	fc <sp\+0xac>
+ 104:	54ffffc2 	b\.cs	fc <sp\+0xac>  // b\.hs, b\.nlast
+ 108:	54ffffa3 	b\.cc	fc <sp\+0xac>  // b\.lo, b\.ul, b\.last
 	...
 			10c: R_AARCH64_ABS32	.text\+0x50
 			110: R_AARCH64_ABS64	.text\+0x50

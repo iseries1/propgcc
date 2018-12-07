@@ -1,10 +1,10 @@
 /* Like parm-impl-decl-1.c, but with -g.  PR 43381.  */
 /* Origin: Joseph Myers <joseph@codesourcery.com> */
 /* { dg-do compile } */
-/* { dg-options "-g" } */
+/* { dg-options "-g -std=gnu89" } */
 
 int
-foo (int __attribute__ ((__mode__ (vector_size(8)))) i) /* { dg-warning "'__mode__' attribute ignored" } */
+foo (int __attribute__ ((__mode__ (vector_size(8)))) i) /* { dg-warning "'mode' attribute ignored" } */
 {
   return (long long) i;
 }

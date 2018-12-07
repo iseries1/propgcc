@@ -1,12 +1,11 @@
 // PR c++/14688
-// { dg-do compile { target i?86-*-* x86_64-*-* } }
-// { dg-require-effective-target ilp32 }
+// { dg-do compile { target { { i?86-*-* x86_64-*-* } && ia32 } } }
 
 class one
 {
 public:
   virtual void
-  test(void* value);  // { dg-error "overriding" }
+  test(void* value);  // { dg-message "overridden" }
 };
 
 class two : public one

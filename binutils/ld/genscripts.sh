@@ -1,6 +1,6 @@
 #!/bin/sh
 # genscripts.sh - generate the ld-emulation-target specific files
-# Copyright 2004, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+# Copyright (C) 2004-2018 Free Software Foundation, Inc.
 #
 # This file is part of the Gnu Linker.
 #
@@ -33,8 +33,7 @@
 #          enable_initfini_array \
 #          this_emulation \
 # optional:
-#          tool_dir \
-#          customizer_script
+#          tool_dir
 #
 # Sample usage:
 #
@@ -93,21 +92,9 @@ use_sysroot=$1
 ENABLE_INITFINI_ARRAY=$2
 EMULATION_NAME=$3
 TOOL_LIB=$4
-CUSTOMIZER_SCRIPT=$5
-
-# Can't use ${TOOL_LIB:-$target_alias} here due to an Ultrix shell bug.
-if [ "x${TOOL_LIB}" = "x" ] ; then
-  tool_lib=${exec_prefix}/${target_alias}/lib
-else
-  tool_lib=${exec_prefix}/${TOOL_LIB}/lib
-fi
-
-if [ "x${CUSTOMIZER_SCRIPT}" = "x" ] ; then
-  CUSTOMIZER_SCRIPT=${EMULATION_NAME}
-fi
-CUSTOMIZER_SCRIPT="${srcdir}/emulparams/${CUSTOMIZER_SCRIPT}.sh"
 
 # Include the emulation-specific parameters:
+CUSTOMIZER_SCRIPT="${srcdir}/emulparams/${EMULATION_NAME}.sh"
 . ${CUSTOMIZER_SCRIPT}
 
 if test -d ldscripts; then
@@ -150,96 +137,98 @@ fi
 # If the emulparams file set LIBPATH_SUFFIX, prepend an extra copy of
 # the library path with the suffix applied.
 
-if [ "x${LIB_PATH}" = "x" ] && [ "x${USE_LIBPATH}" = xyes ] ; then
-  LIB_PATH2=
+# Paths with LIBPATH_SUFFIX
+lib_path1=
+# Paths without LIBPATH_SUFFIX
+lib_path2=
+if [ "${LIB_PATH}" != ":" ] ; then
+  lib_path2=${LIB_PATH}
+fi
 
+# Add args to lib_path1 and lib_path2, discarding any duplicates
+append_to_lib_path()
+{
+  if [ $# != 0 ]; then
+    for lib in "$@"; do
+      # The "=" is harmless if we aren't using a sysroot, but also needless.
+      if [ "x${use_sysroot}" = "xyes" ] ; then
+	lib="=${lib}"
+      fi
+      skip_lib=no
+      for libpath_suffix in ${LIBPATH_SUFFIX}; do
+	case "${lib}" in
+	  *${libpath_suffix})
+	    case :${lib_path1}: in
+	      *:${lib}:*) ;;
+	      ::) lib_path1=${lib} ;;
+	      *) lib_path1=${lib_path1}:${lib} ;;
+	    esac ;;
+	  *)
+	    if test -n "${LIBPATH_SUFFIX_SKIP}"; then
+	      case "${lib}" in
+		*${LIBPATH_SUFFIX_SKIP}) skip_lib=yes ;;
+	      esac
+	    fi
+	    if test "${skip_lib}" = "no"; then
+	      case :${lib_path1}: in
+		*:${lib}${libpath_suffix}:*) ;;
+		::) lib_path1=${lib}${libpath_suffix} ;;
+		*) lib_path1=${lib_path1}:${lib}${libpath_suffix} ;;
+	      esac
+	    fi ;;
+	esac
+      done
+      if test "${skip_lib}" = "no"; then
+	case :${lib_path1}:${lib_path2}: in
+	  *:${lib}:*) ;;
+	  *::) lib_path2=${lib} ;;
+	  *) lib_path2=${lib_path2}:${lib} ;;
+	esac
+      fi
+    done
+  fi
+}
+
+# Always search $(tooldir)/lib, aka /usr/local/TARGET/lib when native
+# except when LIBPATH=":".
+if [ "${LIB_PATH}" != ":" ] ; then
+  libs=
+  if [ "x${TOOL_LIB}" = "x" ] ; then
+    if [ "x${NATIVE}" = "xyes" ] ; then
+      libs="${exec_prefix}/${target_alias}/lib"
+    fi
+  else
+    # For multilib'ed targets, ensure both ${target_alias}/lib${LIBPATH_SUFFIX}
+    # and ${TOOL_LIB}/lib${LIBPATH_SUFFIX} are in the default search path,
+    # because 64bit libraries may be in both places, depending on
+    # cross-development setup method (e.g.: /usr/s390x-linux/lib64
+    # vs. /usr/s390-linux/lib64)
+    for libpath_suffix in ${LIBPATH_SUFFIX}; do
+      case "${NATIVE}:${libpath_suffix}:${TOOL_LIB}" in
+	:* | *::* | *:*:*${libpath_suffix}) ;;
+	*) libs="${exec_prefix}/${target_alias}/lib${libpath_suffix}" ;;
+      esac
+    done
+    libs="${exec_prefix}/${TOOL_LIB}/lib ${libs}"
+  fi
+  append_to_lib_path ${libs}
+fi
+
+if [ "x${LIB_PATH}" = "x" ] && [ "x${USE_LIBPATH}" = xyes ] ; then
   libs=${NATIVE_LIB_DIRS}
-  if [ "x${use_sysroot}" != "xyes" ] ; then
+  if [ "x${NATIVE}" = "xyes" ] ; then
     case " ${libs} " in
       *" ${libdir} "*) ;;
       *) libs="${libdir} ${libs}" ;;
     esac
-    case " ${libs} " in
-      *" ${tool_lib} "*) ;;
-      *) libs="${tool_lib} ${libs}" ;;
-    esac
   fi
-
-  for lib in ${libs}; do
-    # The "=" is harmless if we aren't using a sysroot, but also needless.
-    if [ "x${use_sysroot}" = "xyes" ] ; then
-      lib="=${lib}"
-    fi
-    addsuffix=
-    case "${LIBPATH_SUFFIX}:${lib}" in
-      :*) ;;
-      *:*${LIBPATH_SUFFIX}) ;;
-      *) addsuffix=yes ;;
-    esac
-    if test -n "$addsuffix"; then
-      case :${LIB_PATH}: in
-	*:${lib}${LIBPATH_SUFFIX}:*) ;;
-	::) LIB_PATH=${lib}${LIBPATH_SUFFIX} ;;
-	*) LIB_PATH=${LIB_PATH}:${lib}${LIBPATH_SUFFIX} ;;
-      esac
-      case :${LIB_PATH}:${LIB_PATH2}: in
-	*:${lib}:*) ;;
-	*::) LIB_PATH2=${lib} ;;
-	*) LIB_PATH2=${LIB_PATH2}:${lib} ;;
-      esac
-    else
-      case :${LIB_PATH2}: in
-	*:${lib}:*) ;;
-	::) LIB_PATH2=${lib} ;;
-	*) LIB_PATH2=${LIB_PATH2}:${lib} ;;
-      esac
-    fi
-  done
-
-  case :${LIB_PATH}:${LIB_PATH2}: in
-    *:: | ::*) LIB_PATH=${LIB_PATH}${LIB_PATH2} ;;
-    *) LIB_PATH=${LIB_PATH}:${LIB_PATH2} ;;
-  esac
-
-  # For multilib'ed targets, ensure both ${target_alias}/lib${LIBPATH_SUFFIX}
-  # and ${TOOL_LIB}/lib${LIBPATH_SUFFIX} are in the default search path, because
-  # 64bit libraries may be in both places, depending on cross-development
-  # setup method (e.g.: /usr/s390x-linux/lib64 vs /usr/s390-linux/lib64)
-  case "${LIBPATH_SUFFIX}:${tool_lib}" in
-    :*) ;;
-    *:*${LIBPATH_SUFFIX}) ;;
-    *)
-      paths="${exec_prefix}/${target_alias}/lib${LIBPATH_SUFFIX}"
-      if [ x"${TOOL_LIB}" != x ]; then
-        paths="${paths} ${exec_prefix}/${TOOL_LIB}/lib${LIBPATH_SUFFIX}"
-      fi
-      for path in $paths; do
-        case :${LIB_PATH}: in
-          ::: | *:${path}:*) ;;
-          *) LIB_PATH=${path}:${LIB_PATH} ;;
-        esac
-      done
-    ;;
-  esac
+  append_to_lib_path ${libs}
 fi
 
-# Always search $(tooldir)/lib, aka /usr/local/TARGET/lib, except for
-# sysrooted configurations and when LIBPATH=":".
-if [ "x${use_sysroot}" != "xyes" ] ; then
-  case :${LIB_PATH}: in
-  ::: | *:${tool_lib}:*) ;;
-  ::) LIB_PATH=${tool_lib} ;;
-  *) LIB_PATH=${tool_lib}:${LIB_PATH} ;;
-  esac
-  # For multilib targets, search both $tool_lib dirs
-  if [ "x${LIBPATH_SUFFIX}" != "x" ] ; then
-    case :${LIB_PATH}: in
-      ::: | *:${tool_lib}${LIBPATH_SUFFIX}:*) ;;
-      ::) LIB_PATH=${tool_lib}${LIBPATH_SUFFIX} ;;
-      *) LIB_PATH=${tool_lib}${LIBPATH_SUFFIX}:${LIB_PATH} ;;
-    esac
-  fi
-fi
+case :${lib_path1}:${lib_path2}: in
+  *:: | ::*) LIB_PATH=${lib_path1}${lib_path2} ;;
+  *) LIB_PATH=${lib_path1}:${lib_path2} ;;
+esac
 
 LIB_SEARCH_DIRS=`echo ${LIB_PATH} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`
 
@@ -293,7 +282,7 @@ DEFAULT_DATA_ALIGNMENT="ALIGN(${SEGMENT_SIZE})"
 ( echo "/* Script for ld -r: link without relocation */"
   . ${CUSTOMIZER_SCRIPT}
   . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xr
+) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xr
 
 LD_FLAG=u
 DATA_ALIGNMENT=${DATA_ALIGNMENT_u}
@@ -301,29 +290,35 @@ CONSTRUCTING=" "
 ( echo "/* Script for ld -Ur: link w/out relocation, do create constructors */"
   . ${CUSTOMIZER_SCRIPT}
   . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xu
+) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xu
 
-LD_FLAG=
 DATA_ALIGNMENT=${DATA_ALIGNMENT_}
 RELOCATING=" "
+LD_FLAG=
 ( echo "/* Default linker script, for normal executables */"
   . ${CUSTOMIZER_SCRIPT}
   . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.x
+) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.x
+
+LD_FLAG=textonly
+( echo "/* Script for -z separate-code: generate normal executables with separate code segment */"
+  . ${CUSTOMIZER_SCRIPT}
+  . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xe
 
 LD_FLAG=n
 DATA_ALIGNMENT=${DATA_ALIGNMENT_n}
 ( echo "/* Script for -n: mix text and data on same page */"
   . ${CUSTOMIZER_SCRIPT}
   . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xn
+) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xn
 
 LD_FLAG=N
 DATA_ALIGNMENT=${DATA_ALIGNMENT_N}
 ( echo "/* Script for -N: mix text and data on same page; don't align data */"
   . ${CUSTOMIZER_SCRIPT}
   . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xbn
+) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xbn
 
 if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
   DATA_ALIGNMENT=${DATA_ALIGNMENT_c-${DATA_ALIGNMENT_}}
@@ -332,45 +327,79 @@ if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
   ( echo "/* Script for -z combreloc: combine and sort reloc sections */"
     . ${CUSTOMIZER_SCRIPT}
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xc
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xc
   rm -f ${COMBRELOC}
-  LD_FLAG=w
+  LD_FLAG=ctextonly
+  COMBRELOC=ldscripts/${EMULATION_NAME}.xce.tmp
+  ( echo "/* Script for -z combreloc -z separate-code: combine and sort reloc sections with separate code segment */"
+    . ${CUSTOMIZER_SCRIPT}
+    . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xce
+  rm -f ${COMBRELOC}
   RELRO_NOW=" "
+  LD_FLAG=w
   COMBRELOC=ldscripts/${EMULATION_NAME}.xw.tmp
   ( echo "/* Script for -z combreloc -z now -z relro: combine and sort reloc sections */"
     . ${CUSTOMIZER_SCRIPT}
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xw
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xw
+  rm -f ${COMBRELOC}
+  LD_FLAG=wtextonly
+  COMBRELOC=ldscripts/${EMULATION_NAME}.xwe.tmp
+  ( echo "/* Script for -z combreloc -z now -z relro -z separate-code: combine and sort reloc sections with separate code segment */"
+    . ${CUSTOMIZER_SCRIPT}
+    . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xwe
   rm -f ${COMBRELOC}
   COMBRELOC=
   unset RELRO_NOW
 fi
 
 if test -n "$GENERATE_SHLIB_SCRIPT"; then
-  LD_FLAG=shared
   DATA_ALIGNMENT=${DATA_ALIGNMENT_s-${DATA_ALIGNMENT_}}
   CREATE_SHLIB=" "
+  LD_FLAG=shared
   (
     echo "/* Script for ld --shared: link shared library */"
     . ${CUSTOMIZER_SCRIPT}
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xs
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xs
+  LD_FLAG=sharedtextonly
+  (
+    echo "/* Script for ld --shared -z separate-code: link shared library with separate code segment */"
+    . ${CUSTOMIZER_SCRIPT}
+    . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xse
   if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
-    LD_FLAG=cshared
     DATA_ALIGNMENT=${DATA_ALIGNMENT_sc-${DATA_ALIGNMENT}}
+    LD_FLAG=cshared
     COMBRELOC=ldscripts/${EMULATION_NAME}.xsc.tmp
     ( echo "/* Script for --shared -z combreloc: shared library, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xsc
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xsc
     rm -f ${COMBRELOC}
-    LD_FLAG=wshared
+    LD_FLAG=csharedtextonly
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xsce.tmp
+    ( echo "/* Script for --shared -z combreloc -z separate-code: shared library, combine & sort relocs with separate code segment */"
+      . ${CUSTOMIZER_SCRIPT}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xsce
+    rm -f ${COMBRELOC}
     RELRO_NOW=" "
+    LD_FLAG=wshared
     COMBRELOC=ldscripts/${EMULATION_NAME}.xsw.tmp
     ( echo "/* Script for --shared -z combreloc -z now -z relro: shared library, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xsw
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xsw
+    rm -f ${COMBRELOC}
+    LD_FLAG=wsharedtextonly
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xswe.tmp
+    ( echo "/* Script for --shared -z combreloc -z now -z relro -z separate-code: shared library, combine & sort relocs with separate code segment */"
+      . ${CUSTOMIZER_SCRIPT}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xswe
     rm -f ${COMBRELOC}
     COMBRELOC=
     unset RELRO_NOW
@@ -379,30 +408,50 @@ if test -n "$GENERATE_SHLIB_SCRIPT"; then
 fi
 
 if test -n "$GENERATE_PIE_SCRIPT"; then
-  LD_FLAG=pie
   DATA_ALIGNMENT=${DATA_ALIGNMENT_s-${DATA_ALIGNMENT_}}
   CREATE_PIE=" "
+  LD_FLAG=pie
   (
     echo "/* Script for ld -pie: link position independent executable */"
     . ${CUSTOMIZER_SCRIPT}
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xd
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xd
+  LD_FLAG=pietextonly
+  (
+    echo "/* Script for ld -pie -z separate-code: link position independent executable with separate code segment */"
+    . ${CUSTOMIZER_SCRIPT}
+    . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xde
   if test -n "$GENERATE_COMBRELOC_SCRIPT"; then
-    LD_FLAG=cpie
     DATA_ALIGNMENT=${DATA_ALIGNMENT_sc-${DATA_ALIGNMENT}}
     COMBRELOC=ldscripts/${EMULATION_NAME}.xdc.tmp
+    LD_FLAG=cpie
     ( echo "/* Script for -pie -z combreloc: position independent executable, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xdc
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xdc
     rm -f ${COMBRELOC}
-    LD_FLAG=wpie
+    LD_FLAG=cpietextonly
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xdce.tmp
+    ( echo "/* Script for -pie -z combreloc -z separate-code: position independent executable, combine & sort relocs with separate code segment */"
+      . ${CUSTOMIZER_SCRIPT}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xdce
+    rm -f ${COMBRELOC}
     RELRO_NOW=" "
+    LD_FLAG=wpie
     COMBRELOC=ldscripts/${EMULATION_NAME}.xdw.tmp
     ( echo "/* Script for -pie -z combreloc -z now -z relro: position independent executable, combine & sort relocs */"
       . ${CUSTOMIZER_SCRIPT}
       . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-    ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xdw
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xdw
+    rm -f ${COMBRELOC}
+    LD_FLAG=wpietextonly
+    COMBRELOC=ldscripts/${EMULATION_NAME}.xdwe.tmp
+    ( echo "/* Script for -pie -z combreloc -z now -z relro -z separate-code: position independent executable, combine & sort relocs with separate code segment */"
+      . ${CUSTOMIZER_SCRIPT}
+      . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
+    ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xdwe
     rm -f ${COMBRELOC}
     COMBRELOC=
     unset RELRO_NOW
@@ -417,11 +466,11 @@ if test -n "$GENERATE_AUTO_IMPORT_SCRIPT"; then
     echo "/* Script for ld --enable-auto-import: Like the default script except read only data is placed into .data  */"
     . ${CUSTOMIZER_SCRIPT}
     . ${srcdir}/scripttempl/${SCRIPT_NAME}.sc
-  ) | sed -e '/^ *$/d;s/[ 	]*$//' > ldscripts/${EMULATION_NAME}.xa
+  ) | sed -e '/^ *$/d;s/[	 ]*$//' > ldscripts/${EMULATION_NAME}.xa
 fi
 
-case " $EMULATION_LIBPATH " in
-    *" ${EMULATION_NAME} "*) COMPILE_IN=true;;
+case "$COMPILE_IN: $EMULATION_LIBPATH " in
+    :*" ${EMULATION_NAME} "*) COMPILE_IN=yes;;
 esac
 
 # PR ld/5652:

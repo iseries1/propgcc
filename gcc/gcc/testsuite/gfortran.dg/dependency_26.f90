@@ -1,5 +1,5 @@
 ! { dg-do compile }
-! { dg-options "-fdump-tree-original" }
+! { dg-options "-finline-matmul-limit=0 -fdump-tree-original" }
 !
 ! Test the fix for PR36932 and PR36933, in which unnecessary
 ! temporaries were being generated.  The module m2 tests the
@@ -37,7 +37,7 @@ CONTAINS
      REAL :: a(3)
      REAL :: b(3) = [1, 2, 3]
      a=MATMUL(cell%h,b)
-     if (ANY (INT (a) .ne. [30, 36, 42])) call abort
+     if (ANY (INT (a) .ne. [30, 36, 42])) STOP 1
   END SUBROUTINE S1
 END MODULE M1
 
@@ -47,7 +47,5 @@ END MODULE M1
   cell%h = reshape ([(real(i), i = 1, 9)], [3, 3])
   call s1 (cell)
 end
-! { dg-final { cleanup-modules "M1" } }
 ! { dg-final { scan-tree-dump-times "&a" 1 "original" } }
 ! { dg-final { scan-tree-dump-times "pack" 0 "original" } }
-! { dg-final { cleanup-tree-dump "original" } }

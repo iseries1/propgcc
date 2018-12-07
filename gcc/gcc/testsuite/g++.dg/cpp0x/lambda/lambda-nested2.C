@@ -1,5 +1,5 @@
 // Testcase from N2998
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
 void f1(int i) {
   int const N = 20;
@@ -13,7 +13,7 @@ void f1(int i) {
   };
   struct s1 {
     int f;
-    int work(int n) {
+    void work(int n) {
       int m = n*n;
       int j = 40;
       auto m3 = [this,m]{

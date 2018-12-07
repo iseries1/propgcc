@@ -90,7 +90,10 @@ __quadmath_kernel_sinq (__float128 x, __float128 y, int iy)
       /* Argument is small enough to approximate it by a Chebyshev
 	 polynomial of degree 17.  */
       if (tix < 0x3fc60000)		/* |x| < 2^-57 */
-	if (!((int)x)) return x;	/* generate inexact */
+	{
+	  math_check_force_underflow (x);
+	  if (!((int)x)) return x;	/* generate inexact */
+	}
       z = x * x;
       return x + (x * (z*(SIN1+z*(SIN2+z*(SIN3+z*(SIN4+
 		       z*(SIN5+z*(SIN6+z*(SIN7+z*SIN8)))))))));
@@ -99,10 +102,10 @@ __quadmath_kernel_sinq (__float128 x, __float128 y, int iy)
     {
       /* So that we don't have to use too large polynomial,  we find
 	 l and h such that x = l + h,  where fabsl(l) <= 1.0/256 with 83
-	 possible values for h.  We look up cosl(h) and sinl(h) in
-	 pre-computed tables,  compute cosl(l) and sinl(l) using a
+	 possible values for h.  We look up cosq(h) and sinq(h) in
+	 pre-computed tables,  compute cosq(l) and sinq(l) using a
 	 Chebyshev polynomial of degree 10(11) and compute
-	 sinl(h+l) = sinl(h)cosl(l) + cosl(h)sinl(l).  */
+	 sinq(h+l) = sinq(h)cosq(l) + cosq(h)sinq(l).  */
       index = 0x3ffe - (tix >> 16);
       hix = (tix + (0x200 << index)) & (0xfffffc00 << index);
       x = fabsq (x);
@@ -116,7 +119,7 @@ __quadmath_kernel_sinq (__float128 x, __float128 y, int iy)
 
       SET_FLT128_WORDS64(h, ((uint64_t)hix) << 32, 0);
       if (iy)
-	l = y - (h - x);
+	l = (ix < 0 ? -y : y) - (h - x);
       else
 	l = x - h;
       z = l * l;

@@ -76,21 +76,21 @@ program p
   procedure(integer) :: p7
 
   i=p1()
-  if (i /= 5) call abort()
+  if (i /= 5) STOP 1
   i=p2(3.1)
-  if (i /= 3) call abort()
+  if (i /= 3) STOP 2
   r=4.2
   call p3(r)
-  if (abs(r-5.2)>1e-6) call abort()
+  if (abs(r-5.2)>1e-6) STOP 3
   call p4(r)
-  if (abs(r-3.7)>1e-6) call abort()
+  if (abs(r-3.7)>1e-6) STOP 4
   call p5()
   call p6(r)
-  if (abs(r-7.4)>1e-6) call abort()
+  if (abs(r-7.4)>1e-6) STOP 5
   i=p7(4)
-  if (i /= -8) call abort()
+  if (i /= -8) STOP 6
   r=dummytest(p3)
-  if (abs(r-2.1)>1e-6) call abort()
+  if (abs(r-2.1)>1e-6) STOP 7
 
 contains
 
@@ -124,12 +124,12 @@ integer function p2(x)
 end function
 
 subroutine p3(x)
-  real,intent(inout):: x
+  real :: x
   x=x+1.0
 end subroutine
 
 subroutine p4(x)
-  real,intent(inout):: x
+  real :: x
   x=x-1.5
 end subroutine
 
@@ -137,7 +137,7 @@ subroutine p5()
 end subroutine
 
 subroutine p6(x)
-  real,intent(inout):: x
+  real :: x
   x=x*2.
 end subroutine
 

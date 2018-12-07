@@ -67,7 +67,5 @@ PROGRAM TEST
   NDB%PT => POINTB
   NDB%KEY = 3
 
-  if (.NOT. NDA .LT. NDB) call abort()
+  if (.NOT. NDA .LT. NDB) STOP 1
 END
-
-! { dg-final { cleanup-modules "DAT_MOD NODE_MOD" } }

@@ -1,6 +1,5 @@
 /* This file contains subroutine used by the C front-end to construct GENERIC.
-   Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Written by Benjamin Chelf (chelf@codesourcery.com).
 
 This file is part of GCC.
@@ -22,13 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "tree.h"
-#include "function.h"
-#include "splay-tree.h"
 #include "c-common.h"
-#include "flags.h"
-#include "output.h"
 #include "tree-iterator.h"
 
 /* Create an empty statement tree rooted at T.  */
@@ -38,9 +31,19 @@ push_stmt_list (void)
 {
   tree t;
   t = alloc_stmt_list ();
-  TREE_CHAIN (t) = cur_stmt_list;
-  cur_stmt_list = t;
+  vec_safe_push (stmt_list_stack, t);
   return t;
+}
+
+/* Return TRUE if, after I, there are any nondebug stmts.  */
+
+static inline bool
+only_debug_stmts_after_p (tree_stmt_iterator i)
+{
+  for (tsi_next (&i); !tsi_end_p (i); tsi_next (&i))
+    if (TREE_CODE (tsi_stmt (i)) != DEBUG_BEGIN_STMT)
+      return false;
+  return true;
 }
 
 /* Finish the statement tree rooted at T.  */
@@ -48,21 +51,23 @@ push_stmt_list (void)
 tree
 pop_stmt_list (tree t)
 {
-  tree u = cur_stmt_list, chain;
+  tree u = NULL_TREE;
 
   /* Pop statement lists until we reach the target level.  The extra
      nestings will be due to outstanding cleanups.  */
   while (1)
     {
-      chain = TREE_CHAIN (u);
-      TREE_CHAIN (u) = NULL_TREE;
-      if (chain)
-	STATEMENT_LIST_HAS_LABEL (chain) |= STATEMENT_LIST_HAS_LABEL (u);
+      u = stmt_list_stack->pop ();
+      if (!stmt_list_stack->is_empty ())
+	{
+	  tree x = stmt_list_stack->last ();
+	  STATEMENT_LIST_HAS_LABEL (x) |= STATEMENT_LIST_HAS_LABEL (u);
+	}
       if (t == u)
 	break;
-      u = chain;
     }
-  cur_stmt_list = chain;
+
+  gcc_assert (u != NULL_TREE);
 
   /* If the statement list is completely empty, just return it.  This is
      just as good small as build_empty_stmt, with the advantage that
@@ -81,6 +86,40 @@ pop_stmt_list (tree t)
 	  tsi_delink (&i);
 	  free_stmt_list (t);
 	  t = u;
+	}
+      /* If the statement list contained a debug begin stmt and a
+	 statement list, move the debug begin stmt into the statement
+	 list and return it.  */
+      else if (!tsi_end_p (i)
+	       && TREE_CODE (tsi_stmt (i)) == DEBUG_BEGIN_STMT)
+	{
+	  u = tsi_stmt (i);
+	  tsi_next (&i);
+	  if (tsi_one_before_end_p (i)
+	      && TREE_CODE (tsi_stmt (i)) == STATEMENT_LIST)
+	    {
+	      tree l = tsi_stmt (i);
+	      tsi_prev (&i);
+	      tsi_delink (&i);
+	      tsi_delink (&i);
+	      i = tsi_start (l);
+	      free_stmt_list (t);
+	      t = l;
+	      tsi_link_before (&i, u, TSI_SAME_STMT);
+	    }
+	  while (!tsi_end_p (i)
+		 && TREE_CODE (tsi_stmt (i)) == DEBUG_BEGIN_STMT)
+	    tsi_next (&i);
+	  /* If there are only debug stmts in the list, without them
+	     we'd have an empty stmt without side effects.  If there's
+	     only one nondebug stmt, we'd have extracted the stmt and
+	     dropped the list, and we'd take TREE_SIDE_EFFECTS from
+	     that statement.  In either case, keep the list's
+	     TREE_SIDE_EFFECTS in sync.  */
+	  if (tsi_end_p (i))
+	    TREE_SIDE_EFFECTS (t) = 0;
+	  else if (only_debug_stmts_after_p (i))
+	    TREE_SIDE_EFFECTS (t) = TREE_SIDE_EFFECTS (tsi_stmt (i));
 	}
     }
 
@@ -129,15 +168,6 @@ build_stmt (location_t loc, enum tree_code code, ...)
 
   va_end (p);
   return ret;
-}
-
-/* Create a CASE_LABEL_EXPR tree node and return it.  */
-
-tree
-build_case_label (location_t loc,
-		  tree low_value, tree high_value, tree label_decl)
-{
-  return build_stmt (loc, CASE_LABEL_EXPR, low_value, high_value, label_decl);
 }
 
 /* Build a REALPART_EXPR or IMAGPART_EXPR, according to CODE, from ARG.  */

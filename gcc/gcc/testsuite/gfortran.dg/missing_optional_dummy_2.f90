@@ -29,12 +29,10 @@ MODULE myint
       END SUBROUTINE SUB
 END MODULE myint
 
-  if (isscan () /= 0) call abort
+  if (isscan () /= 0) STOP 1
 contains
   integer function isscan (substr)
     character(*), optional :: substr
     if (.not.present(substr)) isscan = myscan ("foo", "over")
   end function isscan
 end
-! { dg-final { cleanup-modules "myint" } }
-

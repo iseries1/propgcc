@@ -7,9 +7,9 @@ contains
       integer a(:)
       print *, lbound(a), ubound(a), size(a)
       if ((lbound(a,dim=1) /= 1) .or. (ubound(a,dim=1) /= 3)) &
-        call abort()
+        STOP 1
       print *, a
-      if (any(a /= [1,2,3])) call abort()
+      if (any(a /= [1,2,3])) STOP 2
   end subroutine one
 end module m
 
@@ -40,6 +40,4 @@ contains
     end interface
     call f([1,2,3]) ! Works
   end subroutine foo2
-
-! { dg-final { cleanup-modules "m" } }
 end program test

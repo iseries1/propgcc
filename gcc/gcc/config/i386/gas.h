@@ -1,6 +1,5 @@
 /* Definitions for Intel 386 using GAS.
-   Copyright (C) 1988, 1993, 1994, 1996, 2002, 2004, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1988-2018 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -41,13 +40,10 @@ along with GCC; see the file COPYING3.  If not see
 #undef DBX_NO_XREFS
 #undef DBX_CONTIN_LENGTH
 
-/* Ask for COFF symbols.  */
-
-#define SDB_DEBUGGING_INFO 1
-
 /* Output #ident as a .ident.  */
 
-#define ASM_OUTPUT_IDENT(FILE, NAME) fprintf (FILE, "\t.ident \"%s\"\n", NAME);
+#undef TARGET_ASM_OUTPUT_IDENT
+#define TARGET_ASM_OUTPUT_IDENT default_asm_output_ident_directive
 
 /* In the past there was confusion as to what the argument to .align was
    in GAS.  For the last several years the rule has been this: for a.out

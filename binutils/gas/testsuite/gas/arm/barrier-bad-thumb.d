@@ -1,3 +1,5 @@
-#name: All options expect SY are reserved for ISB
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd
-#error-output: barrier-bad-thumb.l
+#name: Bad barrier options (Thumb)
+#skip: *-*-pe *-*-wince
+#source: barrier-bad.s
+#as: -mthumb
+#error-output: barrier-bad.l

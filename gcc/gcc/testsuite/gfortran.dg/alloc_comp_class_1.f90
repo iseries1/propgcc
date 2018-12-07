@@ -23,11 +23,10 @@ end module d_mat_mod
   allocate (b%a)
   b%a%i = 42
   call bug14 (b)
-  if (allocated (b%a)) call abort
+  if (allocated (b%a)) STOP 1
 contains
   subroutine bug14(a)
     implicit none
     type(d_sparse_mat), intent(out) :: a
   end subroutine bug14
 end
-! { dg-final { cleanup-modules "d_mat_mod " } }

@@ -1,6 +1,6 @@
 // stringpool.h -- a string pool for gold    -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -118,7 +118,7 @@ class Chunked_vector
       {
 	this->chunks_.resize((n + chunk_size - 1) / chunk_size);
 	// We need to call reserve() of all chunks since changing
-	// this->chunks_ casues Element_vectors to be copied.  The
+	// this->chunks_ causes Element_vectors to be copied.  The
 	// reserved capacity of an Element_vector may be lost in copying.
 	for (size_t i = 0; i < this->chunks_.size(); ++i)
 	  this->chunks_[i].reserve(chunk_size);
@@ -180,7 +180,7 @@ class Stringpool_template
   typedef size_t Key;
 
   // Create a Stringpool.
-  Stringpool_template();
+  Stringpool_template(uint64_t addralign = 1);
 
   ~Stringpool_template();
 
@@ -409,6 +409,8 @@ class Stringpool_template
   bool optimize_;
   // offset of the next string.
   section_offset_type offset_;
+  // The alignment of strings in the stringpool.
+  uint64_t addralign_;
 };
 
 // The most common type of Stringpool.

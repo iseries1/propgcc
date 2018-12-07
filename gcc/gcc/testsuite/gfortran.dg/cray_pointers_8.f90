@@ -1,5 +1,5 @@
 ! { dg-do run }
-! { dg-options "-fcray-pointer" }
+! { dg-options "-fcray-pointer -ffloat-store" }
 !
 ! Test the fix for PR36528 in which the Cray pointer was not passed
 ! correctly to 'euler' so that an undefined reference to fcn was
@@ -59,5 +59,5 @@ program main
     x = x + dx
   end do
   z = euler(0.0,1.0,0.0005,fcn)
-  if (abs (y - z) .gt. 1e-6) call abort
+  if (abs (y - z) .gt. 1e-6) STOP 1
 end

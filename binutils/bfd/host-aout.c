@@ -1,6 +1,5 @@
 /* BFD backend for local host's a.out binaries
-   Copyright 1990, 1991, 1992, 1994, 1995, 2001, 2005, 2007
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2018 Free Software Foundation, Inc.
    Written by Cygnus Support.  Probably John Gilmore's fault.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -66,7 +65,7 @@
 #undef  TARGET_IS_BIG_ENDIAN_P
 #endif
 
-#include "libaout.h"           /* BFD a.out internal data structures */
+#include "libaout.h"	       /* BFD a.out internal data structures */
 #include "aout/aout64.h"
 
 #ifdef HOST_MACHINE_ARCH

@@ -2,8 +2,7 @@
 // Test that this doesn't lead to link-time collisions.
 
 // { dg-additional-sources "nolinkage1a.cc" }
-// { dg-do link }
-// { dg-options -std=c++0x }
+// { dg-do link { target c++11 } }
 
 #include "nolinkage1.h"
 
@@ -19,4 +18,4 @@ static void g()
   A<B> a;
 }
 
-int main() { g(); f(0); }
+int main() { g(); f(0); return 0; }

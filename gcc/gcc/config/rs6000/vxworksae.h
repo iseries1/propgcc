@@ -1,5 +1,5 @@
-/* PowerPC VxWorks AE target definitions for GNU compiler.
-   Copyright (C) 2005, 2007 Free Software Foundation, Inc.
+/* Definitions of target machine for GNU compiler.  PowerPC VxworksAE version.
+   Copyright (C) 2005-2018 Free Software Foundation, Inc.
    Contributed by CodeSourcery, LLC.
 
 This file is part of GCC.
@@ -18,6 +18,7 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#undef TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (PowerPC VxWorks AE)");
-
+/* This platform supports the probing method of stack checking and
+   requires 4K of space for executing a possible last chance handler.  */
+#undef STACK_CHECK_PROTECT
+#define STACK_CHECK_PROTECT 4096

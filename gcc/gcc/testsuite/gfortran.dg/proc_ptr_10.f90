@@ -15,7 +15,7 @@ module myMod
 
   subroutine proc4( arg1 )
      procedure(real), pointer :: arg1
-     if (arg1(0)/=7) call abort()
+     if (arg1(0)/=7) STOP 1
   end subroutine proc4
 
 end module myMod
@@ -27,4 +27,3 @@ program myProg
   call proc4( p )
 end program myProg
  
-! { dg-final { cleanup-modules "myMod" } }

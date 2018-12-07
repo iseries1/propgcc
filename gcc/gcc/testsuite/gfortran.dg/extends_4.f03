@@ -24,8 +24,8 @@ contains
   end function
   subroutine check_b (arg)
     type(b) :: arg
-    if (any (arg%x /= [10.0, 20.0])) call abort
-    if (arg%i /= 1) call abort
+    if (any (arg%x /= [10.0, 20.0])) STOP 1
+    if (arg%i /= 1) STOP 2
   end subroutine
 end module mymod
 
@@ -41,12 +41,10 @@ end module mymod
   type(d) :: q
 
   p = f (x = [1.0, 2.0], if = 3)
-  if (any (p%e%x /= [1.0, 2.0])) call abort
+  if (any (p%e%x /= [1.0, 2.0])) STOP 3
 
   q%b = set_b ()
   call check_b (q%b)
   q = d (b = set_b (), id = 99)
   call check_b (q%b)
 end
-
-! { dg-final { cleanup-modules "persons person_education" } }

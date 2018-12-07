@@ -1,6 +1,16 @@
 	.text
 	.align	3
 	.set	micromips
+
+	.ifdef	compact
+	.macro	DSNOP
+	.endm
+	.else
+	.macro	DSNOP
+	nop
+	.endm
+	.endif
+
 	.ent	test
 	.globl	test
 test:
@@ -35,7 +45,9 @@ test:
 	pref	3, -32768($2)
 
 	nop
+	.ifndef	insn32
 	nop16
+	.endif
 	nop32
 	ssnop
 	ehb
@@ -92,20 +104,33 @@ test:
 	move	$0, $31
 
 	move	$22, $2
+	.ifndef	insn32
 	move16	$2, $22
 	move16	$22, $2
+	.endif
 	move32	$2, $22
 	move32	$22, $2
 
 	b	test
+	.ifndef	insn32
 	b16	test
+	.endif
+	DSNOP
 	b32	test
+	DSNOP
 	b	1f
+	.ifndef	insn32
 	b16	1f
+	.endif
+	DSNOP
 	b32	1f
 1:
+	DSNOP
 	b	1b
+	.ifndef	insn32
 	b16	1b
+	.endif
+	DSNOP
 	b32	1b
 
 	abs	$2, $3
@@ -263,7 +288,9 @@ test:
 	and	$2, $3
 	and	$2, $2, $3
 	and	$2, $3, $2
+	.ifndef	insn32
 	and16	$2, $2, $3
+	.endif
 	and32	$2, $2, $3
 
 	andi	$2,$2,1
@@ -299,7 +326,9 @@ test:
 
 	andi	$7,$7,65535
 	andi	$7,65535
+	.ifndef	insn32
 	andi16	$7,65535
+	.endif
 	andi32	$7,65535
 
 	and32	$2, $3, $4
@@ -344,38 +373,68 @@ test:
 
 
 test2:
+	DSNOP
 	beqz	$2, test2
+	DSNOP
 	beqz	$3, test2
+	DSNOP
 	beqz	$4, test2
+	DSNOP
 	beqz	$5, test2
+	DSNOP
 	beqz	$6, test2
+	DSNOP
 	beqz	$7, test2
+	DSNOP
 	beqz	$16, test2
+	DSNOP
 	beqz	$17, test2
+	DSNOP
 	beq	$2, $0, test2
+	DSNOP
 	beq	$3, $0, test2
+	DSNOP
 	beq	$4, $0, test2
+	DSNOP
 	beq	$5, $0, test2
+	DSNOP
 	beq	$6, $0, test2
+	DSNOP
 	beq	$7, $0, test2
+	DSNOP
 	beq	$16, $0, test2
+	DSNOP
 	beq	$17, $0, test2
+	DSNOP
 	beq	$0, $2, test2
+	DSNOP
 	beq	$0, $3, test2
+	DSNOP
 	beq	$0, $4, test2
+	DSNOP
 	beq	$0, $5, test2
+	DSNOP
 	beq	$0, $6, test2
+	DSNOP
 	beq	$0, $7, test2
+	DSNOP
 	beq	$0, $16, test2
+	DSNOP
 	beq	$0, $17, test2
 
+	.ifndef	insn32
 	beqz16	$16, test2
+	.endif
+	DSNOP
 	beqz32	$16, test2
+	DSNOP
 	beqz	$17, test2
+	DSNOP
 	beqz32	$17, test2
 
 	beqzc	$17, test2
 
+	DSNOP
 	beq	$16, 0, test2
 	beq	$16, 10, test2
 	beq	$16, 32767, test2
@@ -430,34 +489,64 @@ test2:
 
 	beqzl	$17, test2
 
+	DSNOP
+	DSNOP
 	bnez	$2, test3
+	DSNOP
 	bnez	$3, test3
+	DSNOP
 	bnez	$4, test3
+	DSNOP
 	bnez	$5, test3
+	DSNOP
 	bnez	$6, test3
+	DSNOP
 	bnez	$7, test3
+	DSNOP
 	bnez	$16, test3
+	DSNOP
 	bnez	$17, test3
+	DSNOP
 	bne	$2, $0, test3
+	DSNOP
 	bne	$3, $0, test3
+	DSNOP
 	bne	$4, $0, test3
+	DSNOP
 	bne	$5, $0, test3
+	DSNOP
 	bne	$6, $0, test3
+	DSNOP
 	bne	$7, $0, test3
+	DSNOP
 	bne	$16, $0, test3
+	DSNOP
 	bne	$17, $0, test3
+	DSNOP
 	bne	$0, $2, test3
+	DSNOP
 	bne	$0, $3, test3
+	DSNOP
 	bne	$0, $4, test3
+	DSNOP
 	bne	$0, $5, test3
+	DSNOP
 	bne	$0, $6, test3
+	DSNOP
 	bne	$0, $7, test3
+	DSNOP
 	bne	$0, $16, test3
+	DSNOP
 	bne	$0, $17, test3
 
+	.ifndef	insn32
 	bnez16	$16, test3
+	.endif
+	DSNOP
 	bnez32	$16, test3
+	DSNOP
 	bnez	$17, test2
+	DSNOP
 	bnez32	$17, test2
 test3:
 	bnezc	$17, test2
@@ -598,14 +687,23 @@ test3:
 	ins	$31, $30, 31, 1
 
 	jr	$0
+	DSNOP
 	jr	$2
+	DSNOP
 	jr	$3
+	DSNOP
 	jr	$4
+	DSNOP
 	jr	$5
+	DSNOP
 	jr	$6
+	DSNOP
 	jr	$7
+	DSNOP
 	jr	$8
+	DSNOP
 	jr	$30
+	DSNOP
 	jr	$31
 
 	jr32	$0
@@ -641,15 +739,25 @@ test3:
 	jr.hb	$30
 	jr.hb	$31
 
+	DSNOP
 	j	$0
+	DSNOP
 	j	$2
+	DSNOP
 	j	$3
+	DSNOP
 	j	$4
+	DSNOP
 	j	$5
+	DSNOP
 	j	$6
+	DSNOP
 	j	$7
+	DSNOP
 	j	$8
+	DSNOP
 	j	$30
+	DSNOP
 	j	$31
 
 	jalr	$31, $0
@@ -737,7 +845,7 @@ test3:
 	jal	test2
 
 	jalx	test
-	jalx	test2
+	jalx	test4
 
 	la	$2, test
 	lca	$2, test
@@ -2988,6 +3096,7 @@ test3:
 	bnel	$9, 1, test
 	addu	$3, $4, $5
 
+	.ifndef	insn32
 	addiur1sp	$2, 0
 	addiur1sp	$2, 1<<2
 	addiur1sp	$2, 2<<2
@@ -3050,6 +3159,7 @@ test3:
 	addius5	$31, -6
 	addius5	$31, -7
 	addius5	$31, -8
+	.endif
 
 	sd	$3, 4
 	sd	$3, 4($0)
@@ -5543,20 +5653,27 @@ test_delay_slot:
 	bgezall	$3, test_delay_slot
 	bltzall	$3, test_delay_slot
 	jal	test_delay_slot
-	jalx	test_delay_slot
+	jalx	test_delay_slot_ext
+	.ifndef	insn32
 	jalr16	$2
+	.endif
 	jalr32	$2
+	.ifndef	insn32
+	DSNOP
 	jr16	$2
+	.endif
 	jr32	$2
 	jalr.hb	$2
 	jr.hb	$2
 
+	.ifndef	insn32
 	jals	test_delay_slot
 	jalrs16	$2
 	jalrs32	$2
 	jrs	$2
 	jalrs.hb	$2
 	jrs.hb	$2
+	.endif
 
 	.end	test_delay_slot
 
@@ -5635,12 +5752,14 @@ test_spec107:
 	movep	$4, $7, $20, $18
 	movep	$4, $7, $20, $19
 	movep	$4, $7, $20, $20
+	.ifndef	insn32
 	bals	test_spec107
 	nop
 	bgezals	$2, test_spec107
 	nop
 	bltzals	$2, test_spec107
 	nop
+	.endif
 	bal	test_spec107
 	nop
 	bgezal	$2, test_spec107

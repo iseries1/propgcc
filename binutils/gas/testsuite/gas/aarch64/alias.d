@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	13823c20 	extr	w0, w1, w2, #15
    4:	93c23c20 	extr	x0, x1, x2, #15
    8:	13831c60 	ror	w0, w3, #7
@@ -29,19 +29,19 @@ Disassembly of section \.text:
   54:	9ba28c20 	umsubl	x0, w1, w2, x3
   58:	9ba2fc20 	umnegl	x0, w1, w2
   5c:	9ba2fc20 	umnegl	x0, w1, w2
-  60:	1a9f0420 	csinc	w0, w1, wzr, eq
-  64:	1a810420 	cinc	w0, w1, ne
-  68:	1a810420 	cinc	w0, w1, ne
-  6c:	1a9f37e0 	cset	w0, cs
-  70:	1a9f37e0 	cset	w0, cs
-  74:	da9f2020 	csinv	x0, x1, xzr, cs
-  78:	da812020 	cinv	x0, x1, cc
-  7c:	da812020 	cinv	x0, x1, cc
-  80:	da9f43e0 	csetm	x0, pl
-  84:	da9f43e0 	csetm	x0, pl
-  88:	da9eb7e0 	csneg	x0, xzr, x30, lt
-  8c:	da9eb7c0 	cneg	x0, x30, ge
-  90:	da9eb7c0 	cneg	x0, x30, ge
+  60:	1a9f0420 	csinc	w0, w1, wzr, eq  // eq = none
+  64:	1a810420 	cinc	w0, w1, ne  // ne = any
+  68:	1a810420 	cinc	w0, w1, ne  // ne = any
+  6c:	1a9f37e0 	cset	w0, cs  // cs = hs, nlast
+  70:	1a9f37e0 	cset	w0, cs  // cs = hs, nlast
+  74:	da9f2020 	csinv	x0, x1, xzr, cs  // cs = hs, nlast
+  78:	da812020 	cinv	x0, x1, cc  // cc = lo, ul, last
+  7c:	da812020 	cinv	x0, x1, cc  // cc = lo, ul, last
+  80:	da9f43e0 	csetm	x0, pl  // pl = nfrst
+  84:	da9f43e0 	csetm	x0, pl  // pl = nfrst
+  88:	da9eb7e0 	csneg	x0, xzr, x30, lt  // lt = tstop
+  8c:	da9eb7c0 	cneg	x0, x30, ge  // ge = tcont
+  90:	da9eb7c0 	cneg	x0, x30, ge  // ge = tcont
   94:	ea020020 	ands	x0, x1, x2
   98:	ea02003f 	tst	x1, x2
   9c:	ea02003f 	tst	x1, x2
@@ -72,3 +72,37 @@ Disassembly of section \.text:
  100:	b13ffdff 	cmn	x15, #0xfff
  104:	f13fffef 	subs	x15, sp, #0xfff
  108:	b13ffdff 	cmn	x15, #0xfff
+ 10c:	0f08a448 	sxtl	v8.8h, v2.8b
+ 110:	0f08a448 	sxtl	v8.8h, v2.8b
+ 114:	4f08a448 	sxtl2	v8.8h, v2.16b
+ 118:	4f08a448 	sxtl2	v8.8h, v2.16b
+ 11c:	0f10a448 	sxtl	v8.4s, v2.4h
+ 120:	0f10a448 	sxtl	v8.4s, v2.4h
+ 124:	4f10a448 	sxtl2	v8.4s, v2.8h
+ 128:	4f10a448 	sxtl2	v8.4s, v2.8h
+ 12c:	0f20a448 	sxtl	v8.2d, v2.2s
+ 130:	0f20a448 	sxtl	v8.2d, v2.2s
+ 134:	4f20a448 	sxtl2	v8.2d, v2.4s
+ 138:	4f20a448 	sxtl2	v8.2d, v2.4s
+ 13c:	2f08a448 	uxtl	v8.8h, v2.8b
+ 140:	2f08a448 	uxtl	v8.8h, v2.8b
+ 144:	6f08a448 	uxtl2	v8.8h, v2.16b
+ 148:	6f08a448 	uxtl2	v8.8h, v2.16b
+ 14c:	2f10a448 	uxtl	v8.4s, v2.4h
+ 150:	2f10a448 	uxtl	v8.4s, v2.4h
+ 154:	6f10a448 	uxtl2	v8.4s, v2.8h
+ 158:	6f10a448 	uxtl2	v8.4s, v2.8h
+ 15c:	2f20a448 	uxtl	v8.2d, v2.2s
+ 160:	2f20a448 	uxtl	v8.2d, v2.2s
+ 164:	6f20a448 	uxtl2	v8.2d, v2.4s
+ 168:	6f20a448 	uxtl2	v8.2d, v2.4s
+ 16c:	1a81f420 	csinc	w0, w1, w1, nv
+ 170:	1a81e420 	csinc	w0, w1, w1, al
+ 174:	1a9ff7e0 	csinc	w0, wzr, wzr, nv
+ 178:	1a9fe7e0 	csinc	w0, wzr, wzr, al
+ 17c:	5a81f020 	csinv	w0, w1, w1, nv
+ 180:	5a81e020 	csinv	w0, w1, w1, al
+ 184:	5a9ff3e0 	csinv	w0, wzr, wzr, nv
+ 188:	5a9fe3e0 	csinv	w0, wzr, wzr, al
+ 18c:	5a81f420 	csneg	w0, w1, w1, nv
+ 190:	5a81e420 	csneg	w0, w1, w1, al

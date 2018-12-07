@@ -1,4 +1,4 @@
-// { dg-do link { target i?86-*-linux* x86_64-*-linux* } }
+// { dg-do link { target i?86-*-linux* i?86-*-gnu* x86_64-*-linux* } }
 // { dg-require-effective-target static }
 // { dg-options "-static" }
 // Bug: g++ fails to instantiate operator<<.
@@ -11,10 +11,12 @@
 
 std::istream x (0);
 
+int
 main () {
   x.get();
   std::putc(0, 0);
   std::fgets(0, 0, 0); 
   x.get((char*) 0, 0);
+  return 0;
 }
 

@@ -1,4 +1,16 @@
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
+
 cat << EOF
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("elf32-ip2k", "elf32-ip2k", "elf32-ip2k")
 OUTPUT_ARCH(ip2k)
 ${RELOCATING+ENTRY(_start)}
@@ -9,17 +21,17 @@ SEARCH_DIR(.);
 MEMORY
 {
 	D_GPR    : org = 0x01000080, len = 128
-        D_RAM    : org = 0x01000100, len = 4K - 256
-        P_RAM    : org = 0x02000000, len = 16K
-        P_ROM    : org = 0x02010000, len = 64K - 32
-        P_RESET  : org = 0x0201FFE0, len = 32
-        P_CONFIG : org = 0x02020000, len = 128
+	D_RAM	 : org = 0x01000100, len = 4K - 256
+	P_RAM	 : org = 0x02000000, len = 16K
+	P_ROM	 : org = 0x02010000, len = 64K - 32
+	P_RESET	 : org = 0x0201FFE0, len = 32
+	P_CONFIG : org = 0x02020000, len = 128
 }
 
 SECTIONS
 {
 	/* Allocated memory end markers
-	   (initialized to start of appropiate memory address).  */
+	   (initialized to start of appropriate memory address).  */
 	__data_end  = 0x01000100;
 	__pram_end  = 0x02000000;
 	__flash_end = 0x02010000;
@@ -77,7 +89,7 @@ SECTIONS
 
 	/* PRAM overlay code.  */
 	__pram_overlay_run_start  = (__pram_end  + 1) & 0xFFFFFFFE;
-	__pram_overlay_load_start = (__flash_end + 1) & 0xFFFFFFFE;	
+	__pram_overlay_load_start = (__flash_end + 1) & 0xFFFFFFFE;
 	OVERLAY __pram_overlay_run_start : AT (__pram_overlay_load_start)
 	{
 		.pram1 { */overlay1/* (.pram); * (.pram1) }
@@ -129,29 +141,10 @@ SECTIONS
 	.stab.indexstr  0 : { *(.stab.indexstr) }
 	.comment        0 : { *(.comment) }
 
-	/* DWARF 1.  */
-	.debug          0 : { *(.debug) }
-	.line           0 : { *(.line) }
-	/* GNU DWARF 1 extensions.  */
-	.debug_srcinfo  0 : { *(.debug_srcinfo) }
-	.debug_sfnames  0 : { *(.debug_sfnames) }
-	/* DWARF 1.1 and DWARF 2.  */
-	.debug_aranges  0 : { *(.debug_aranges) }
-	.debug_pubnames 0 : { *(.debug_pubnames) }
-	/* DWARF 2.  */
-	.debug_info     0 : { *(.debug_info) *(.gnu.linkonce.wi.*) }
-	.debug_abbrev   0 : { *(.debug_abbrev) }
-	.debug_line     0 : { *(.debug_line) }
-	.debug_frame    0 : { *(.debug_frame) }
-	.debug_str      0 : { *(.debug_str) }
-	.debug_loc      0 : { *(.debug_loc) }
-	.debug_macinfo  0 : { *(.debug_macinfo) }
+EOF
 
-	/* DWARF 3 */
-	.debug_pubtypes 0 : { *(.debug_pubtypes) }
-	.debug_ranges   0 : { *(.debug_ranges) }
+. $srcdir/scripttempl/DWARF.sc
 
-	/* DWARF Extension.  */
-	.debug_macro    0 : { *(.debug_macro) } 
+cat <<EOF
 }
 EOF

@@ -31,7 +31,7 @@
     License along with this library; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA */
 
-/* __ieee754_asin(x)
+/* asinq(x)
  * Method :
  *	Since  asin(x) = x + x^3/6 + x^5*3/40 + x^7*15/336 + ...
  *	we approximate asin(x) on [0,0.5] by
@@ -151,8 +151,10 @@ asinq (__float128 x)
     {
       if (ix < 0x3fc60000) /* |x| < 2**-57 */
 	{
-	  if (huge + x > one)
-	    return x;		/* return x with inexact if x!=0 */
+	  math_check_force_underflow (x);
+	  __float128 force_inexact = huge + x;
+	  math_force_eval (force_inexact);
+	  return x;		/* return x with inexact if x!=0 */
 	}
       else
 	{

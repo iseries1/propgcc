@@ -5,7 +5,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
    0:	13823c20 	extr	w0, w1, w2, #15
    4:	93c23c20 	extr	x0, x1, x2, #15
    8:	13831c60 	extr	w0, w3, w3, #7
@@ -30,19 +30,19 @@ Disassembly of section \.text:
   54:	9ba28c20 	umsubl	x0, w1, w2, x3
   58:	9ba2fc20 	umsubl	x0, w1, w2, xzr
   5c:	9ba2fc20 	umsubl	x0, w1, w2, xzr
-  60:	1a9f0420 	csinc	w0, w1, wzr, eq
-  64:	1a810420 	csinc	w0, w1, w1, eq
-  68:	1a810420 	csinc	w0, w1, w1, eq
-  6c:	1a9f37e0 	csinc	w0, wzr, wzr, cc
-  70:	1a9f37e0 	csinc	w0, wzr, wzr, cc
-  74:	da9f2020 	csinv	x0, x1, xzr, cs
-  78:	da812020 	csinv	x0, x1, x1, cs
-  7c:	da812020 	csinv	x0, x1, x1, cs
-  80:	da9f43e0 	csinv	x0, xzr, xzr, mi
-  84:	da9f43e0 	csinv	x0, xzr, xzr, mi
-  88:	da9eb7e0 	csneg	x0, xzr, x30, lt
-  8c:	da9eb7c0 	csneg	x0, x30, x30, lt
-  90:	da9eb7c0 	csneg	x0, x30, x30, lt
+  60:	1a9f0420 	csinc	w0, w1, wzr, eq  // eq = none
+  64:	1a810420 	csinc	w0, w1, w1, eq  // eq = none
+  68:	1a810420 	csinc	w0, w1, w1, eq  // eq = none
+  6c:	1a9f37e0 	csinc	w0, wzr, wzr, cc  // cc = lo, ul, last
+  70:	1a9f37e0 	csinc	w0, wzr, wzr, cc  // cc = lo, ul, last
+  74:	da9f2020 	csinv	x0, x1, xzr, cs  // cs = hs, nlast
+  78:	da812020 	csinv	x0, x1, x1, cs  // cs = hs, nlast
+  7c:	da812020 	csinv	x0, x1, x1, cs  // cs = hs, nlast
+  80:	da9f43e0 	csinv	x0, xzr, xzr, mi  // mi = first
+  84:	da9f43e0 	csinv	x0, xzr, xzr, mi  // mi = first
+  88:	da9eb7e0 	csneg	x0, xzr, x30, lt  // lt = tstop
+  8c:	da9eb7c0 	csneg	x0, x30, x30, lt  // lt = tstop
+  90:	da9eb7c0 	csneg	x0, x30, x30, lt  // lt = tstop
   94:	ea020020 	ands	x0, x1, x2
   98:	ea02003f 	ands	xzr, x1, x2
   9c:	ea02003f 	ands	xzr, x1, x2
@@ -73,3 +73,37 @@ Disassembly of section \.text:
  100:	b13ffdff 	adds	xzr, x15, #0xfff
  104:	f13fffef 	subs	x15, sp, #0xfff
  108:	b13ffdff 	adds	xzr, x15, #0xfff
+ 10c:	0f08a448 	sshll	v8.8h, v2.8b, #0
+ 110:	0f08a448 	sshll	v8.8h, v2.8b, #0
+ 114:	4f08a448 	sshll2	v8.8h, v2.16b, #0
+ 118:	4f08a448 	sshll2	v8.8h, v2.16b, #0
+ 11c:	0f10a448 	sshll	v8.4s, v2.4h, #0
+ 120:	0f10a448 	sshll	v8.4s, v2.4h, #0
+ 124:	4f10a448 	sshll2	v8.4s, v2.8h, #0
+ 128:	4f10a448 	sshll2	v8.4s, v2.8h, #0
+ 12c:	0f20a448 	sshll	v8.2d, v2.2s, #0
+ 130:	0f20a448 	sshll	v8.2d, v2.2s, #0
+ 134:	4f20a448 	sshll2	v8.2d, v2.4s, #0
+ 138:	4f20a448 	sshll2	v8.2d, v2.4s, #0
+ 13c:	2f08a448 	ushll	v8.8h, v2.8b, #0
+ 140:	2f08a448 	ushll	v8.8h, v2.8b, #0
+ 144:	6f08a448 	ushll2	v8.8h, v2.16b, #0
+ 148:	6f08a448 	ushll2	v8.8h, v2.16b, #0
+ 14c:	2f10a448 	ushll	v8.4s, v2.4h, #0
+ 150:	2f10a448 	ushll	v8.4s, v2.4h, #0
+ 154:	6f10a448 	ushll2	v8.4s, v2.8h, #0
+ 158:	6f10a448 	ushll2	v8.4s, v2.8h, #0
+ 15c:	2f20a448 	ushll	v8.2d, v2.2s, #0
+ 160:	2f20a448 	ushll	v8.2d, v2.2s, #0
+ 164:	6f20a448 	ushll2	v8.2d, v2.4s, #0
+ 168:	6f20a448 	ushll2	v8.2d, v2.4s, #0
+ 16c:	1a81f420 	csinc	w0, w1, w1, nv
+ 170:	1a81e420 	csinc	w0, w1, w1, al
+ 174:	1a9ff7e0 	csinc	w0, wzr, wzr, nv
+ 178:	1a9fe7e0 	csinc	w0, wzr, wzr, al
+ 17c:	5a81f020 	csinv	w0, w1, w1, nv
+ 180:	5a81e020 	csinv	w0, w1, w1, al
+ 184:	5a9ff3e0 	csinv	w0, wzr, wzr, nv
+ 188:	5a9fe3e0 	csinv	w0, wzr, wzr, al
+ 18c:	5a81f420 	csneg	w0, w1, w1, nv
+ 190:	5a81e420 	csneg	w0, w1, w1, al

@@ -1,5 +1,5 @@
 ;; ARM 1136J[F]-S Pipeline Description
-;; Copyright (C) 2003, 2007 Free Software Foundation, Inc.
+;; Copyright (C) 2003-2018 Free Software Foundation, Inc.
 ;; Written by CodeSourcery, LLC.
 ;;
 ;; This file is part of GCC.
@@ -75,13 +75,21 @@
 ;; ALU operations with no shifted operand
 (define_insn_reservation "11_alu_op" 2
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "alu"))
+      (eq_attr "type" "alu_imm,alus_imm,logic_imm,logics_imm,\
+                       alu_sreg,alus_sreg,logic_reg,logics_reg,\
+                       adc_imm,adcs_imm,adc_reg,adcs_reg,\
+                       adr,bfm,rev,\
+                       shift_imm,shift_reg,\
+                       mov_imm,mov_reg,mvn_imm,mvn_reg,\
+                       multiple,no_insn"))
  "e_1,e_2,e_3,e_wb")
 
 ;; ALU operations with a shift-by-constant operand
 (define_insn_reservation "11_alu_shift_op" 2
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "alu_shift"))
+      (eq_attr "type" "alu_shift_imm,alus_shift_imm,\
+                       logic_shift_imm,logics_shift_imm,\
+                       extend,mov_shift,mvn_shift"))
  "e_1,e_2,e_3,e_wb")
 
 ;; ALU operations with a shift-by-register operand
@@ -90,7 +98,9 @@
 ;; the shift stage.
 (define_insn_reservation "11_alu_shift_reg_op" 3
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "alu_shift_reg"))
+      (eq_attr "type" "alu_shift_reg,alus_shift_reg,\
+                       logic_shift_reg,logics_shift_reg,\
+                       mov_shift_reg,mvn_shift_reg"))
  "e_1*2,e_2,e_3,e_wb")
 
 ;; alu_ops can start sooner, if there is no shifter dependency
@@ -129,13 +139,13 @@
 ;; Multiply and multiply-accumulate results are available after four stages.
 (define_insn_reservation "11_mult1" 4
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "mul,mla"))
+      (eq_attr "type" "mul,mla"))
  "e_1*2,e_2,e_3,e_wb")
 
 ;; The *S variants set the condition flags, which requires three more cycles.
 (define_insn_reservation "11_mult2" 4
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "muls,mlas"))
+      (eq_attr "type" "muls,mlas"))
  "e_1*2,e_2,e_3,e_wb")
 
 (define_bypass 3 "11_mult1,11_mult2"
@@ -160,13 +170,13 @@
 ;; the two multiply-accumulate instructions.
 (define_insn_reservation "11_mult3" 5
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "smull,umull,smlal,umlal"))
+      (eq_attr "type" "smull,umull,smlal,umlal"))
  "e_1*3,e_2,e_3,e_wb*2")
 
 ;; The *S variants set the condition flags, which requires three more cycles.
 (define_insn_reservation "11_mult4" 5
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "smulls,umulls,smlals,umlals"))
+      (eq_attr "type" "smulls,umulls,smlals,umlals"))
  "e_1*3,e_2,e_3,e_wb*2")
 
 (define_bypass 4 "11_mult3,11_mult4"
@@ -190,7 +200,8 @@
 ;; cycles.
 (define_insn_reservation "11_mult5" 3
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "smulxy,smlaxy,smulwy,smlawy,smuad,smuadx,smlad,smladx,smusd,smusdx,smlsd,smlsdx"))
+      (eq_attr "type" "smulxy,smlaxy,smulwy,smlawy,smuad,smuadx,smlad,smladx,\
+                       smusd,smusdx,smlsd,smlsdx"))
  "e_1,e_2,e_3,e_wb")
 
 (define_bypass 2 "11_mult5"
@@ -211,14 +222,14 @@
 ;; The same idea, then the 32-bit result is added to a 64-bit quantity.
 (define_insn_reservation "11_mult6" 4
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "smlalxy"))
+      (eq_attr "type" "smlalxy"))
  "e_1*2,e_2,e_3,e_wb*2")
 
 ;; Signed 32x32 multiply, then the most significant 32 bits are extracted
 ;; and are available after the memory stage.
 (define_insn_reservation "11_mult7" 4
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "insn" "smmul,smmulr"))
+      (eq_attr "type" "smmul,smmulr"))
  "e_1*2,e_2,e_3,e_wb")
 
 (define_bypass 3 "11_mult6,11_mult7"
@@ -283,7 +294,7 @@
 
 (define_insn_reservation "11_load1" 3
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "load1"))
+      (eq_attr "type" "load_4"))
  "l_a+e_1,l_dc1,l_dc2,l_wb")
 
 ;; Load byte results are not available until the writeback stage, where
@@ -296,7 +307,7 @@
 
 (define_insn_reservation "11_store1" 0
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "store1"))
+      (eq_attr "type" "store_4"))
  "l_a+e_1,l_dc1,l_dc2,l_wb")
 
 ;; Load/store double words into adjacent registers.  The timing and
@@ -304,12 +315,12 @@
 ;; aligned.  This model assumes that it is.
 (define_insn_reservation "11_load2" 3
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "load2"))
+      (eq_attr "type" "load_8"))
  "l_a+e_1,l_dc1,l_dc2,l_wb")
 
 (define_insn_reservation "11_store2" 0
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "store2"))
+      (eq_attr "type" "store_8"))
  "l_a+e_1,l_dc1,l_dc2,l_wb")
 
 ;; Load/store multiple registers.  Two registers are stored per cycle.
@@ -317,12 +328,12 @@
 ;; optimistically schedule a low latency.
 (define_insn_reservation "11_load34" 4
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "load3,load4"))
+      (eq_attr "type" "load_12,load_16"))
  "l_a+e_1,l_dc1*2,l_dc2,l_wb")
 
 (define_insn_reservation "11_store34" 0
  (and (eq_attr "tune" "arm1136js,arm1136jfs")
-      (eq_attr "type" "store3,store4"))
+      (eq_attr "type" "store_12,store_16"))
  "l_a+e_1,l_dc1*2,l_dc2,l_wb")
 
 ;; A store can start immediately after an alu op, if that alu op does

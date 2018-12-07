@@ -1,3 +1,9 @@
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
+
 # In microcomputer (MC) mode, the vectors are mapped into the on-chip ROM,
 # otherwise in microprocessor (MP) mode the vectors are mapped to address 0
 # on the external bus.  In MC mode, the on-chip ROM contains a bootloader program
@@ -21,11 +27,11 @@
 # 6.      EXT_ROM  EXT_RAM   (mpmode,extram,extrom)
 # 7.      EXT_RAM  EXT_RAM   (mpmode,extram)
 #
-# In MC mode, TEXT and DATA are copied into RAM by the bootloader. 
+# In MC mode, TEXT and DATA are copied into RAM by the bootloader.
 #
 # In MP mode with external ROM, DATA needs to be copied into RAM at boot time.
 #
-# If there is external RAM it is better to use that and reserve the internal RAM 
+# If there is external RAM it is better to use that and reserve the internal RAM
 # for data buffers.  However, the address of the external RAM needs to be specified.
 #
 # This emulation assumes config 7.
@@ -69,6 +75,12 @@ test -z "$ENTRY" && ENTRY=_start
 cat <<EOF
 ${RELOCATING+/* Linker script for $OUTPUT_ARCHNAME executable.  */}
 ${RELOCATING-/* Linker script for $OUTPUT_ARCHNAME object file (ld -r).  */}
+
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
 
 OUTPUT_FORMAT("${OUTPUT_FORMAT}")
 OUTPUT_ARCH("${OUTPUT_ARCH}")
@@ -114,32 +126,32 @@ SECTIONS
   } ${RELOCATING+ > ${TEXT_MEMORY}}
   /* Global initialised variables.  */
   .data :
-  { 				
+  {
     ${RELOCATING+  __data  =  .;}
     *(.data)
     ${RELOCATING+  __edata  = .;}
   } ${RELOCATING+ > ${DATA_MEMORY}}
   /* Global uninitialised variables.  */
   .bss : {
-    ${RELOCATING+ __bss  =  .;}	
+    ${RELOCATING+ __bss  =  .;}
     *(.bss)
     *(COMMON)
     ${RELOCATING+  __end  =  .;}
   } ${RELOCATING+ > ${DATA_MEMORY}}
   /* Heap.  */
   .heap :
-  { 					
-    ${RELOCATING+ __heap  =  .;}		
+  {
+    ${RELOCATING+ __heap  =  .;}
     ${RELOCATING+ . += __HEAP_SIZE};
   } ${RELOCATING+ > ${DATA_MEMORY}}
   /* Stack (grows upward).  */
   .stack :
-  { 				
-    ${RELOCATING+ __stack  =  .;}		
+  {
+    ${RELOCATING+ __stack  =  .;}
     *(.stack)
-    ${RELOCATING+ .  =  . + __STACK_SIZE};		
+    ${RELOCATING+ .  =  . + __STACK_SIZE};
   } ${RELOCATING+ > ${DATA_MEMORY}}
-  .stab 0 ${RELOCATING+(NOLOAD)} : 
+  .stab 0 ${RELOCATING+(NOLOAD)} :
   {
     [ .stab ]
   }

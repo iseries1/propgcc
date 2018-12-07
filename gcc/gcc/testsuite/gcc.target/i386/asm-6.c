@@ -1,9 +1,8 @@
 /* PR rtl-optimization/44174 */
 /* Testcase by Jakub Jelinek <jakub@gcc.gnu.org> */
 
-/* { dg-do compile } */
-/* { dg-options "-O2 -fpic" { target fpic } } */
-/* { dg-xfail-if "" { i?86-pc-solaris2.1[0-9] && ilp32 } } */
+/* { dg-do compile { target fpic } } */
+/* { dg-options "-O2 -fpic" } */
 
 int f0 (int, int, int, int, int);
 int f1 (void);

@@ -1,4 +1,5 @@
 /* { dg-require-effective-target vect_uintfloat_cvt } */
+/* { dg-require-effective-target vect_float } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
@@ -43,9 +44,8 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  {target { vect_strided_wide && vect_int_mult } } } } */
-/* { dg-final { scan-tree-dump-times "vectorized 0 loops" 1 "vect"  {target { { ! { vect_int_mult }} || { ! {vect_strided_wide}}} } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect"  {target { vect_strided_wide && vect_int_mult } } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 0 "vect"  {target { { ! { vect_int_mult }} || { ! {vect_strided_wide}}} } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  { target { vect_strided2 && vect_int_mult } } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 0 loops" 1 "vect"  { target { ! { vect_strided2 && vect_int_mult } } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect"  { target { vect_strided2 && vect_int_mult } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 0 "vect"  { target { ! { vect_strided2 && vect_int_mult } } } } } */
   

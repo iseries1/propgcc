@@ -21,7 +21,7 @@ program char_array_structure_constructor
   call alloc (2)
   if ((any (c%a /= "wxyz")) .OR. &
       (any (c%b(1) /= "abcd")) .OR. &
-      (any (c%b(2) /= "efgh"))) call abort ()
+      (any (c%b(2) /= "efgh"))) STOP 1
 contains
   SUBROUTINE alloc (n)
     USE global
@@ -31,5 +31,3 @@ contains
     ENDDO
   end subroutine alloc
 END program char_array_structure_constructor
-
-! { dg-final { cleanup-modules "global" } }

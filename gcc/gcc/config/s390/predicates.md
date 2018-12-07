@@ -1,5 +1,5 @@
 ;; Predicate definitions for S/390 and zSeries.
-;; Copyright (C) 2005, 2007, 2008 Free Software Foundation, Inc.
+;; Copyright (C) 2005-2018 Free Software Foundation, Inc.
 ;; Contributed by Hartmut Penner (hpenner@de.ibm.com) and
 ;;                Ulrich Weigand (uweigand@de.ibm.com).
 ;;
@@ -24,16 +24,26 @@
 
 ;; operands --------------------------------------------------------------
 
-;; Return true if OP a (const_int 0) operand.
-
+;; Return true if OP a const 0 operand (int/float/vector).
 (define_predicate "const0_operand"
-  (and (match_code "const_int, const_double")
+  (and (match_code "const_int,const_wide_int,const_double,const_vector")
        (match_test "op == CONST0_RTX (mode)")))
+
+;; Return true if OP an all ones operand (int/vector).
+(define_predicate "all_ones_operand"
+  (and (match_code "const_int, const_wide_int, const_vector")
+       (match_test "INTEGRAL_MODE_P (GET_MODE (op))")
+       (match_test "op == CONSTM1_RTX (mode)")))
+
+;; Return true if OP is a 4 bit mask operand
+(define_predicate "const_mask_operand"
+  (and (match_code "const_int")
+       (match_test "UINTVAL (op) < 16")))
 
 ;; Return true if OP is constant.
 
 (define_special_predicate "consttable_operand"
-  (and (match_code "symbol_ref, label_ref, const, const_int, const_double")
+  (and (match_code "symbol_ref, label_ref, const, const_int, const_wide_int, const_double, const_vector")
        (match_test "CONSTANT_P (op)")))
 
 ;; Return true if OP is a valid S-type operand.
@@ -57,6 +67,25 @@
   return true;
 })
 
+;; Return true of the address of the mem operand plus 16 is still a
+;; valid Q constraint address.
+
+(define_predicate "plus16_Q_operand"
+  (and (match_code "mem")
+       (match_operand 0 "general_operand"))
+{
+  rtx addr = XEXP (op, 0);
+  if (REG_P (addr))
+    return true;
+
+  if (GET_CODE (addr) != PLUS
+      || !REG_P (XEXP (addr, 0))
+      || !CONST_INT_P (XEXP (addr, 1)))
+    return false;
+
+  return SHORT_DISP_IN_RANGE (INTVAL (XEXP (addr, 1)) + 16);
+})
+
 ;; Return true if OP is a valid operand for the BRAS instruction.
 ;; Allow SYMBOL_REFs and @PLT stubs.
 
@@ -75,16 +104,20 @@
        (and (match_test "mode == Pmode")
 	    (match_test "!legitimate_la_operand_p (op)"))))
 
-;; Return true if OP is a valid operand as shift count or setmem.
+;; Return true if OP is a valid operand as scalar shift count or setmem.
 
-(define_predicate "shift_count_or_setmem_operand"
+(define_predicate "setmem_operand"
   (match_code "reg, subreg, plus, const_int")
 {
   HOST_WIDE_INT offset;
   rtx base;
 
+  if (GET_MODE (op) != VOIDmode
+      && GET_MODE_CLASS (GET_MODE (op)) != MODE_INT)
+    return false;
+
   /* Extract base register and offset.  */
-  if (!s390_decompose_shift_count (op, &base, &offset))
+  if (!s390_decompose_addrstyle_without_index (op, &base, &offset))
     return false;
 
   /* Don't allow any non-base hard registers.  Doing so without
@@ -101,18 +134,26 @@
   return true;
 })
 
+; An integer operand with the lowest order 6 bits all ones.
+(define_predicate "const_int_6bitset_operand"
+ (and (match_code "const_int")
+      (match_test "(INTVAL (op) & 63) == 63")))
+(define_predicate "nonzero_shift_count_operand"
+  (and (match_code "const_int")
+       (match_test "IN_RANGE (INTVAL (op), 1, GET_MODE_BITSIZE (mode) - 1)")))
+
 ;;  Return true if OP a valid operand for the LARL instruction.
 
 (define_predicate "larl_operand"
-  (match_code "label_ref, symbol_ref, const, const_int, const_double")
+  (match_code "label_ref, symbol_ref, const")
 {
   /* Allow labels and local symbols.  */
   if (GET_CODE (op) == LABEL_REF)
     return true;
-  if (GET_CODE (op) == SYMBOL_REF)
-    return (!SYMBOL_REF_ALIGN1_P (op)
+  if (SYMBOL_REF_P (op))
+    return (!SYMBOL_FLAG_NOTALIGN2_P (op)
 	    && SYMBOL_REF_TLS_MODEL (op) == 0
-	    && (!flag_pic || SYMBOL_REF_LOCAL_P (op)));
+	    && s390_rel_address_ok_p (op));
 
   /* Everything else must have a CONST, so strip it.  */
   if (GET_CODE (op) != CONST)
@@ -125,8 +166,8 @@
       if (GET_CODE (XEXP (op, 1)) != CONST_INT
           || (INTVAL (XEXP (op, 1)) & 1) != 0)
         return false;
-      if (INTVAL (XEXP (op, 1)) >= (HOST_WIDE_INT)1 << 31
-	  || INTVAL (XEXP (op, 1)) < -((HOST_WIDE_INT)1 << 31))
+      if (INTVAL (XEXP (op, 1)) >= HOST_WIDE_INT_1 << 31
+	  || INTVAL (XEXP (op, 1)) < -(HOST_WIDE_INT_1 << 31))
         return false;
       op = XEXP (op, 0);
     }
@@ -134,10 +175,11 @@
   /* Labels and local symbols allowed here as well.  */
   if (GET_CODE (op) == LABEL_REF)
     return true;
-  if (GET_CODE (op) == SYMBOL_REF)
-    return ((SYMBOL_REF_FLAGS (op) & SYMBOL_FLAG_ALIGN1) == 0
+  if (SYMBOL_REF_P (op))
+    return (!SYMBOL_FLAG_NOTALIGN2_P (op)
 	    && SYMBOL_REF_TLS_MODEL (op) == 0
-	    && (!flag_pic || SYMBOL_REF_LOCAL_P (op)));
+	    && s390_rel_address_ok_p (op));
+
 
   /* Now we must have a @GOTENT offset or @PLT stub
      or an @INDNTPOFF TLS offset.  */
@@ -154,6 +196,34 @@
   return false;
 })
 
+; Predicate that always allows wraparound of the one-bit range.
+(define_predicate "contiguous_bitmask_operand"
+  (match_code "const_int")
+{
+  return s390_contiguous_bitmask_p (INTVAL (op), true,
+                                    GET_MODE_BITSIZE (mode), NULL, NULL);
+})
+
+; Same without wraparound.
+(define_predicate "contiguous_bitmask_nowrap_operand"
+  (match_code "const_int")
+{
+  return s390_contiguous_bitmask_p
+    (INTVAL (op), false, GET_MODE_BITSIZE (mode), NULL, NULL);
+})
+
+;; Return true if OP is ligitimate for any LOC instruction.
+
+(define_predicate "loc_operand"
+  (ior (match_operand 0 "nonimmediate_operand")
+      (and (match_code "const_int")
+	   (match_test "INTVAL (op) <= 32767 && INTVAL (op) >= -32768"))))
+
+(define_predicate "reload_const_wide_int_operand"
+  (and (match_code "const_wide_int")
+       (match_test "legitimate_reload_constant_p (op)")))
+
+
 ;; operators --------------------------------------------------------------
 
 ;; Return nonzero if OP is a valid comparison operator
@@ -166,7 +236,11 @@
 {
   if (GET_CODE (XEXP (op, 0)) != REG
       || REGNO (XEXP (op, 0)) != CC_REGNUM
-      || XEXP (op, 1) != const0_rtx)
+      || (XEXP (op, 1) != const0_rtx
+          && !(CONST_INT_P (XEXP (op, 1))
+	       && GET_MODE (XEXP (op, 0)) == CCRAWmode
+	       && INTVAL (XEXP (op, 1)) >= 0
+               && INTVAL (XEXP (op, 1)) <= 15)))
     return false;
 
   return (s390_branch_condition_mask (op) >= 0);
@@ -214,30 +288,34 @@
 
   if (GET_CODE (XEXP (op, 0)) != REG
       || REGNO (XEXP (op, 0)) != CC_REGNUM
-      || XEXP (op, 1) != const0_rtx)
+      || (XEXP (op, 1) != const0_rtx
+          && !(CONST_INT_P (XEXP (op, 1))
+	       && GET_MODE (XEXP (op, 0)) == CCRAWmode
+	       && INTVAL (XEXP (op, 1)) >= 0
+               && INTVAL (XEXP (op, 1)) <= 15)))
     return false;
 
   switch (GET_MODE (XEXP (op, 0)))
     {
-    case CCL1mode:
+    case E_CCL1mode:
       return GET_CODE (op) == LTU;
 
-    case CCL2mode:
+    case E_CCL2mode:
       return GET_CODE (op) == LEU;
 
-    case CCL3mode:
+    case E_CCL3mode:
       return GET_CODE (op) == GEU;
 
-    case CCUmode:
+    case E_CCUmode:
       return GET_CODE (op) == GTU;
 
-    case CCURmode:
+    case E_CCURmode:
       return GET_CODE (op) == LTU;
 
-    case CCSmode:
+    case E_CCSmode:
       return GET_CODE (op) == UNGT;
 
-    case CCSRmode:
+    case E_CCSRmode:
       return GET_CODE (op) == UNLT;
 
     default:
@@ -264,25 +342,25 @@
 
   switch (GET_MODE (XEXP (op, 0)))
     {
-    case CCL1mode:
+    case E_CCL1mode:
       return GET_CODE (op) == GEU;
 
-    case CCL2mode:
+    case E_CCL2mode:
       return GET_CODE (op) == GTU;
 
-    case CCL3mode:
+    case E_CCL3mode:
       return GET_CODE (op) == LTU;
 
-    case CCUmode:
+    case E_CCUmode:
       return GET_CODE (op) == LEU;
 
-    case CCURmode:
+    case E_CCURmode:
       return GET_CODE (op) == GEU;
 
-    case CCSmode:
+    case E_CCSmode:
       return GET_CODE (op) == LE;
 
-    case CCSRmode:
+    case E_CCSRmode:
       return GET_CODE (op) == GE;
 
     default:
@@ -296,7 +374,7 @@
 (define_special_predicate "load_multiple_operation"
   (match_code "parallel")
 {
-  enum machine_mode elt_mode;
+  machine_mode elt_mode;
   int count = XVECLEN (op, 0);
   unsigned int dest_regno;
   rtx src_addr;
@@ -348,13 +426,58 @@
   return true;
 })
 
+;; For an execute pattern the target instruction is embedded into the
+;; RTX but will not get checked for validity by recog automatically.
+;; The execute_operation predicate extracts the target RTX and invokes
+;; recog.
+(define_special_predicate "execute_operation"
+  (match_code "parallel")
+{
+  rtx pattern = op;
+  rtx_insn *insn;
+  int icode;
+
+  /* This is redundant but since this predicate is evaluated
+     first when recognizing the insn we can prevent the more
+     expensive code below from being executed for many cases.  */
+  if (GET_CODE (XVECEXP (pattern, 0, 0)) != UNSPEC
+      || XINT (XVECEXP (pattern, 0, 0), 1) != UNSPEC_EXECUTE)
+    return false;
+
+  /* Keep in sync with s390_execute_target.  */
+  if (XVECLEN (pattern, 0) == 2)
+    {
+      pattern = copy_rtx (XVECEXP (pattern, 0, 1));
+    }
+  else
+    {
+      rtvec vec = rtvec_alloc (XVECLEN (pattern, 0) - 1);
+      int i;
+
+      for (i = 0; i < XVECLEN (pattern, 0) - 1; i++)
+	RTVEC_ELT (vec, i) = copy_rtx (XVECEXP (pattern, 0, i + 1));
+
+      pattern = gen_rtx_PARALLEL (VOIDmode, vec);
+    }
+
+  /* Since we do not have the wrapping insn here we have to build one.  */
+  insn = make_insn_raw (pattern);
+  icode = recog_memoized (insn);
+  if (icode < 0)
+    return false;
+
+  extract_constrain_insn (insn);
+
+  return which_alternative >= 0;
+})
+
 ;; Return true if OP is a store multiple operation.  It is known to be a
 ;; PARALLEL and the first section will be tested.
 
 (define_special_predicate "store_multiple_operation"
   (match_code "parallel")
 {
-  enum machine_mode elt_mode;
+  machine_mode elt_mode;
   int count = XVECLEN (op, 0);
   unsigned int src_regno;
   rtx dest_addr;
@@ -403,4 +526,11 @@
 	return false;
     }
   return true;
+})
+
+(define_predicate "const_shift_by_byte_operand"
+  (match_code "const_int")
+{
+  unsigned HOST_WIDE_INT val = INTVAL (op);
+  return val <= 128 && val % 8 == 0;
 })

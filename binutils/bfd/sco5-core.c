@@ -1,7 +1,5 @@
 /* BFD back end for SCO5 core files (U-area and raw sections)
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2018 Free Software Foundation, Inc.
    Written by Jouke Numan <jnuman@hiscom.nl>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -288,8 +286,8 @@ sco5_core_file_p (bfd *abfd)
 	  secname = NULL;	/* Ignore these */
 	  break;
 	default:
-	  (*_bfd_error_handler) ("Unhandled SCO core file section type %d\n",
-				 chead.cs_stype);
+	  _bfd_error_handler ("Unhandled SCO core file section type %d\n",
+			      chead.cs_stype);
 	  continue;
 	}
 
@@ -346,7 +344,7 @@ swap_abort (void)
 #define	NO_PUT64 ((void (*) (bfd_uint64_t, void *)) swap_abort)
 #define	NO_GETS64 ((bfd_int64_t (*) (const void *)) swap_abort)
 
-const bfd_target sco5_core_vec =
+const bfd_target core_sco5_vec =
   {
     "sco5-core",
     bfd_target_unknown_flavour,
@@ -374,12 +372,12 @@ const bfd_target sco5_core_vec =
       sco5_core_file_p			/* a core file */
     },
     {				/* bfd_set_format */
-      bfd_false, bfd_false,
-      bfd_false, bfd_false
+      _bfd_bool_bfd_false_error, bfd_false,
+      _bfd_bool_bfd_false_error, bfd_false
     },
     {				/* bfd_write_contents */
-      bfd_false, bfd_false,
-      bfd_false, bfd_false
+      _bfd_bool_bfd_false_error, bfd_false,
+      _bfd_bool_bfd_false_error, bfd_false
     },
 
     BFD_JUMP_TABLE_GENERIC (_bfd_generic),

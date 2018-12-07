@@ -4,7 +4,7 @@
 /* { dg-do run } */
 /* { dg-options "-Wpadded" } */
 
-#include "../objc-obj-c++-shared/Object1.h"
+#include "../objc-obj-c++-shared/TestsuiteObject.m"
 
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +13,7 @@
 
 enum Enum { one, two, three, four };
 
-@interface Base: Object {
+@interface Base: TestsuiteObject {
   unsigned a: 2;
   int b: 3;
   enum Enum c: 4;
@@ -25,13 +25,13 @@ enum Enum { one, two, three, four };
   signed e: 5;
   int f: 4;
   enum Enum g: 3;
-}
+} /* { dg-line interface_Derived } */
 @end
   
 /* Note that the semicolon after @defs(...) is optional.  */
 
 typedef struct { @defs(Base) } Base_t;  /* { dg-warning "padding struct size to alignment boundary" } */
-typedef struct { @defs(Derived); } Derived_t;
+typedef struct { @defs(Derived); } Derived_t; /* { dg-line Derived_t_def } */
 
 int main(void)
 {
@@ -52,5 +52,5 @@ int main(void)
 /* { dg-prune-output "In file included from" }  Ignore this message.  */
 /* { dg-bogus "padding struct to align" "PR23610" { target *-*-* } 0 } */
 
-/* { dg-bogus "padding struct size" "PR23610" { xfail lp64 } 28 } */
-/* { dg-bogus "padding struct size" "PR23610" { xfail lp64 } 34 } */
+/* { dg-bogus "padding struct size" "PR23610" { xfail lp64 } interface_Derived } */
+/* { dg-bogus "padding struct size" "PR23610" { xfail lp64 } Derived_t_def } */

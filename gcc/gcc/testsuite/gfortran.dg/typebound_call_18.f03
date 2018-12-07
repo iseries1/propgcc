@@ -31,7 +31,7 @@ contains
     class(trivial_vector_type), intent(inout) :: this
     class(vector_class),        intent(in)    :: v
     write (*,*) 'Oops in concrete_vector::my_assign'
-    call abort ()
+    STOP 1
   end subroutine
 end module concrete_vector
 
@@ -63,5 +63,3 @@ program main
   call g%assign (g_initial)
   print *, "cg: after  g%assign"
 end program main
-
-! { dg-final { cleanup-modules "abstract_vector concrete_vector concrete_gradient" } }

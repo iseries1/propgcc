@@ -1,6 +1,5 @@
 /* Target definitions for PowerPC running Darwin (Mac OS X).
-   Copyright (C) 1997, 2000, 2001, 2003, 2004, 2005, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1997-2018 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
    This file is part of GCC.
@@ -21,9 +20,6 @@
 
 #undef DARWIN_PPC
 #define DARWIN_PPC 1
-
-#undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (Darwin/PowerPC)");
 
 /* The "Darwin ABI" is mostly like AIX, but with some key differences.  */
 
@@ -97,7 +93,6 @@ extern int darwin_emit_branch_islands;
   %(cc1_cpu) \
   %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} \
   %{static: %{Zdynamic: %e conflicting code gen style switches are used}}\
-  %{!mmacosx-version-min=*:-mmacosx-version-min=%(darwin_minversion)} \
   %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \
   %{faltivec:-maltivec -include altivec.h} %{fno-altivec:-mno-altivec} \
   %<faltivec %<fno-altivec " \
@@ -128,17 +123,6 @@ extern int darwin_emit_branch_islands;
 #define DARWIN_CRT2_SPEC \
   "%{!m64:%:version-compare(!> 10.4 mmacosx-version-min= crt2.o%s)}"
 
-/* Determine a minimum version based on compiler options.  */
-#define DARWIN_MINVERSION_SPEC					\
-  "%{m64:%{fgnu-runtime:10.4;					\
-	   ,objective-c|,objc-cpp-output:10.5;			\
-	   ,objective-c-header:10.5;				\
-	   ,objective-c++|,objective-c++-cpp-output:10.5;	\
-	   ,objective-c++-header|,objc++-cpp-output:10.5;	\
-	   :10.4};						\
-     shared-libgcc:10.3;					\
-     :10.1}"
-
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS			\
   DARWIN_EXTRA_SPECS                            \
@@ -164,29 +148,26 @@ extern int darwin_emit_branch_islands;
 
 /* Pad the outgoing args area to 16 bytes instead of the usual 8.  */
 
-#undef STARTING_FRAME_OFFSET
-#define STARTING_FRAME_OFFSET						\
-  (FRAME_GROWS_DOWNWARD							\
-   ? 0									\
-   : (RS6000_ALIGN (crtl->outgoing_args_size, 16)		\
-      + RS6000_SAVE_AREA))
+#undef RS6000_STARTING_FRAME_OFFSET
+#define RS6000_STARTING_FRAME_OFFSET					\
+  (RS6000_ALIGN (crtl->outgoing_args_size, 16)				\
+   + RS6000_SAVE_AREA)
 
 #undef STACK_DYNAMIC_OFFSET
 #define STACK_DYNAMIC_OFFSET(FUNDECL)					\
-  (RS6000_ALIGN (crtl->outgoing_args_size, 16)		\
+  (RS6000_ALIGN (crtl->outgoing_args_size.to_constant (), 16)		\
    + (STACK_POINTER_OFFSET))
 
-/* Define cutoff for using external functions to save floating point.
-   Currently on Darwin, always use inline stores.  */
-
-#undef	FP_SAVE_INLINE
-#define FP_SAVE_INLINE(FIRST_REG) ((FIRST_REG) < 64)
-#undef GP_SAVE_INLINE
-#define GP_SAVE_INLINE(FIRST_REG) ((FIRST_REG) < 32)
-
 /* Darwin uses a function call if everything needs to be saved/restored.  */
+
 #undef WORLD_SAVE_P
 #define WORLD_SAVE_P(INFO) ((INFO)->world_save_p)
+
+/* We don't use these on Darwin, they are just place-holders.  */
+#define SAVE_FP_PREFIX ""
+#define SAVE_FP_SUFFIX ""
+#define RESTORE_FP_PREFIX ""
+#define RESTORE_FP_SUFFIX ""
 
 /* The assembler wants the alternate register names, but without
    leading percent sign.  */
@@ -209,8 +190,8 @@ extern int darwin_emit_branch_islands;
     "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",             \
     "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",             \
     "vrsave", "vscr",							\
-    "spe_acc", "spefscr",                                               \
-    "sfp"								\
+    "sfp",								\
+    "tfhar", "tfiar", "texasr"						\
 }
 
 /* This outputs NAME to FILE.  */
@@ -236,12 +217,6 @@ extern int darwin_emit_branch_islands;
 
 #undef ASM_COMMENT_START
 #define ASM_COMMENT_START ";"
-
-/* FP save and restore routines.  */
-#define	SAVE_FP_PREFIX "._savef"
-#define SAVE_FP_SUFFIX ""
-#define	RESTORE_FP_PREFIX "._restf"
-#define RESTORE_FP_SUFFIX ""
 
 /* This is how to output an assembler line that says to advance
    the location counter to a multiple of 2**LOG bytes using the
@@ -291,14 +266,14 @@ extern int darwin_emit_branch_islands;
    default as well.  */
 
 #undef  TARGET_DEFAULT
-#define TARGET_DEFAULT (MASK_POWERPC | MASK_MULTIPLE | MASK_NEW_MNEMONICS \
-                      | MASK_PPC_GFXOPT)
+#define TARGET_DEFAULT (MASK_MULTIPLE | MASK_PPC_GFXOPT)
 
-/* Darwin only runs on PowerPC, so short-circuit POWER patterns.  */
-#undef  TARGET_POWER
-#define TARGET_POWER 0
+/* Darwin always uses IBM long double, never IEEE long double.  */
 #undef  TARGET_IEEEQUAD
 #define TARGET_IEEEQUAD 0
+
+#undef  TARGET_IEEEQUAD_DEFAULT
+#define TARGET_IEEEQUAD_DEFAULT 0
 
 /* Since Darwin doesn't do TOCs, stub this out.  */
 
@@ -334,16 +309,19 @@ extern int darwin_emit_branch_islands;
    ? GENERAL_REGS						\
    : (CLASS))
 
-/* Compute field alignment.  This is similar to the version of the
-   macro in the Apple version of GCC, except that version supports
-   'mac68k' alignment, and that version uses the computed alignment
-   always for the first field of a structure.  The first-field
-   behavior is dealt with by
-   darwin_rs6000_special_round_type_align.  */
-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED)	\
-  (TARGET_ALIGN_NATURAL ? (COMPUTED)		\
-   : (COMPUTED) == 128 ? 128			\
-   : MIN ((COMPUTED), 32))
+/* Compute field alignment.
+   This implements the 'power' alignment rule by pegging the alignment of
+   items (beyond the first aggregate field) to 32 bits.  The pegging is
+   suppressed for vector and long double items (both 128 in size).
+   There is a dummy use of the FIELD argument to avoid an unused variable
+   warning (see PR59496).  */
+#define ADJUST_FIELD_ALIGN(FIELD, TYPE, COMPUTED)		\
+  ((void) (FIELD),						\
+    (TARGET_ALIGN_NATURAL					\
+     ? (COMPUTED)						\
+     : (COMPUTED) == 128					\
+	? 128							\
+	: MIN ((COMPUTED), 32)))
 
 /* Darwin increases natural record alignment to doubleword if the first
    field is an FP double while the FP fields remain word aligned.  */
@@ -362,7 +340,7 @@ extern int darwin_emit_branch_islands;
    registers and memory.  FIRST is nonzero if this is the only
    element.  */
 #define BLOCK_REG_PADDING(MODE, TYPE, FIRST) \
-  (!(FIRST) ? upward : FUNCTION_ARG_PADDING (MODE, TYPE))
+  (!(FIRST) ? PAD_UPWARD : targetm.calls.function_arg_padding (MODE, TYPE))
 
 #define DOUBLE_INT_ASM_OP "\t.quad\t"
 
@@ -384,10 +362,6 @@ extern int darwin_emit_branch_islands;
 #include <stdbool.h>
 #endif
 
-#if !defined(__LP64__) && !defined(DARWIN_LIBSYSTEM_HAS_UNWIND)
-#define MD_UNWIND_SUPPORT "config/rs6000/darwin-unwind.h"
-#endif
-
 /* True, iff we're generating fast turn around debugging code.  When
    true, we arrange for function prologues to start with 5 nops so
    that gdb may insert code to redirect them, and for data to be
@@ -403,10 +377,8 @@ extern int darwin_emit_branch_islands;
 #define OFFS_ASSIGNIVAR_FAST		0xFFFEFEC0
 
 /* Old versions of Mac OS/Darwin don't have C99 functions available.  */
-#undef TARGET_C99_FUNCTIONS
-#define TARGET_C99_FUNCTIONS					\
-  (TARGET_64BIT							\
-   || strverscmp (darwin_macosx_version_min, "10.3") >= 0)
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION darwin_libc_has_function
 
 /* When generating kernel code or kexts, we don't use Altivec by
    default, as kernel code doesn't save/restore those registers.  */
@@ -436,3 +408,11 @@ do {									\
   rs6000_builtin_decls[(unsigned) (RS6000_BUILTIN_CFSTRING)]		\
     = darwin_init_cfstring_builtins ((unsigned) (RS6000_BUILTIN_CFSTRING)); \
 } while(0)
+
+/* So far, there is no rs6000_fold_builtin, if one is introduced, then
+   this will need to be modified similar to the x86 case.  */
+#define TARGET_FOLD_BUILTIN SUBTARGET_FOLD_BUILTIN
+
+/* Use standard DWARF numbering for DWARF debugging information.  */
+#define RS6000_USE_DWARF_NUMBERING
+

@@ -1,6 +1,5 @@
 /* Definitions of target machine for GNU compiler, Renesas M32R cpu.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -26,7 +25,6 @@
 #undef PTRDIFF_TYPE
 #undef WCHAR_TYPE
 #undef WCHAR_TYPE_SIZE
-#undef TARGET_VERSION
 #undef CPP_SPEC
 #undef ASM_SPEC
 #undef LINK_SPEC
@@ -38,8 +36,6 @@
 
 
 /* M32R/X overrides.  */
-/* Print subsidiary information on the compiler version in use.  */
-#define TARGET_VERSION fprintf (stderr, " (m32r/x/2)");
 
 /* Additional flags for the preprocessor.  */
 #define CPP_CPU_SPEC "%{m32rx:-D__M32RX__ -D__m32rx__ -U__M32R2__ -U__m32r2__} \
@@ -85,11 +81,6 @@
 /* Define additional register names.  */
 #define SUBTARGET_REGISTER_NAMES , "a1"
 /* end M32R/X overrides.  */
-
-/* Print subsidiary information on the compiler version in use.  */
-#ifndef	TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (m32r)")
-#endif
 
 /* Names to predefine in the preprocessor for this target machine.  */
 /* __M32R__ is defined by the existing compiler so we use that.  */
@@ -168,7 +159,7 @@
 
 /* Options to pass on to the assembler.  */
 #undef  ASM_SPEC
-#define ASM_SPEC "%(asm_cpu) %(relax) %{fpic|fpie:-K PIC} %{fPIC|fPIE:-K PIC}"
+#define ASM_SPEC "%(asm_cpu) %(relax) %{" FPIE_OR_FPIC_SPEC ":-K PIC}"
 
 #define LINK_SPEC "%{v} %(link_cpu) %(relax)"
 
@@ -194,91 +185,8 @@
 #define TARGET_CPU_DEFAULT 0
 #endif
 
-/* Code Models
-
-   Code models are used to select between two choices of two separate
-   possibilities (address space size, call insn to use):
-
-   small: addresses use 24 bits, use bl to make calls
-   medium: addresses use 32 bits, use bl to make calls (*1)
-   large: addresses use 32 bits, use seth/add3/jl to make calls (*2)
-
-   The fourth is "addresses use 24 bits, use seth/add3/jl to make calls" but
-   using this one doesn't make much sense.
-
-   (*1) The linker may eventually be able to relax seth/add3 -> ld24.
-   (*2) The linker may eventually be able to relax seth/add3/jl -> bl.
-
-   Internally these are recorded as TARGET_ADDR{24,32} and
-   TARGET_CALL{26,32}.
-
-   The __model__ attribute can be used to select the code model to use when
-   accessing particular objects.  */
-
-enum m32r_model { M32R_MODEL_SMALL, M32R_MODEL_MEDIUM, M32R_MODEL_LARGE };
-
-extern enum m32r_model m32r_model;
-#define TARGET_MODEL_SMALL  (m32r_model == M32R_MODEL_SMALL)
-#define TARGET_MODEL_MEDIUM (m32r_model == M32R_MODEL_MEDIUM)
-#define TARGET_MODEL_LARGE  (m32r_model == M32R_MODEL_LARGE)
-#define TARGET_ADDR24       (m32r_model == M32R_MODEL_SMALL)
-#define TARGET_ADDR32       (! TARGET_ADDR24)
-#define TARGET_CALL26       (! TARGET_CALL32)
-#define TARGET_CALL32       (m32r_model == M32R_MODEL_LARGE)
-
-/* The default is the small model.  */
-#ifndef M32R_MODEL_DEFAULT
-#define M32R_MODEL_DEFAULT M32R_MODEL_SMALL
-#endif
-
-/* Small Data Area
-
-   The SDA consists of sections .sdata, .sbss, and .scommon.
-   .scommon isn't a real section, symbols in it have their section index
-   set to SHN_M32R_SCOMMON, though support for it exists in the linker script.
-
-   Two switches control the SDA:
-
-   -G NNN        - specifies the maximum size of variable to go in the SDA
-
-   -msdata=foo   - specifies how such variables are handled
-
-        -msdata=none  - small data area is disabled
-
-        -msdata=sdata - small data goes in the SDA, special code isn't
-                        generated to use it, and special relocs aren't
-                        generated
-
-        -msdata=use   - small data goes in the SDA, special code is generated
-                        to use the SDA and special relocs are generated
-
-   The SDA is not multilib'd, it isn't necessary.
-   MULTILIB_EXTRA_OPTS is set in tmake_file to -msdata=sdata so multilib'd
-   libraries have small data in .sdata/SHN_M32R_SCOMMON so programs that use
-   -msdata=use will successfully link with them (references in header files
-   will cause the compiler to emit code that refers to library objects in
-   .data).  ??? There can be a problem if the user passes a -G value greater
-   than the default and a library object in a header file is that size.
-   The default is 8 so this should be rare - if it occurs the user
-   is required to rebuild the libraries or use a smaller value for -G.  */
-
-/* Maximum size of variables that go in .sdata/.sbss.
-   The -msdata=foo switch also controls how small variables are handled.  */
-#ifndef SDATA_DEFAULT_SIZE
-#define SDATA_DEFAULT_SIZE 8
-#endif
-
-enum m32r_sdata { M32R_SDATA_NONE, M32R_SDATA_SDATA, M32R_SDATA_USE };
-
-extern enum m32r_sdata m32r_sdata;
-#define TARGET_SDATA_NONE  (m32r_sdata == M32R_SDATA_NONE)
-#define TARGET_SDATA_SDATA (m32r_sdata == M32R_SDATA_SDATA)
-#define TARGET_SDATA_USE   (m32r_sdata == M32R_SDATA_USE)
-
-/* Default is to disable the SDA
-   [for upward compatibility with previous toolchains].  */
-#ifndef M32R_SDATA_DEFAULT
-#define M32R_SDATA_DEFAULT M32R_SDATA_NONE
+#ifndef M32R_OPTS_H
+#include "config/m32r/m32r-opts.h"
 #endif
 
 /* Define this macro as a C expression for the initializer of an array of
@@ -351,12 +259,6 @@ extern enum m32r_sdata m32r_sdata;
 
 /* The best alignment to use in cases where we have a choice.  */
 #define FASTEST_ALIGNMENT 32
-
-/* Make strings word-aligned so strcpy from constants will be faster.  */
-#define CONSTANT_ALIGNMENT(EXP, ALIGN)	\
-  ((TREE_CODE (EXP) == STRING_CST	\
-    && (ALIGN) < FASTEST_ALIGNMENT)	\
-   ? FASTEST_ALIGNMENT : (ALIGN))
 
 /* Make arrays of chars word-aligned for the same reasons.  */
 #define DATA_ALIGNMENT(TYPE, ALIGN)					\
@@ -481,34 +383,6 @@ extern enum m32r_sdata m32r_sdata;
 }
 #endif
 
-/* Return number of consecutive hard regs needed starting at reg REGNO
-   to hold something of mode MODE.
-   This is ordinarily the length in words of a value of mode MODE
-   but can be less for certain modes in special long registers.  */
-#define HARD_REGNO_NREGS(REGNO, MODE) \
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
-/* Value is 1 if hard register REGNO can hold a value of machine-mode MODE.  */
-extern const unsigned int m32r_hard_regno_mode_ok[FIRST_PSEUDO_REGISTER];
-extern unsigned int m32r_mode_class[];
-#define HARD_REGNO_MODE_OK(REGNO, MODE) \
-  ((m32r_hard_regno_mode_ok[REGNO] & m32r_mode_class[MODE]) != 0)
-
-/* A C expression that is nonzero if it is desirable to choose
-   register allocation so as to avoid move instructions between a
-   value of mode MODE1 and a value of mode MODE2.
-
-   If `HARD_REGNO_MODE_OK (R, MODE1)' and `HARD_REGNO_MODE_OK (R,
-   MODE2)' are ever different for any R, then `MODES_TIEABLE_P (MODE1,
-   MODE2)' must be zero.  */
-
-/* Tie QI/HI/SI modes together.  */
-#define MODES_TIEABLE_P(MODE1, MODE2) 		\
-  (   GET_MODE_CLASS (MODE1) == MODE_INT	\
-   && GET_MODE_CLASS (MODE2) == MODE_INT	\
-   && GET_MODE_SIZE (MODE1) <= UNITS_PER_WORD	\
-   && GET_MODE_SIZE (MODE2) <= UNITS_PER_WORD)
-
 #define HARD_REGNO_RENAME_OK(OLD_REG, NEW_REG) \
   m32r_hard_regno_rename_ok (OLD_REG, NEW_REG)
 
@@ -541,11 +415,6 @@ enum reg_class
 {
   NO_REGS, CARRY_REG, ACCUM_REGS, GENERAL_REGS, ALL_REGS, LIM_REG_CLASSES
 };
-
-#define IRA_COVER_CLASSES				\
-{							\
-  ACCUM_REGS, GENERAL_REGS, LIM_REG_CLASSES		\
-}
 
 #define N_REG_CLASSES ((int) LIM_REG_CLASSES)
 
@@ -597,18 +466,14 @@ extern enum reg_class m32r_regno_reg_class[FIRST_PSEUDO_REGISTER];
    They give nonzero only if REGNO is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in local-alloc.c.  */
+   has been allocated, which happens in reginfo.c during register
+   allocation.  */
 #define REGNO_OK_FOR_BASE_P(REGNO) \
   ((REGNO) < FIRST_PSEUDO_REGISTER			\
    ? GPR_P (REGNO) || (REGNO) == ARG_POINTER_REGNUM	\
    : GPR_P (reg_renumber[REGNO]))
 
 #define REGNO_OK_FOR_INDEX_P(REGNO) REGNO_OK_FOR_BASE_P(REGNO)
-
-/* Return the maximum number of consecutive registers
-   needed to represent mode MODE in a register of class CLASS.  */
-#define CLASS_MAX_NREGS(CLASS, MODE) \
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
 
 /* Return true if a value is inside a range.  */
 #define IN_RANGE_P(VALUE, LOW, HIGH)			\
@@ -625,16 +490,7 @@ extern enum reg_class m32r_regno_reg_class[FIRST_PSEUDO_REGISTER];
 
 /* Define this macro if pushing a word onto the stack moves the stack
    pointer to a smaller address.  */
-#define STACK_GROWS_DOWNWARD
-
-/* Offset from frame pointer to start allocating local variables at.
-   If FRAME_GROWS_DOWNWARD, this is the offset to the END of the
-   first local allocated.  Otherwise, it is the offset to the BEGINNING
-   of the first local allocated.  */
-/* The frame pointer points at the same place as the stack pointer, except if
-   alloca has been called.  */
-#define STARTING_FRAME_OFFSET \
-  M32R_STACK_ALIGN (crtl->outgoing_args_size)
+#define STACK_GROWS_DOWNWARD 1
 
 /* Offset from the stack pointer register to the first location at which
    outgoing arguments are placed.  */
@@ -682,15 +538,6 @@ extern enum reg_class m32r_regno_reg_class[FIRST_PSEUDO_REGISTER];
 
 /* Eliminating the frame and arg pointers.  */
 
-#if 0
-/* C statement to store the difference between the frame pointer
-   and the stack pointer values immediately after the function prologue.
-   If `ELIMINABLE_REGS' is defined, this macro will be not be used and
-   need not be defined.  */
-#define INITIAL_FRAME_POINTER_OFFSET(VAR) \
-((VAR) = m32r_compute_frame_size (get_frame_size ()))
-#endif
-
 /* If defined, this macro specifies a table of register pairs used to
    eliminate unneeded registers that point into the stack frame.  If
    it is not defined, the only elimination attempted by the compiler
@@ -705,10 +552,8 @@ extern enum reg_class m32r_regno_reg_class[FIRST_PSEUDO_REGISTER];
  { ARG_POINTER_REGNUM,	 STACK_POINTER_REGNUM },	\
  { ARG_POINTER_REGNUM,   FRAME_POINTER_REGNUM }}
 
-/* This macro is similar to `INITIAL_FRAME_POINTER_OFFSET'.  It
-   specifies the initial difference between the specified pair of
-   registers.  This macro must be defined if `ELIMINABLE_REGS' is
-   defined.  */
+/* This macro returns the initial difference between the specified pair
+   of registers.  */
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)				\
   do										\
@@ -845,19 +690,6 @@ L2:     .word STATIC
    ||  CONST_INT_P (X)  \
    || (GET_CODE (X) == CONST      \
        && ! (flag_pic && ! m32r_legitimate_pic_operand_p (X))))
-
-/* Nonzero if the constant value X is a legitimate general operand.
-   We don't allow (plus symbol large-constant) as the relocations can't
-   describe it.  INTVAL > 32767 handles both 16-bit and 24-bit relocations.
-   We allow all CONST_DOUBLE's as the md file patterns will force the
-   constant to memory if they can't handle them.  */
-
-#define LEGITIMATE_CONSTANT_P(X)					\
-  (! (GET_CODE (X) == CONST						\
-      && GET_CODE (XEXP (X, 0)) == PLUS					\
-      && (GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF || GET_CODE (XEXP (XEXP (X, 0), 0)) == LABEL_REF) \
-      && CONST_INT_P (XEXP (XEXP (X, 0), 1))			\
-      && (unsigned HOST_WIDE_INT) INTVAL (XEXP (XEXP (X, 0), 1)) > 32767))
 
 /* Condition code usage.  */
 
@@ -881,7 +713,7 @@ L2:     .word STATIC
 
 /* Define this macro if it is as good or better to call a constant
    function address than to call an address kept in a register.  */
-#define NO_FUNCTION_CSE
+#define NO_FUNCTION_CSE 1
 
 /* Section selection.  */
 
@@ -1118,7 +950,7 @@ L2:     .word STATIC
 
 /* Define if operations between registers always perform the operation
    on the full register even if a narrower mode is specified.  */
-#define WORD_REGISTER_OPERATIONS
+#define WORD_REGISTER_OPERATIONS 1
 
 /* Define if loading in MODE, an integral mode narrower than BITS_PER_WORD
    will either zero-extend or sign-extend.  The value of this macro should
@@ -1133,10 +965,6 @@ L2:     .word STATIC
 /* Define this to be nonzero if shift instructions ignore all but the low-order
    few bits.  */
 #define SHIFT_COUNT_TRUNCATED 1
-
-/* Value is 1 if truncating an integer of INPREC bits to OUTPREC bits
-   is done just by pretending it is already truncated.  */
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
 
 /* Specify the machine mode that pointers have.
    After generation of rtl, the compiler makes no further distinction

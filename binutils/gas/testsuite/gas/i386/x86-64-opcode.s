@@ -61,15 +61,18 @@
 	# Conditionals
 
 	# LOOP
+	LOOP .			      #	 --  --	 -- --	 E2 FE				 ; RCX used as counter.
+	LOOPq .			      #	 --  --	 -- --	 E2 FE				 ; RCX used as counter.
+	LOOPl .			      #	 --  67	 -- --	 E2 FD				 ; ECX used as counter.
 
 
 	# Jcc
-				      #	 66  --	 -- --	 77 FD				 ; A16 override: (Addr64) = ZEXT(Addr16)
-				      #	 66  --	 -- --	 0F 87 F9 FF FF FF		 ; A16 override: (Addr64) = ZEXT(Addr16)
+				      #	 66  --	 -- --	 77 FD				 ; O16 override: (Addr64) = ZEXT(Addr16)
+				      #	 66  --	 -- --	 0F 87 F9 FF FF FF		 ; O16 override: (Addr64) = ZEXT(Addr16)
 
 	# J*CXZ
-				      #	 66  67	 -- --	 E3 FC				 ; ECX used as counter. A16 override: (Addr64) = ZEXT(Addr16)
-				      #	 66  --	 -- --	 E3 FD				 ; A16 override: (Addr64) = ZEXT(Addr16)
+	JRCXZ .			      #	 --  --	 -- --	 E3 FE				 ; RCX used as counter.
+	JECXZ .			      #	 --  67	 -- --	 E3 FD				 ; ECX used as counter.
 
 
 
@@ -424,3 +427,17 @@
         swapgs		              #  --  --	 -- --	 0F 01 f8
 
 	pushw $0x2222
+
+	.byte 0xf6, 0xc9, 0x01
+	.byte 0x66, 0xf7, 0xc9, 0x02, 0x00
+	.byte 0xf7, 0xc9, 0x04, 0x00, 0x00, 0x00
+	.byte 0x48, 0xf7, 0xc9, 0x08, 0x00, 0x00, 0x00
+	.byte 0xc0, 0xf0, 0x02
+	.byte 0xc1, 0xf0, 0x01
+	.byte 0x48, 0xc1, 0xf0, 0x01
+	.byte 0xd0, 0xf0
+	.byte 0xd1, 0xf0
+	.byte 0x48, 0xd1, 0xf0
+	.byte 0xd2, 0xf0
+	.byte 0xd3, 0xf0
+	.byte 0x48, 0xd3, 0xf0

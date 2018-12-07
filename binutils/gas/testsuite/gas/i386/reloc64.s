@@ -198,3 +198,29 @@ bad	.byte	xtrn@tpoff
 
 	.text
 	mov	xtrn@tpoff (%rbx), %eax
+
+	.data
+	.long	xtrn@got - 4
+	.long	xtrn@got + 4
+
+	.text
+	movabs	$xtrn@gotplt, %rax
+bad	add	$xtrn@gotplt, %rax
+bad	mov	$xtrn@gotplt, %eax
+bad	mov	$xtrn@gotplt, %ax
+bad	mov	$xtrn@gotplt, %al
+bad	mov	xtrn@gotplt(%rbx), %eax
+bad	mov	xtrn@gotplt(%ebx), %eax
+bad	call	xtrn@gotplt
+
+	.data
+	.quad	xtrn@gotplt
+bad	.long	xtrn@gotplt
+bad	.word	xtrn@gotplt
+bad	.byte	xtrn@gotplt
+
+	.text
+	mov	xtrn(,%rbx), %eax
+	mov	xtrn(,%ebx), %eax
+	vgatherdps %xmm2, xtrn(,%xmm1), %xmm0
+	addr32 vgatherdps %xmm2, xtrn(,%xmm1), %xmm0

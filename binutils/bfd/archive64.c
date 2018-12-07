@@ -1,6 +1,5 @@
-/* MIPS-specific support for 64-bit ELF
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007,
-   2010, 2012  Free Software Foundation, Inc.
+/* Support for 64-bit archives.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
    Ian Lance Taylor, Cygnus Support
    Linker support added by Mark Mitchell, CodeSourcery, LLC.
    <mark@codesourcery.com>
@@ -22,7 +21,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-/* This file supports the 64-bit (MIPS) ELF archives.  */
+/* This file supports the 64-bit archives.  We use the same format as
+   the 64-bit (MIPS) ELF archives.  */
 
 #include "sysdep.h"
 #include "bfd.h"
@@ -32,14 +32,10 @@
 /* Irix 6 defines a 64bit archive map format, so that they can
    have archives more than 4 GB in size.  */
 
-bfd_boolean bfd_elf64_archive_slurp_armap (bfd *);
-bfd_boolean bfd_elf64_archive_write_armap
-  (bfd *, unsigned int, struct orl *, unsigned int, int);
-
 /* Read an Irix 6 armap.  */
 
 bfd_boolean
-bfd_elf64_archive_slurp_armap (bfd *abfd)
+_bfd_archive_64_bit_slurp_armap (bfd *abfd)
 {
   struct artdata *ardata = bfd_ardata (abfd);
   char nextname[17];
@@ -47,6 +43,7 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
   struct areltdata *mapdata;
   bfd_byte int_buf[8];
   char *stringbase;
+  char *stringend;
   bfd_byte *raw_armap = NULL;
   carsym *carsyms;
   bfd_size_type amt;
@@ -77,7 +74,7 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
   if (mapdata == NULL)
     return FALSE;
   parsed_size = mapdata->parsed_size;
-  bfd_release (abfd, mapdata);
+  free (mapdata);
 
   if (bfd_bread (int_buf, 8, abfd) != 8)
     {
@@ -93,11 +90,18 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
   ptrsize = 8 * nsymz;
 
   amt = carsym_size + stringsize + 1;
+  if (carsym_size < nsymz || ptrsize < nsymz || amt < nsymz)
+    {
+      bfd_set_error (bfd_error_malformed_archive);
+      return FALSE;
+    }
   ardata->symdefs = (struct carsym *) bfd_zalloc (abfd, amt);
   if (ardata->symdefs == NULL)
     return FALSE;
   carsyms = ardata->symdefs;
   stringbase = ((char *) ardata->symdefs) + carsym_size;
+  stringbase[stringsize] = 0;
+  stringend = stringbase + stringsize;
 
   raw_armap = (bfd_byte *) bfd_alloc (abfd, ptrsize);
   if (raw_armap == NULL)
@@ -115,7 +119,8 @@ bfd_elf64_archive_slurp_armap (bfd *abfd)
     {
       carsyms->file_offset = bfd_getb64 (raw_armap + i * 8);
       carsyms->name = stringbase;
-      stringbase += strlen (stringbase) + 1;
+      if (stringbase < stringend)
+	stringbase += strlen (stringbase) + 1;
       ++carsyms;
     }
   *stringbase = '\0';
@@ -142,11 +147,11 @@ release_symdefs:
    linker crashes.  */
 
 bfd_boolean
-bfd_elf64_archive_write_armap (bfd *arch,
-			       unsigned int elength,
-			       struct orl *map,
-			       unsigned int symbol_count,
-			       int stridx)
+_bfd_archive_64_bit_write_armap (bfd *arch,
+				 unsigned int elength,
+				 struct orl *map,
+				 unsigned int symbol_count,
+				 int stridx)
 {
   unsigned int ranlibsize = (symbol_count * 8) + 8;
   unsigned int stringsize = stridx;
@@ -172,7 +177,7 @@ bfd_elf64_archive_write_armap (bfd *arch,
   if (!_bfd_ar_sizepad (hdr.ar_size, sizeof (hdr.ar_size), mapsize))
     return FALSE;
   _bfd_ar_spacepad (hdr.ar_date, sizeof (hdr.ar_date), "%ld",
-                    time (NULL));
+		    time (NULL));
   /* This, at least, is what Intel coff sets the values to.: */
   _bfd_ar_spacepad (hdr.ar_uid, sizeof (hdr.ar_uid), "%ld", 0);
   _bfd_ar_spacepad (hdr.ar_gid, sizeof (hdr.ar_gid), "%ld", 0);
@@ -200,7 +205,7 @@ bfd_elf64_archive_write_armap (bfd *arch,
        current = current->archive_next)
     {
       /* For each symbol which is used defined in this object, write out
-	 the object file's address in the archive */
+	 the object file's address in the archive.  */
 
       for (;
 	   count < symbol_count && map[count].u.abfd == current;
@@ -210,9 +215,11 @@ bfd_elf64_archive_write_armap (bfd *arch,
 	  if (bfd_bwrite (buf, 8, arch) != 8)
 	    return FALSE;
 	}
+
       /* Add size of this archive entry */
-      archive_member_file_ptr += (arelt_size (current)
-				  + sizeof (struct ar_hdr));
+      archive_member_file_ptr += sizeof (struct ar_hdr);
+      if (! bfd_is_thin_archive (arch))
+	archive_member_file_ptr += arelt_size (current);
       /* remember about the even alignment */
       archive_member_file_ptr += archive_member_file_ptr % 2;
     }

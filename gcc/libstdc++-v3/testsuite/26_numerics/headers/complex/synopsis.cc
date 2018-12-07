@@ -1,6 +1,7 @@
 // { dg-do compile }
+// { dg-require-normal-namespace "" }
 
-// Copyright (C) 2007, 2009 Free Software Foundation, Inc.
+// Copyright (C) 2007-2018 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -44,15 +45,20 @@ namespace std {
   template<class T> complex<T> operator/(const T&, const complex<T>&);
   template<class T> complex<T> operator+(const complex<T>&);
   template<class T> complex<T> operator-(const complex<T>&);
-  template<class T> bool operator==
+  template<class T> _GLIBCXX_CONSTEXPR bool operator==
     (const complex<T>&, const complex<T>&);
-  template<class T> bool operator==(const complex<T>&, const T&);
-  template<class T> bool operator==(const T&, const complex<T>&);
+  template<class T> _GLIBCXX_CONSTEXPR bool operator==
+    (const complex<T>&, const T&);
+  template<class T> _GLIBCXX_CONSTEXPR bool operator==
+    (const T&, const complex<T>&);
 
 
-  template<class T> bool operator!=(const complex<T>&, const complex<T>&);
-  template<class T> bool operator!=(const complex<T>&, const T&);
-  template<class T> bool operator!=(const T&, const complex<T>&);
+  template<class T> _GLIBCXX_CONSTEXPR bool operator!=
+    (const complex<T>&, const complex<T>&);
+  template<class T> _GLIBCXX_CONSTEXPR bool operator!=
+    (const complex<T>&, const T&);
+  template<class T> _GLIBCXX_CONSTEXPR bool operator!=
+    (const T&, const complex<T>&);
   template<class T, class charT, class traits>
   basic_istream<charT, traits>&
   operator>>(basic_istream<charT, traits>&, complex<T>&);
@@ -61,13 +67,13 @@ namespace std {
   operator<<(basic_ostream<charT, traits>&, const complex<T>&);
 
   // 26.2.7 values:
-  template<class T> T real(const complex<T>&);
-  template<class T> T imag(const complex<T>&);
+  template<class T> _GLIBCXX_CONSTEXPR T real(const complex<T>&);
+  template<class T> _GLIBCXX_CONSTEXPR T imag(const complex<T>&);
   template<class T> T abs(const complex<T>&);
   template<class T> T arg(const complex<T>&);
   template<class T> T norm(const complex<T>&);
   template<class T> complex<T> conj(const complex<T>&);
-  template<class T> complex<T> polar(const T& rho, const T& theta = 0);
+  template<class T> complex<T> polar(const T& rho, const T& theta);
 
   // 26.2.8 transcendentals:
   template<class T> complex<T> cos(const  complex<T>&);

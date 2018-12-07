@@ -2,6 +2,12 @@
 # OS, where a separate postlinker will operated on the generated
 # executable or shared object.  See elf.sc for configuration variables
 # that apply; only BPABI-specific variables will be noted here.
+#
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 test -z "$ENTRY" && ENTRY=_start
 test -z "${BIG_OUTPUT_FORMAT}" && BIG_OUTPUT_FORMAT=${OUTPUT_FORMAT}
@@ -46,7 +52,7 @@ if test -z "${NO_SMALL_DATA}"; then
   SDATA="/* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
-  .sdata        ${RELOCATING-0} : 
+  .sdata        ${RELOCATING-0} :
   {
     ${RELOCATING+${SDATA_START_SYMBOLS}}
     *(.sdata${RELOCATING+ .sdata.* .gnu.linkonce.s.*})
@@ -82,7 +88,7 @@ FINI_ARRAY=".fini_array   ${RELOCATING-0} :
     KEEP (*(.fini_array))
     ${RELOCATING+${CREATE_SHLIB-PROVIDE_HIDDEN (__fini_array_end = .);}}
   }"
-CTOR=".ctors        ${CONSTRUCTING-0} : 
+CTOR=".ctors        ${CONSTRUCTING-0} :
   {
     ${CONSTRUCTING+${CTOR_START}}
     /* gcc uses crtbegin.o to find the start of
@@ -129,7 +135,7 @@ SHLIB_TEXT_START_ADDR="SEGMENT_START(\"text\", ${SHLIB_TEXT_START_ADDR:-0})"
 DATA_ADDR="SEGMENT_START(\"data\", ${DATA_ADDR-${DATA_SEGMENT_ALIGN}})"
 SHLIB_DATA_ADDR="SEGMENT_START(\"data\", ${SHLIB_DATA_ADDR-${DATA_SEGMENT_ALIGN}})"
 
-# if this is for an embedded system, don't add SIZEOF_HEADERS.
+# If this is for an embedded system, don't add SIZEOF_HEADERS.
 if [ -z "$EMBEDDED" ]; then
    test -z "${TEXT_BASE_ADDRESS}" && TEXT_BASE_ADDRESS="${TEXT_START_ADDR} + SIZEOF_HEADERS"
    SHLIB_BASE_ADDRESS="${SHLIB_TEXT_START_ADDR} + SIZEOF_HEADERS"
@@ -139,6 +145,12 @@ else
 fi
 
 cat <<EOF
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}", "${BIG_OUTPUT_FORMAT}",
 	      "${LITTLE_OUTPUT_FORMAT}")
 OUTPUT_ARCH(${OUTPUT_ARCH})
@@ -154,23 +166,23 @@ ${RELOCATING- /* For some reason, the Solaris linker makes bad executables
   at non-zero addresses.  Could be a Solaris ld bug, could be a GNU ld
   bug.  But for now assigning the zero vmas works.  */}
 
-/* ARM's proprietary toolchain generate these symbols to match the start 
+/* ARM's proprietary toolchain generate these symbols to match the start
    and end of particular sections of the image.  SymbianOS uses these
-   symbols.  We provide them for compatibility with ARM's toolchains.  
-   These symbols should be bound locally; each shared object may define 
-   its own version of these symbols.  */ 
-	
+   symbols.  We provide them for compatibility with ARM's toolchains.
+   These symbols should be bound locally; each shared object may define
+   its own version of these symbols.  */
+
 VERSION
-{ 
+{
   /* Give these a dummy version to work around linker lameness.
      The name used shouldn't matter as these are all local symbols.  */
-  __GNU { 
-    local: 
+  __GNU {
+    local:
       Image\$\$ER_RO\$\$Base;
       Image\$\$ER_RO\$\$Limit;
       SHT\$\$INIT_ARRAY\$\$Base;
       SHT\$\$INIT_ARRAY\$\$Limit;
-      .ARM.exidx\$\$Base;	
+      .ARM.exidx\$\$Base;
       .ARM.exidx\$\$Limit;
   };
 }
@@ -191,8 +203,8 @@ SECTIONS
 
 EOF
 cat <<EOF
-  .init         ${RELOCATING-0} : 
-  { 
+  .init         ${RELOCATING-0} :
+  {
     ${RELOCATING+${INIT_START}}
     KEEP (*(.init))
     ${RELOCATING+${INIT_END}}
@@ -305,6 +317,7 @@ cat <<EOF
   ${RELOCATING+_end = .;}
   ${RELOCATING+PROVIDE (end = .);}
   ${RELOCATING+${DATA_SEGMENT_END}}
+  ${STACK_ADDR+${STACK}}
 
   /* These sections are not mapped under the BPABI.  */
   .dynamic      0 : { *(.dynamic) }
@@ -325,46 +338,11 @@ cat <<EOF
   .stab.indexstr 0 : { *(.stab.indexstr) }
 
   .comment       0 : { *(.comment) }
+EOF
 
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging sections are relative to the beginning
-     of the section so we begin them at 0.  */
+. $srcdir/scripttempl/DWARF.sc
 
-  /* DWARF 1 */
-  .debug          0 : { *(.debug) }
-  .line           0 : { *(.line) }
-
-  /* GNU DWARF 1 extensions */
-  .debug_srcinfo  0 : { *(.debug_srcinfo) }
-  .debug_sfnames  0 : { *(.debug_sfnames) }
-
-  /* DWARF 1.1 and DWARF 2 */
-  .debug_aranges  0 : { *(.debug_aranges) }
-  .debug_pubnames 0 : { *(.debug_pubnames) }
-
-  /* DWARF 2 */
-  .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
-  .debug_abbrev   0 : { *(.debug_abbrev) }
-  .debug_line     0 : { *(.debug_line) }
-  .debug_frame    0 : { *(.debug_frame) }
-  .debug_str      0 : { *(.debug_str) }
-  .debug_loc      0 : { *(.debug_loc) }
-  .debug_macinfo  0 : { *(.debug_macinfo) }
-
-  /* SGI/MIPS DWARF 2 extensions */
-  .debug_weaknames 0 : { *(.debug_weaknames) }
-  .debug_funcnames 0 : { *(.debug_funcnames) }
-  .debug_typenames 0 : { *(.debug_typenames) }
-  .debug_varnames  0 : { *(.debug_varnames) }
-
-  /* DWARF 3 */
-  .debug_pubtypes 0 : { *(.debug_pubtypes) }
-  .debug_ranges   0 : { *(.debug_ranges) }
-
-  /* DWARF Extension.  */
-  .debug_macro    0 : { *(.debug_macro) } 
-
-  ${STACK_ADDR+${STACK}}
+cat <<EOF
   ${OTHER_SECTIONS}
   ${RELOCATING+${OTHER_SYMBOLS}}
   ${RELOCATING+${DISCARDED}}
@@ -415,13 +393,13 @@ cat <<EOF
   .rel.dyn      0 :
     {
 EOF
-sed -e '/^[ 	]*[{}][ 	]*$/d;/:[ 	]*$/d;/\.rela\./d;s/^.*: { *\(.*\)}$/      \1/' $COMBRELOC
+sed -e '/^[	 ]*[{}][	 ]*$/d;/:[	 ]*$/d;/\.rela\./d;s/^.*: { *\(.*\)}$/      \1/' $COMBRELOC
 cat <<EOF
     }
   .rela.dyn     0 :
     {
 EOF
-sed -e '/^[ 	]*[{}][ 	]*$/d;/:[ 	]*$/d;/\.rel\./d;s/^.*: { *\(.*\)}/      \1/' $COMBRELOC
+sed -e '/^[	 ]*[{}][	 ]*$/d;/:[	 ]*$/d;/\.rel\./d;s/^.*: { *\(.*\)}/      \1/' $COMBRELOC
 cat <<EOF
     }
 EOF

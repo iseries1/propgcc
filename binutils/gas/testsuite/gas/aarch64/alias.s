@@ -2,7 +2,7 @@
    preference.  It is also used to test the -Mno-aliases option in
    the disassemler.
 
-   Copyright 2012 Free Software Foundation, Inc.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GAS.
@@ -99,3 +99,32 @@
 	adds	xzr, x15, #0xfff
 	subs	x15, sp, #0xfff
 	cmn	x15, #0xfff
+
+	.macro asimdshll	s
+	 \s\()xtl v8.8h, v2.8b
+	 \s\()shll v8.8h, v2.8b, #0
+	 \s\()xtl2 v8.8h, v2.16b
+	 \s\()shll2 v8.8h, v2.16b, #0
+	 \s\()xtl v8.4s, v2.4h
+	 \s\()shll v8.4s, v2.4h, #0
+	 \s\()xtl2 v8.4s, v2.8h
+	 \s\()shll2 v8.4s, v2.8h, #0
+	 \s\()xtl v8.2d, v2.2s
+	 \s\()shll v8.2d, v2.2s, #0
+	 \s\()xtl2 v8.2d, v2.4s
+	 \s\()shll2 v8.2d, v2.4s, #0
+	.endm
+
+	asimdshll	s
+	asimdshll	u
+
+	csinc	w0, w1, w1, nv
+	csinc	w0, w1, w1, al
+	csinc	w0, wzr, wzr, nv
+	csinc	w0, wzr, wzr, al
+	csinv	w0, w1, w1, nv
+	csinv	w0, w1, w1, al
+	csinv	w0, wzr, wzr, nv
+	csinv	w0, wzr, wzr, al
+	csneg	w0, w1, w1, nv
+	csneg	w0, w1, w1, al

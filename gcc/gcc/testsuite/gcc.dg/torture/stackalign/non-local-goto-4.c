@@ -1,4 +1,8 @@
 /* { dg-do run } */
+/* { dg-require-effective-target nonlocal_goto } */
+/* { dg-require-effective-target label_values } */
+/* { dg-require-effective-target trampolines } */
+/* { dg-add-options stack_size } */
 
 extern void abort (void);
 extern void exit (int);
@@ -9,13 +13,11 @@ extern void exit (int);
 #define DEPTH 1000
 #endif
 
-#if ! defined (NO_LABEL_VALUES) && !defined (NO_TRAMPOLINES)
 int
-
-x(a)
+x(int a)
 {
   __label__ xlab;
-  void y(a)
+  void y(int a)
     {
       if (a==0)
 	goto xlab;
@@ -25,14 +27,12 @@ x(a)
  xlab:;
   return a;
 }
-#endif
 
 int
 main ()
 {
-#if ! defined (NO_LABEL_VALUES) && !defined (NO_TRAMPOLINES)
   if (x (DEPTH) != DEPTH)
     abort ();
-#endif
+
   exit (0);
 }

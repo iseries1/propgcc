@@ -8,7 +8,7 @@
 
 struct D {
   
-  int &m;       // { dg-error "invalid use of non-static data member" "" }
+  int &m;       // { dg-message "" }
   static int &s;
   
   int Foo ();
@@ -19,7 +19,7 @@ template<class T> int f2(T x);
 
 int D::Foo ()
 {
-  f1( &D::m);   // { dg-error "cannot create pointer to ref" "" }
+  f1( &D::m);   // { dg-error "cannot create pointer to ref" }
   f1( &(D::m));	// ok
   f2( &D::s);   // ok
   f2( &(D::s)); // ok
@@ -28,8 +28,8 @@ int D::Foo ()
 
 int Foo ()
 {
-  f1( &D::m);    // { dg-error "cannot create pointer to ref" "" }
-  f1( &(D::m));  // { dg-error "from this location" "" }
+  f1( &D::m);    // { dg-error "cannot create pointer to ref" }
+  f1( &(D::m));  // { dg-error "non-static" }
   f2( &D::s);    // ok
   f2( &(D::s));  // ok
   return 0;

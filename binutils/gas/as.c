@@ -1,8 +1,5 @@
 /* as.c - GAS main program.
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
-   2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -25,14 +22,18 @@
    Understands command arguments.
    Has a few routines that don't fit in other modules because they
    are shared.
-  
+
   			bugs
-  
+
    : initialisers
   	Since no-one else says they will support them in future: I
    don't support them now.  */
 
 #define COMMON
+
+/* Disable code to set FAKE_LABEL_NAME in obj-multi.h, to avoid circular
+   reference.  */
+#define INITIALIZING_EMULS
 
 #include "as.h"
 #include "subsegs.h"
@@ -42,17 +43,12 @@
 #include "dwarf2dbg.h"
 #include "dw2gencfi.h"
 #include "bfdver.h"
+#include "write.h"
 
 #ifdef HAVE_ITBL_CPU
 #include "itbl-ops.h"
 #else
 #define itbl_init()
-#endif
-
-#ifdef HAVE_SBRK
-#ifdef NEED_DECLARATION_SBRK
-extern void *sbrk ();
-#endif
 #endif
 
 #ifdef USING_CGEN
@@ -99,8 +95,13 @@ int debug_memory = 0;
 /* Enable verbose mode.  */
 int verbose = 0;
 
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+int flag_use_elf_stt_common = DEFAULT_GENERATE_ELF_STT_COMMON;
+bfd_boolean flag_generate_build_notes = DEFAULT_GENERATE_BUILD_NOTES;
+#endif
+
 /* Keep the output file.  */
-int keep_it = 0;
+static int keep_it = 0;
 
 segT reg_section;
 segT expr_section;
@@ -132,7 +133,6 @@ static int flag_macro_alternate;
 #define EMULATION_ENVIRON "AS_EMULATION"
 
 extern struct emulation mipsbelf, mipslelf, mipself;
-extern struct emulation mipsbecoff, mipslecoff, mipsecoff;
 extern struct emulation i386coff, i386elf, i386aout;
 extern struct emulation crisaout, criself;
 
@@ -143,7 +143,8 @@ static void
 select_emulation_mode (int argc, char **argv)
 {
   int i;
-  char *p, *em = 0;
+  char *p;
+  const char *em = NULL;
 
   for (i = 1; i < argc; i++)
     if (!strncmp ("--em", argv[i], 4))
@@ -204,10 +205,10 @@ common_emul_init (void)
   if (this_emulation->fake_label_name == 0)
     {
       if (this_emulation->leading_underscore)
-	this_emulation->fake_label_name = "L0\001";
+	this_emulation->fake_label_name = FAKE_LABEL_NAME;
       else
 	/* What other parameters should we test?  */
-	this_emulation->fake_label_name = ".L0\001";
+	this_emulation->fake_label_name = "." FAKE_LABEL_NAME;
     }
 }
 #endif
@@ -224,6 +225,11 @@ print_version_id (void)
   fprintf (stderr, _("GNU assembler version %s (%s) using BFD version %s\n"),
 	   VERSION, TARGET_ALIAS, BFD_VERSION_STRING);
 }
+
+#ifdef DEFAULT_FLAG_COMPRESS_DEBUG
+enum compressed_debug_section_type flag_compress_debug
+  = COMPRESS_DEBUG_GABI_ZLIB;
+#endif
 
 static void
 show_usage (FILE * stream)
@@ -246,14 +252,21 @@ Options:\n\
 
   fprintf (stream, _("\
   --alternate             initially turn on alternate macro syntax\n"));
-#ifdef HAVE_ZLIB_H
+#ifdef DEFAULT_FLAG_COMPRESS_DEBUG
   fprintf (stream, _("\
-  --compress-debug-sections\n\
-                          compress DWARF debug sections using zlib\n"));
+  --compress-debug-sections[={none|zlib|zlib-gnu|zlib-gabi}]\n\
+                          compress DWARF debug sections using zlib [default]\n"));
   fprintf (stream, _("\
   --nocompress-debug-sections\n\
                           don't compress DWARF debug sections\n"));
-#endif /* HAVE_ZLIB_H */
+#else
+  fprintf (stream, _("\
+  --compress-debug-sections[={none|zlib|zlib-gnu|zlib-gabi}]\n\
+                          compress DWARF debug sections using zlib\n"));
+  fprintf (stream, _("\
+  --nocompress-debug-sections\n\
+                          don't compress DWARF debug sections [default]\n"));
+#endif
   fprintf (stream, _("\
   -D                      produce assembler debugging messages\n"));
   fprintf (stream, _("\
@@ -264,7 +277,7 @@ Options:\n\
 #ifdef USE_EMULATIONS
   {
     int i;
-    char *def_em;
+    const char *def_em;
 
     fprintf (stream, "\
   --em=[");
@@ -287,7 +300,23 @@ Options:\n\
   fprintf (stream, _("\
   --size-check=[error|warning]\n\
 			  ELF .size directive check (default --size-check=error)\n"));
+  fprintf (stream, _("\
+  --elf-stt-common=[no|yes]\n\
+                          generate ELF common symbols with STT_COMMON type\n"));
+  fprintf (stream, _("\
+  --sectname-subst        enable section name substitution sequences\n"));
+
+  fprintf (stream, _("\
+  --generate-missing-build-notes=[no|yes] "));
+#if DEFAULT_GENERATE_BUILD_NOTES
+  fprintf (stream, _("(default: yes)\n"));
+#else
+  fprintf (stream, _("(default: no)\n"));
 #endif
+  fprintf (stream, _("\
+                          generate GNU Build notes if none are present in the input\n"));
+#endif /* OBJ_ELF */
+
   fprintf (stream, _("\
   -f                      skip whitespace and comment preprocessing\n"));
   fprintf (stream, _("\
@@ -298,6 +327,8 @@ Options:\n\
   --gstabs+               generate STABS debug info with GNU extensions\n"));
   fprintf (stream, _("\
   --gdwarf-2              generate DWARF2 debugging information\n"));
+  fprintf (stream, _("\
+  --gdwarf-sections       generate per-function section names for DWARF line information\n"));
   fprintf (stream, _("\
   --hash-size=<value>     set the hash table size close to <value>\n"));
   fprintf (stream, _("\
@@ -318,6 +349,8 @@ Options:\n\
   --MD FILE               write dependency information in FILE (default none)\n"));
   fprintf (stream, _("\
   -nocpp                  ignored\n"));
+  fprintf (stream, _("\
+  -no-pad-sections        do not pad the end of sections to alignment boundaries\n"));
   fprintf (stream, _("\
   -o OBJFILE              name the object-file output OBJFILE (default a.out)\n"));
   fprintf (stream, _("\
@@ -365,7 +398,7 @@ Options:\n\
   --listing-cont-lines    set the maximum number of continuation lines used\n\
                           for the output data column of the listing\n"));
   fprintf (stream, _("\
-  @FILE                   read options from FILE\n")); 
+  @FILE                   read options from FILE\n"));
 
   md_show_usage (stream);
 
@@ -440,6 +473,7 @@ parse_args (int * pargc, char *** pargv)
       OPTION_GSTABS,
       OPTION_GSTABS_PLUS,
       OPTION_GDWARF2,
+      OPTION_GDWARF_SECTIONS,
       OPTION_STRIP_LOCAL_ABSOLUTE,
       OPTION_TRADITIONAL_FORMAT,
       OPTION_WARN,
@@ -447,17 +481,21 @@ parse_args (int * pargc, char *** pargv)
       OPTION_EXECSTACK,
       OPTION_NOEXECSTACK,
       OPTION_SIZE_CHECK,
+      OPTION_ELF_STT_COMMON,
+      OPTION_ELF_BUILD_NOTES,
+      OPTION_SECTNAME_SUBST,
       OPTION_ALTERNATE,
       OPTION_AL,
       OPTION_HASH_TABLE_SIZE,
       OPTION_REDUCE_MEMORY_OVERHEADS,
       OPTION_WARN_FATAL,
       OPTION_COMPRESS_DEBUG,
-      OPTION_NOCOMPRESS_DEBUG
+      OPTION_NOCOMPRESS_DEBUG,
+      OPTION_NO_PAD_SECTIONS /* = STD_BASE + 40 */
     /* When you add options here, check that they do
        not collide with OPTION_MD_BASE.  See as.h.  */
     };
-  
+
   static const struct option std_longopts[] =
   {
     /* Note: commas are placed at the start of the line rather than
@@ -471,7 +509,7 @@ parse_args (int * pargc, char *** pargv)
     ,{"a", optional_argument, NULL, 'a'}
     /* Handle -al=<FILE>.  */
     ,{"al", optional_argument, NULL, OPTION_AL}
-    ,{"compress-debug-sections", no_argument, NULL, OPTION_COMPRESS_DEBUG}
+    ,{"compress-debug-sections", optional_argument, NULL, OPTION_COMPRESS_DEBUG}
     ,{"nocompress-debug-sections", no_argument, NULL, OPTION_NOCOMPRESS_DEBUG}
     ,{"debug-prefix-map", required_argument, NULL, OPTION_DEBUG_PREFIX_MAP}
     ,{"defsym", required_argument, NULL, OPTION_DEFSYM}
@@ -481,12 +519,16 @@ parse_args (int * pargc, char *** pargv)
     ,{"execstack", no_argument, NULL, OPTION_EXECSTACK}
     ,{"noexecstack", no_argument, NULL, OPTION_NOEXECSTACK}
     ,{"size-check", required_argument, NULL, OPTION_SIZE_CHECK}
+    ,{"elf-stt-common", required_argument, NULL, OPTION_ELF_STT_COMMON}
+    ,{"sectname-subst", no_argument, NULL, OPTION_SECTNAME_SUBST}
+    ,{"generate-missing-build-notes", required_argument, NULL, OPTION_ELF_BUILD_NOTES}
 #endif
     ,{"fatal-warnings", no_argument, NULL, OPTION_WARN_FATAL}
     ,{"gdwarf-2", no_argument, NULL, OPTION_GDWARF2}
     /* GCC uses --gdwarf-2 but GAS uses to use --gdwarf2,
        so we keep it here for backwards compatibility.  */
     ,{"gdwarf2", no_argument, NULL, OPTION_GDWARF2}
+    ,{"gdwarf-sections", no_argument, NULL, OPTION_GDWARF_SECTIONS}
     ,{"gen-debug", no_argument, NULL, 'g'}
     ,{"gstabs", no_argument, NULL, OPTION_GSTABS}
     ,{"gstabs+", no_argument, NULL, OPTION_GSTABS_PLUS}
@@ -513,6 +555,7 @@ parse_args (int * pargc, char *** pargv)
     ,{"MD", required_argument, NULL, OPTION_DEPFILE}
     ,{"mri", no_argument, NULL, 'M'}
     ,{"nocpp", no_argument, NULL, OPTION_NOCPP}
+    ,{"no-pad-sections", no_argument, NULL, OPTION_NO_PAD_SECTIONS}
     ,{"no-warn", no_argument, NULL, 'W'}
     ,{"reduce-memory-overheads", no_argument, NULL, OPTION_REDUCE_MEMORY_OVERHEADS}
     ,{"statistics", no_argument, NULL, OPTION_STATISTICS}
@@ -540,7 +583,7 @@ parse_args (int * pargc, char *** pargv)
   old_argv = *pargv;
 
   /* Initialize a new argv that contains no options.  */
-  new_argv = (char **) xmalloc (sizeof (char *) * (old_argc + 1));
+  new_argv = XNEWVEC (char *, old_argc + 1);
   new_argv[0] = old_argv[0];
   new_argc = 1;
   new_argv[new_argc] = NULL;
@@ -592,7 +635,7 @@ parse_args (int * pargc, char *** pargv)
 
 	case 1:			/* File name.  */
 	  if (!strcmp (optarg, "-"))
-	    optarg = "";
+	    optarg = (char *) "";
 	  new_argv[new_argc++] = optarg;
 	  new_argv[new_argc] = NULL;
 	  break;
@@ -606,6 +649,10 @@ parse_args (int * pargc, char *** pargv)
 	  exit (EXIT_SUCCESS);
 
 	case OPTION_NOCPP:
+	  break;
+
+	case OPTION_NO_PAD_SECTIONS:
+	  do_not_pad_sections_to_alignment = 1;
 	  break;
 
 	case OPTION_STATISTICS:
@@ -623,13 +670,19 @@ parse_args (int * pargc, char *** pargv)
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
 	  printf (_("GNU assembler %s\n"), BFD_VERSION_STRING);
-	  printf (_("Copyright 2012 Free Software Foundation, Inc.\n"));
+	  printf (_("Copyright (C) 2018 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License version 3 or later.\n\
 This program has absolutely no warranty.\n"));
+#ifdef TARGET_WITH_CPU
+	  printf (_("This assembler was configured for a target of `%s' "
+		    "and default,\ncpu type `%s'.\n"),
+		  TARGET_ALIAS, TARGET_WITH_CPU);
+#else
 	  printf (_("This assembler was configured for a target of `%s'.\n"),
 		  TARGET_ALIAS);
+#endif
 	  exit (EXIT_SUCCESS);
 
 	case OPTION_EMULATION:
@@ -654,15 +707,31 @@ This program has absolutely no warranty.\n"));
 	  exit (EXIT_SUCCESS);
 
 	case OPTION_COMPRESS_DEBUG:
-#ifdef HAVE_ZLIB_H
-	  flag_compress_debug = 1;
+	  if (optarg)
+	    {
+#if defined OBJ_ELF || defined OBJ_MAYBE_ELF
+	      if (strcasecmp (optarg, "none") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_NONE;
+	      else if (strcasecmp (optarg, "zlib") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_GABI_ZLIB;
+	      else if (strcasecmp (optarg, "zlib-gnu") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_GNU_ZLIB;
+	      else if (strcasecmp (optarg, "zlib-gabi") == 0)
+		flag_compress_debug = COMPRESS_DEBUG_GABI_ZLIB;
+	      else
+		as_fatal (_("Invalid --compress-debug-sections option: `%s'"),
+			  optarg);
 #else
-	  as_warn (_("cannot compress debug sections (zlib not installed)"));
-#endif /* HAVE_ZLIB_H */
+	      as_fatal (_("--compress-debug-sections=%s is unsupported"),
+			optarg);
+#endif
+	    }
+	  else
+	    flag_compress_debug = COMPRESS_DEBUG_GABI_ZLIB;
 	  break;
 
 	case OPTION_NOCOMPRESS_DEBUG:
-	  flag_compress_debug = 0;
+	  flag_compress_debug = COMPRESS_DEBUG_NONE;
 	  break;
 
 	case OPTION_DEBUG_PREFIX_MAP:
@@ -681,7 +750,7 @@ This program has absolutely no warranty.\n"));
 	      as_fatal (_("bad defsym; format is --defsym name=value"));
 	    *s++ = '\0';
 	    i = bfd_scan_vma (s, (const char **) NULL, 0);
-	    n = (struct defsym_list *) xmalloc (sizeof *n);
+	    n = XNEW (struct defsym_list);
 	    n->next = defsyms;
 	    n->name = optarg;
 	    n->value = i;
@@ -702,7 +771,7 @@ This program has absolutely no warranty.\n"));
 		break;
 	      }
 
-	    n = xmalloc (sizeof * n);
+	    n = XNEW (struct itbl_file_list);
 	    n->next = itbl_files;
 	    n->name = optarg;
 	    itbl_files = n;
@@ -748,6 +817,10 @@ This program has absolutely no warranty.\n"));
 
 	case OPTION_GDWARF2:
 	  debug_type = DEBUG_DWARF2;
+	  break;
+
+	case OPTION_GDWARF_SECTIONS:
+	  flag_dwarf_sections = TRUE;
 	  break;
 
 	case 'J':
@@ -821,13 +894,39 @@ This program has absolutely no warranty.\n"));
 
 	case OPTION_SIZE_CHECK:
 	  if (strcasecmp (optarg, "error") == 0)
-	    flag_size_check = size_check_error;
+	    flag_allow_nonconst_size = FALSE;
 	  else if (strcasecmp (optarg, "warning") == 0)
-	    flag_size_check = size_check_warning;
+	    flag_allow_nonconst_size = TRUE;
 	  else
 	    as_fatal (_("Invalid --size-check= option: `%s'"), optarg);
 	  break;
-#endif
+
+	case OPTION_ELF_STT_COMMON:
+	  if (strcasecmp (optarg, "no") == 0)
+	    flag_use_elf_stt_common = 0;
+	  else if (strcasecmp (optarg, "yes") == 0)
+	    flag_use_elf_stt_common = 1;
+	  else
+	    as_fatal (_("Invalid --elf-stt-common= option: `%s'"),
+		      optarg);
+	  break;
+
+	case OPTION_SECTNAME_SUBST:
+	  flag_sectname_subst = 1;
+	  break;
+
+	case OPTION_ELF_BUILD_NOTES:
+	  if (strcasecmp (optarg, "no") == 0)
+	    flag_generate_build_notes = FALSE;
+	  else if (strcasecmp (optarg, "yes") == 0)
+	    flag_generate_build_notes = TRUE;
+	  else
+	    as_fatal (_("Invalid --generate-missing-build-notes option: `%s'"),
+		      optarg);
+	  break;
+
+#endif /* OBJ_ELF */
+
 	case 'Z':
 	  flag_always_generate_output = 1;
 	  break;
@@ -966,17 +1065,10 @@ This program has absolutely no warranty.\n"));
 static void
 dump_statistics (void)
 {
-#ifdef HAVE_SBRK
-  char *lim = (char *) sbrk (0);
-#endif
   long run_time = get_run_time () - start_time;
 
   fprintf (stderr, _("%s: total time in assembly: %ld.%06ld\n"),
 	   myname, run_time / 1000000, run_time % 1000000);
-#ifdef HAVE_SBRK
-  fprintf (stderr, _("%s: data size %ld\n"),
-	   myname, (long) (lim - (char *) &environ));
-#endif
 
   subsegs_print_statistics (stderr);
   write_print_statistics (stderr);
@@ -1100,41 +1192,17 @@ perform_an_assembly_pass (int argc, char ** argv)
     read_a_source_file ("");
 }
 
-#ifdef OBJ_ELF
-static void
-create_obj_attrs_section (void)
-{
-  segT s;
-  char *p;
-  offsetT size;
-  const char *name;
-
-  size = bfd_elf_obj_attr_size (stdoutput);
-  if (size)
-    {
-      name = get_elf_backend_data (stdoutput)->obj_attrs_section;
-      if (!name)
-	name = ".gnu.attributes";
-      s = subseg_new (name, 0);
-      elf_section_type (s)
-	= get_elf_backend_data (stdoutput)->obj_attrs_section_type;
-      bfd_set_section_flags (stdoutput, s, SEC_READONLY | SEC_DATA);
-      frag_now_fix ();
-      p = frag_more (size);
-      bfd_elf_set_obj_attr_contents (stdoutput, (bfd_byte *)p, size);
-    }
-}
-#endif
-
 
 int
 main (int argc, char ** argv)
 {
   char ** argv_orig = argv;
+  struct stat sob;
 
   int macro_strip_at;
 
   start_time = get_run_time ();
+  signal_init ();
 
 #if defined (HAVE_SETLOCALE) && defined (HAVE_LC_MESSAGES)
   setlocale (LC_MESSAGES, "");
@@ -1177,6 +1245,27 @@ main (int argc, char ** argv)
   /* Call parse_args before any of the init/begin functions
      so that switches like --hash-size can be honored.  */
   parse_args (&argc, &argv);
+
+  if (argc > 1 && stat (out_file_name, &sob) == 0)
+    {
+      int i;
+
+      for (i = 1; i < argc; ++i)
+	{
+	  struct stat sib;
+
+	  if (stat (argv[i], &sib) == 0)
+	    {
+	      if (sib.st_ino == sob.st_ino && sib.st_ino != 0)
+		{
+		  /* Don't let as_fatal remove the output file!  */
+		  out_file_name = NULL;
+		  as_fatal (_("The input and output files must be distinct"));
+		}
+	    }
+	}
+    }
+
   symbol_begin ();
   frag_init ();
   subsegs_begin ();
@@ -1247,11 +1336,6 @@ main (int argc, char ** argv)
   md_end ();
 #endif
 
-#ifdef OBJ_ELF
-  if (IS_ELF)
-    create_obj_attrs_section ();
-#endif
-
 #if defined OBJ_ELF || defined OBJ_MAYBE_ELF
   if ((flag_execstack || flag_noexecstack)
       && OUTPUT_FLAVOR == bfd_target_elf_flavour)
@@ -1261,7 +1345,7 @@ main (int argc, char ** argv)
       gnustack = subseg_new (".note.GNU-stack", 0);
       bfd_set_section_flags (stdoutput, gnustack,
 			     SEC_READONLY | (flag_execstack ? SEC_CODE : 0));
-                                                                             
+
     }
 #endif
 
@@ -1269,24 +1353,44 @@ main (int argc, char ** argv)
      assembly debugging or on behalf of the compiler, emit it now.  */
   dwarf2_finish ();
 
-  /* If we constructed dwarf2 .eh_frame info, either via .cfi 
+  /* If we constructed dwarf2 .eh_frame info, either via .cfi
      directives from the user or by the backend, emit it now.  */
   cfi_finish ();
 
-  if (seen_at_least_1_file ()
-      && (flag_always_generate_output || had_errors () == 0))
-    keep_it = 1;
-  else
-    keep_it = 0;
+  keep_it = 0;
+  if (seen_at_least_1_file ())
+    {
+      int n_warns, n_errs;
+      char warn_msg[50];
+      char err_msg[50];
 
-  /* This used to be done at the start of write_object_file in
-     write.c, but that caused problems when doing listings when
-     keep_it was zero.  This could probably be moved above md_end, but
-     I didn't want to risk the change.  */
-  subsegs_finish ();
+      write_object_file ();
 
-  if (keep_it)
-    write_object_file ();
+      n_warns = had_warnings ();
+      n_errs = had_errors ();
+
+      sprintf (warn_msg,
+	       ngettext ("%d warning", "%d warnings", n_warns), n_warns);
+      sprintf (err_msg,
+	       ngettext ("%d error", "%d errors", n_errs), n_errs);
+      if (flag_fatal_warnings && n_warns != 0)
+	{
+	  if (n_errs == 0)
+	    as_bad (_("%s, treating warnings as errors"), warn_msg);
+	  n_errs += n_warns;
+	}
+
+      if (n_errs == 0)
+	keep_it = 1;
+      else if (flag_always_generate_output)
+	{
+	  /* The -Z flag indicates that an object file should be generated,
+	     regardless of warnings and errors.  */
+	  keep_it = 1;
+	  fprintf (stderr, _("%s, %s, generating bad object file\n"),
+		   err_msg, warn_msg);
+	}
+    }
 
   fflush (stderr);
 
@@ -1294,19 +1398,13 @@ main (int argc, char ** argv)
   listing_print (listing_filename, argv_orig);
 #endif
 
-  if (flag_fatal_warnings && had_warnings () > 0 && had_errors () == 0)
-    as_bad (_("%d warnings, treating warnings as errors"), had_warnings ());
-
-  if (had_errors () > 0 && ! flag_always_generate_output)
-    keep_it = 0;
-
   input_scrub_end ();
 
   END_PROGRESS (myname);
 
   /* Use xexit instead of return, because under VMS environments they
      may not place the same interpretation on the value given.  */
-  if (had_errors () > 0)
+  if (had_errors () != 0)
     xexit (EXIT_FAILURE);
 
   /* Only generate dependency file if assembler was successful.  */

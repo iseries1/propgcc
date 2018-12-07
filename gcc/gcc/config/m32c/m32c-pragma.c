@@ -1,5 +1,5 @@
 /* M32C Pragma support
-   Copyright (C) 2004, 2007, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2004-2018 Free Software Foundation, Inc.
    Contributed by Red Hat, Inc.
 
    This file is part of GCC.
@@ -18,22 +18,15 @@
    along with GCC; see the file COPYING3.  If not see
    <http://www.gnu.org/licenses/>.  */
 
+#define IN_TARGET_CODE 1
+
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "tree.h"
-#include "c-family/c-pragma.h"
 #include "c-family/c-common.h"
-#include "diagnostic-core.h"
-#include "cpplib.h"
-#include "hard-reg-set.h"
-#include "output.h"
+#include "c-family/c-pragma.h"
 #include "m32c-protos.h"
-#include "function.h"
-#define MAX_RECOG_OPERANDS 10
-#include "reload.h"
-#include "target.h"
 
 /* Implements the "GCC memregs" pragma.  This pragma takes only an
    integer, and is semantically identical to the -memregs= command
@@ -52,15 +45,15 @@ m32c_pragma_memregs (cpp_reader * reader ATTRIBUTE_UNUSED)
   type = pragma_lex (&val);
   if (type == CPP_NUMBER)
     {
-      if (host_integerp (val, 1))
+      if (tree_fits_uhwi_p (val))
 	{
-	  i = tree_low_cst (val, 1);
+	  i = tree_to_uhwi (val);
 
 	  type = pragma_lex (&val);
 	  if (type != CPP_EOF)
 	    warning (0, "junk at end of #pragma GCC memregs [0..16]");
 
-	  if (0 <= i && i <= 16)
+	  if (i >= 0 && i <= 16)
 	    {
 	      if (!ok_to_change_target_memregs)
 		{
@@ -101,7 +94,7 @@ m32c_pragma_address (cpp_reader * reader ATTRIBUTE_UNUSED)
 	{
 	  if (var != error_mark_node)
 	    {
-	      unsigned uaddr = tree_low_cst (addr, 1);
+	      unsigned uaddr = tree_to_uhwi (addr);
 	      m32c_note_pragma_address (IDENTIFIER_POINTER (var), uaddr);
 	    }
 

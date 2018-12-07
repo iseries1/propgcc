@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 template<typename T, typename U> 
 struct is_same 
@@ -50,13 +49,13 @@ public:
   int a;
   enum B_enum { b }; 
   decltype(a) c;
-  decltype(a) foo() { }
+  decltype(a) foo() { return 0; }
   decltype(b) enums_are_in_scope() { return b; } // ok 
 }; 
 
 CHECK_DECLTYPE(decltype(aa.*&A::a), int&);
-decltype(aa.*&A::b) zz; // { dg-error "cannot create pointer to reference member" }
-// { dg-error "invalid type" "" { target *-*-* } 58 }
+decltype(aa.*&A::b) zz; // { dg-error "cannot create pointer to reference member" "cannot" }
+
 CHECK_DECLTYPE(decltype(caa.*&A::a), const int&);
 
 class X { 

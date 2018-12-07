@@ -1,6 +1,6 @@
 #source: tls32.s
 #as: -a32
-#ld: -shared -melf32ppc
+#ld: -shared
 #readelf: -WSsrl
 #target: powerpc*-*-*
 
@@ -14,15 +14,15 @@ Section Headers:
  +\[[ 0-9]+\] \.dynstr +.*
  +\[[ 0-9]+\] \.rela\.dyn +.*
  +\[[ 0-9]+\] \.rela\.plt +.*
- +\[[ 0-9]+\] \.text +PROGBITS .* 0+70 0+ +AX +0 +0 +1
+ +\[[ 0-9]+\] \.text +PROGBITS .* 0+d0 0+ +AX +0 +0 +16
  +\[[ 0-9]+\] \.tdata +PROGBITS .* 0+1c 0+ WAT +0 +0 +4
  +\[[ 0-9]+\] \.tbss +NOBITS .* 0+1c 0+ WAT +0 +0 +4
  +\[[ 0-9]+\] \.dynamic +DYNAMIC .* 08 +WA +3 +0 +4
- +\[[ 0-9]+\] \.got +PROGBITS .* 0+34 04 WAX +0 +0 +4
- +\[[ 0-9]+\] \.plt +.*
- +\[[ 0-9]+\] \.shstrtab +.*
+ +\[[ 0-9]+\] \.got +PROGBITS .* 0+30 04 +WA +0 +0 +4
+ +\[[ 0-9]+\] \.plt +PROGBITS .* 0+4 00 +WA +0 +0 +4
  +\[[ 0-9]+\] \.symtab +.*
  +\[[ 0-9]+\] \.strtab +.*
+ +\[[ 0-9]+\] \.shstrtab +.*
 #...
 
 Elf file type is DYN \(Shared object file\)
@@ -32,7 +32,7 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz MemSiz +Flg Align
  +LOAD .* R E 0x10000
- +LOAD .* RWE 0x10000
+ +LOAD .* RW +0x10000
  +DYNAMIC .* RW +0x4
  +TLS .* 0x0+1c 0x0+38 R +0x4
 
@@ -64,7 +64,7 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 18 entries:
 [0-9a-f ]+R_PPC_DTPREL32 +0+1c +gd0 \+ 0
 [0-9a-f ]+R_PPC_TPREL32 +0+2c +ie0 \+ 0
 
-Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entries:
+Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entry:
  Offset +Info +Type +Sym\. Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_PPC_JMP_SLOT +0+ +__tls_get_addr \+ 0
 
@@ -80,12 +80,8 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +8 le1
 .* TLS +GLOBAL +DEFAULT +UND ld
 .* NOTYPE +GLOBAL +DEFAULT +6 _start
-.* NOTYPE +GLOBAL +DEFAULT +11 __end
 .* TLS +GLOBAL +DEFAULT +8 ld2
 .* TLS +GLOBAL +DEFAULT +8 ld1
-.* NOTYPE +GLOBAL +DEFAULT +11 __bss_start
-.* NOTYPE +GLOBAL +DEFAULT +10 _edata
-.* NOTYPE +GLOBAL +DEFAULT +11 _end
 .* TLS +GLOBAL +DEFAULT +8 gd0
 .* TLS +GLOBAL +DEFAULT +8 ie0
 
@@ -113,6 +109,9 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +LOCAL +DEFAULT +7 le5
 .* FILE +LOCAL +DEFAULT +ABS .*
 .* OBJECT +LOCAL +DEFAULT +9 _DYNAMIC
+.* NOTYPE +LOCAL +DEFAULT +6 0+8000\.got2\.plt_pic32\.__tls_get_addr
+.* NOTYPE +LOCAL +DEFAULT +6 __glink_PLTresolve
+.* NOTYPE +LOCAL +DEFAULT +6 __glink
 .* OBJECT +LOCAL +DEFAULT +10 _GLOBAL_OFFSET_TABLE_
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +8 le0
@@ -121,11 +120,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +8 le1
 .* TLS +GLOBAL +DEFAULT +UND ld
 .* NOTYPE +GLOBAL +DEFAULT +6 _start
-.* NOTYPE +GLOBAL +DEFAULT +11 __end
 .* TLS +GLOBAL +DEFAULT +8 ld2
 .* TLS +GLOBAL +DEFAULT +8 ld1
-.* NOTYPE +GLOBAL +DEFAULT +11 __bss_start
-.* NOTYPE +GLOBAL +DEFAULT +10 _edata
-.* NOTYPE +GLOBAL +DEFAULT +11 _end
 .* TLS +GLOBAL +DEFAULT +8 gd0
 .* TLS +GLOBAL +DEFAULT +8 ie0

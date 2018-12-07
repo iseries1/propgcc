@@ -19,7 +19,6 @@ main1 ()
   s *ptr = arr;
   s res[N];
   int i;
-  unsigned short x, y, z, w;
 
   for (i = 0; i < N; i++)
     {
@@ -27,12 +26,12 @@ main1 ()
       arr[i].b = i * 2;
       arr[i].c = 17;
       arr[i].d = i+34;
-      if (arr[i].a == 178)
-         abort();
+      asm volatile ("" ::: "memory");
     }
 
   for (i = 0; i < N; i++)
     {
+      unsigned short x, y, z, w;
       x = ptr->b - ptr->a;
       y = ptr->d - ptr->c;
       res[i].c = x + y;
@@ -68,6 +67,5 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  { target { vect_interleave && vect_extract_even_odd } } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  { target vect_strided4 } } } */
   

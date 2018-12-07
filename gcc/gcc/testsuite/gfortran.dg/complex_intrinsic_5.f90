@@ -23,7 +23,7 @@ contains
       print '(a,g0," + I*",g0,"  eps=",g0)', 'Diff: ', &
                                  real(z)-real(zref), &
                                  aimag(z)-aimag(zref), eps4
-      call abort()
+      STOP 1
     end if
   END SUBROUTINE check4
   SUBROUTINE check8(z, zref)
@@ -34,7 +34,7 @@ contains
       print '(a,g0," + I*",g0,"  eps=",g0)', 'Diff: ', &
                                  real(z)-real(zref), &
                                  aimag(z)-aimag(zref), eps8
-      call abort()
+      STOP 2
     end if
   END SUBROUTINE check8
 end module test
@@ -217,5 +217,3 @@ PROGRAM ArcTrigHyp
   call check(atanh(z4), cmplx(-0.38187020129010862908881230531688930_4, -1.07198475450905931839240655913126728_4, kind=4))
   call check(atanh(z8), cmplx(-0.38187020129010862908881230531688930_8, -1.07198475450905931839240655913126728_8, kind=8))
 END PROGRAM ArcTrigHyp
-
-! { dg-final { cleanup-modules "test" } }

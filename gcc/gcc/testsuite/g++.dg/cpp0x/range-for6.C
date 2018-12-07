@@ -1,8 +1,7 @@
 // Test for range-based for loop
 // Test the loop with an initializer_list
 
-// { dg-do run }
-// { dg-options "-std=c++0x" }
+// { dg-do run { target c++11 } }
 
 #include <initializer_list>
 
@@ -15,6 +14,8 @@ template<typename T> T foo()
         sum += x;
     if (sum != T(10))
         abort();
+
+    return sum;
 }
 
 int main()

@@ -33,13 +33,15 @@ program alloc
         integer, allocatable :: a2(:)
     end type alloc2
 
-    type(alloc2) :: b
     integer :: i
+
+  BLOCK  ! To ensure that the allocatables are freed at the end of the scope
+    type(alloc2) :: b
     type(alloc2), allocatable :: c(:)
 
     if (allocated(b%a2) .OR. allocated(b%a1)) then
         write (0, *) 'main - 1'
-        call abort()
+        STOP 1
     end if
 
     ! 3 calls to _gfortran_deallocate (INTENT(OUT) dummy)
@@ -64,7 +66,7 @@ program alloc
     deallocate(c)
 
     ! 7 calls to _gfortran_deallocate (b (3) and c(4) goes aout of scope)
-
+  END BLOCK
 contains
 
     subroutine allocate_alloc2(b)
@@ -73,7 +75,7 @@ contains
 
         if (allocated(b%a2) .OR. allocated(b%a1)) then
             write (0, *) 'allocate_alloc2 - 1'
-            call abort()
+            STOP 2
         end if
 
         allocate (b%a2(3))
@@ -84,7 +86,7 @@ contains
         do i = 1, 3
             if (allocated(b%a1(i)%x)) then
                 write (0, *) 'allocate_alloc2 - 2', i
-                call abort()
+                STOP 3
             end if
             allocate (b%a1(i)%x(3))
             b%a1(i)%x = i + [ 1.0, 2.0, 3.0 ]
@@ -96,7 +98,7 @@ contains
     type(alloc2) function return_alloc2() result(b)
         if (allocated(b%a2) .OR. allocated(b%a1)) then
             write (0, *) 'return_alloc2 - 1'
-            call abort()
+            STOP 4
         end if
 
         allocate (b%a2(3))
@@ -107,7 +109,7 @@ contains
         do i = 1, 3
             if (allocated(b%a1(i)%x)) then
                 write (0, *) 'return_alloc2 - 2', i
-                call abort()
+                STOP 5
             end if
             allocate (b%a1(i)%x(3))
             b%a1(i)%x = i + [ 1.0, 2.0, 3.0 ]
@@ -120,25 +122,23 @@ contains
 
         if (.NOT.(allocated(b%a2) .AND. allocated(b%a1))) then
             write (0, *) 'check_alloc2 - 1'
-            call abort()
+            STOP 6
         end if
         if (any(b%a2 /= [ 1, 2, 3 ])) then
             write (0, *) 'check_alloc2 - 2'
-            call abort()
+            STOP 7
         end if
         do i = 1, 3
             if (.NOT.allocated(b%a1(i)%x)) then
                 write (0, *) 'check_alloc2 - 3', i
-                call abort()
+                STOP 8
             end if
             if (any(b%a1(i)%x /= i + [ 1.0, 2.0, 3.0 ])) then
                 write (0, *) 'check_alloc2 - 4', i
-                call abort()
+                STOP 9
             end if
         end do
     end subroutine check_alloc2
 
 end program alloc
-! { dg-final { scan-tree-dump-times "builtin_free" 18 "original" } }
-! { dg-final { cleanup-tree-dump "original" } }
-! { dg-final { cleanup-modules "alloc_m" } }
+! { dg-final { scan-tree-dump-times "builtin_free" 21 "original" } }

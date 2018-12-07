@@ -19,13 +19,13 @@ end subroutine
 subroutine foo(a, b)
   integer a, b
   logical, save :: was_foo = .false.
-  if ((a .ne. 3) .or. (b .ne. 4)) call abort
+  if ((a .ne. 3) .or. (b .ne. 4)) STOP 1
   was_foo = .true.
 entry bar(a)
   if (was_foo) then
-    if ((a .ne. 3) .or. (b .ne. 4)) call abort
+    if ((a .ne. 3) .or. (b .ne. 4)) STOP 2
   else
-    if (a .ne. 5) call abort
+    if (a .ne. 5) STOP 3
   end if
   was_foo = .false.
 end subroutine
@@ -43,5 +43,3 @@ program p
   call test1 ()
   call test2 ()
 end program
-
-! { dg-final { cleanup-modules "m" } }

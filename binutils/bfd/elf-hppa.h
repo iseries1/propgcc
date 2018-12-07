@@ -1,7 +1,5 @@
 /* Common code for PA ELF implementations.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -29,27 +27,27 @@
    external constraints require 32 or 64 bit specific code.  We remap
    the definitions/functions as necessary here.  */
 #if ARCH_SIZE == 64
-#define ELF_R_TYPE(X)                 ELF64_R_TYPE(X)
-#define ELF_R_SYM(X)                  ELF64_R_SYM(X)
+#define ELF_R_TYPE(X)		      ELF64_R_TYPE(X)
+#define ELF_R_SYM(X)		      ELF64_R_SYM(X)
 #define elf_hppa_reloc_final_type     elf64_hppa_reloc_final_type
 #define _bfd_elf_hppa_gen_reloc_type  _bfd_elf64_hppa_gen_reloc_type
 #define elf_hppa_relocate_section     elf64_hppa_relocate_section
-#define elf_hppa_final_link           elf64_hppa_final_link
+#define elf_hppa_final_link	      elf64_hppa_final_link
 #endif
 #if ARCH_SIZE == 32
-#define ELF_R_TYPE(X)                 ELF32_R_TYPE(X)
-#define ELF_R_SYM(X)                  ELF32_R_SYM(X)
+#define ELF_R_TYPE(X)		      ELF32_R_TYPE(X)
+#define ELF_R_SYM(X)		      ELF32_R_SYM(X)
 #define elf_hppa_reloc_final_type     elf32_hppa_reloc_final_type
 #define _bfd_elf_hppa_gen_reloc_type  _bfd_elf32_hppa_gen_reloc_type
 #define elf_hppa_relocate_section     elf32_hppa_relocate_section
-#define elf_hppa_final_link           elf32_hppa_final_link
+#define elf_hppa_final_link	      elf32_hppa_final_link
 #endif
 
 /* ELF/PA relocation howto entries.  */
 
 static reloc_howto_type elf_hppa_howto_table[ELF_HOWTO_TABLE_SIZE] =
 {
-  { R_PARISC_NONE, 0, 0, 0, FALSE, 0, complain_overflow_bitfield,
+  { R_PARISC_NONE, 0, 3, 0, FALSE, 0, complain_overflow_dont,
     bfd_elf_generic_reloc, "R_PARISC_NONE", FALSE, 0, 0, FALSE },
 
   /* The values in DIR32 are to placate the check in
@@ -1022,26 +1020,58 @@ _bfd_elf_hppa_gen_reloc_type (bfd *abfd,
 
 /* Translate from an elf into field into a howto relocation pointer.  */
 
-static void
-elf_hppa_info_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
+static bfd_boolean
+elf_hppa_info_to_howto (bfd *abfd,
 			arelent *bfd_reloc,
 			Elf_Internal_Rela *elf_reloc)
 {
-  BFD_ASSERT (ELF_R_TYPE (elf_reloc->r_info)
-	      < (unsigned int) R_PARISC_UNIMPLEMENTED);
-  bfd_reloc->howto = &elf_hppa_howto_table[ELF_R_TYPE (elf_reloc->r_info)];
+  unsigned int r_type = ELF32_R_TYPE (elf_reloc->r_info);
+  unsigned int type = r_type;
+  reloc_howto_type *howto = NULL;
+
+  if (r_type < (unsigned int) R_PARISC_UNIMPLEMENTED)
+    {
+      howto = &elf_hppa_howto_table[r_type];
+      type = howto->type;
+    }
+  if (type >= (unsigned int) R_PARISC_UNIMPLEMENTED)
+    {
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
+			  abfd, r_type);
+      bfd_set_error (bfd_error_bad_value);
+      return FALSE;
+    }
+  bfd_reloc->howto = howto;
+  return TRUE;
 }
 
 /* Translate from an elf into field into a howto relocation pointer.  */
 
-static void
-elf_hppa_info_to_howto_rel (bfd *abfd ATTRIBUTE_UNUSED,
+static bfd_boolean
+elf_hppa_info_to_howto_rel (bfd *abfd,
 			    arelent *bfd_reloc,
 			    Elf_Internal_Rela *elf_reloc)
 {
-  BFD_ASSERT (ELF_R_TYPE (elf_reloc->r_info)
-	      < (unsigned int) R_PARISC_UNIMPLEMENTED);
-  bfd_reloc->howto = &elf_hppa_howto_table[ELF_R_TYPE (elf_reloc->r_info)];
+  unsigned int r_type = ELF_R_TYPE (elf_reloc->r_info);
+  unsigned int type = r_type;
+  reloc_howto_type *howto = NULL;
+
+  if (r_type < (unsigned int) R_PARISC_UNIMPLEMENTED)
+    {
+      howto = &elf_hppa_howto_table[r_type];
+      type = howto->type;
+    }
+  if (type >= (unsigned int) R_PARISC_UNIMPLEMENTED)
+    {
+      /* xgettext:c-format */
+      _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
+			  abfd, r_type);
+      bfd_set_error (bfd_error_bad_value);
+      return FALSE;
+    }
+  bfd_reloc->howto = howto;
+  return TRUE;
 }
 
 /* Return the address of the howto table entry to perform the CODE
@@ -1119,6 +1149,7 @@ elf_hppa_fake_sections (bfd *abfd, Elf_Internal_Shdr *hdr, asection *sec)
 	  if (asec->name && strcmp (asec->name, ".text") == 0)
 	    {
 	      hdr->sh_info = indx;
+	      hdr->sh_flags |= SHF_INFO_LINK;
 	      break;
 	    }
 	}
@@ -1214,6 +1245,11 @@ elf_hppa_sort_unwind (bfd *abfd)
 static unsigned int
 elf_hppa_action_discarded (asection *sec)
 {
+  /* Ignore relocations in .data.rel.ro.local.  This section can contain
+     PLABEL32 relocations to functions in discarded COMDAT groups.  */
+  if (strcmp (".data.rel.ro.local", sec->name) == 0)
+    return 0;
+
   if (strcmp (".PARISC.unwind", sec->name) == 0)
     return 0;
 

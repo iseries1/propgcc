@@ -1,6 +1,5 @@
 /* Definitions of target machine for GNU compiler, for the pdp-11
-   Copyright (C) 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2004, 2005,
-   2006, 2007, 2008, 2010 Free Software Foundation, Inc.
+   Copyright (C) 1994-2018 Free Software Foundation, Inc.
    Contributed by Michael K. Gschwind (mike@vlsivie.tuwien.ac.at).
 
 This file is part of GCC.
@@ -35,9 +34,6 @@ along with GCC; see the file COPYING3.  If not see
       builtin_define_std ("pdp11");		\
     }						\
   while (0)
-
-/* Print subsidiary information on the compiler version in use.  */
-#define TARGET_VERSION fprintf (stderr, " (pdp11)");
 
 
 /* Generate DBX debugging information.  */
@@ -168,40 +164,6 @@ extern const struct real_format pdp11_d_format;
  0, 0, 0, 0, 0, 0, 1, 1 }
 
 
-/* Return number of consecutive hard regs needed starting at reg REGNO
-   to hold something of mode MODE.
-   This is ordinarily the length in words of a value of mode MODE
-   but can be less for certain modes in special long registers.
-*/
-
-#define HARD_REGNO_NREGS(REGNO, MODE)   \
-((REGNO <= PC_REGNUM)?							\
-    ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)	\
-    :1)
-    
-
-/* Value is 1 if hard register REGNO can hold a value of machine-mode MODE.
-   On the pdp, the cpu registers can hold any mode other than float
-   (because otherwise we may end up being asked to move from CPU to FPU
-   register, which isn't a valid operation on the PDP11).
-   For CPU registers, check alignment.
-
-   FPU accepts SF and DF but actually holds a DF - simplifies life!
-*/
-#define HARD_REGNO_MODE_OK(REGNO, MODE) \
-(((REGNO) <= PC_REGNUM)?				\
-  ((GET_MODE_BITSIZE(MODE) <= 16) 			\
-   || (GET_MODE_BITSIZE(MODE) >= 32 &&      		\
-       !((REGNO) & 1) && !FLOAT_MODE_P (MODE)))		\
-  :FLOAT_MODE_P (MODE))
-    
-
-/* Value is 1 if it is a good idea to tie two pseudo registers
-   when one has mode MODE1 and one has mode MODE2.
-   If HARD_REGNO_MODE_OK could produce different values for MODE1 and MODE2,
-   for any hard reg, then this must be 0 for correct output.  */
-#define MODES_TIEABLE_P(MODE1, MODE2) 0
-
 /* Specify the registers used for certain standard purposes.
    The values of these macros are register numbers.  */
 
@@ -274,20 +236,6 @@ enum reg_class { NO_REGS, MUL_REGS, GENERAL_REGS, LOAD_FPU_REGS, NO_LOAD_FPU_REG
 #define INDEX_REG_CLASS GENERAL_REGS
 #define BASE_REG_CLASS GENERAL_REGS
 
-/* The following macro defines cover classes for Integrated Register
-   Allocator.  Cover classes is a set of non-intersected register
-   classes covering all hard registers used for register allocation
-   purpose.  Any move between two registers of a cover class should be
-   cheaper than load or store of the registers.  The macro value is
-   array of register classes with LIM_REG_CLASSES used as the end
-   marker.  */
-
-#define IRA_COVER_CLASSES { GENERAL_REGS, FPU_REGS, LIM_REG_CLASSES }
-
-/* Hook for testing if memory is needed for moving between registers.  */
-#define SECONDARY_MEMORY_NEEDED(class1, class2, m) \
-  pdp11_secondary_memory_needed (class1, class2, m)
-
 /* Return the maximum number of consecutive registers
    needed to represent mode MODE in a register of class CLASS.  */
 #define CLASS_MAX_NREGS(CLASS, MODE)	\
@@ -295,15 +243,12 @@ enum reg_class { NO_REGS, MUL_REGS, GENERAL_REGS, LOAD_FPU_REGS, NO_LOAD_FPU_REG
   ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD):	\
   1									\
 )
-
-#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) \
-  pdp11_cannot_change_mode_class (FROM, TO, CLASS)
 
 /* Stack layout; function entry, exit and calling.  */
 
 /* Define this if pushing a word on the stack
    makes the stack pointer a smaller address.  */
-#define STACK_GROWS_DOWNWARD
+#define STACK_GROWS_DOWNWARD 1
 
 /* Define this to nonzero if the nominal address of the stack frame
    is at the high-address end of the local variables;
@@ -312,16 +257,7 @@ enum reg_class { NO_REGS, MUL_REGS, GENERAL_REGS, LOAD_FPU_REGS, NO_LOAD_FPU_REG
 */
 #define FRAME_GROWS_DOWNWARD 1
 
-/* Offset within stack frame to start allocating local variables at.
-   If FRAME_GROWS_DOWNWARD, this is the offset to the END of the
-   first local allocated.  Otherwise, it is the offset to the BEGINNING
-   of the first local allocated.  */
-#define STARTING_FRAME_OFFSET 0
-
-/* If we generate an insn to push BYTES bytes,
-   this says how many the stack pointer really advances by.
-   On the pdp11, the stack is on an even boundary */
-#define PUSH_ROUNDING(BYTES) ((BYTES + 1) & ~1)
+#define PUSH_ROUNDING(BYTES) pdp11_push_rounding (BYTES)
 
 /* current_first_parm_offset stores the # of registers pushed on the 
    stack */
@@ -413,7 +349,8 @@ extern int may_call_alloca;
    They give nonzero only if REGNO is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in local-alloc.c.  */
+   has been allocated, which happens in reginfo.c during register
+   allocation.  */
 
 #define REGNO_OK_FOR_BASE_P(REGNO)  \
   ((REGNO) <= PC_REGNUM || (unsigned) reg_renumber[REGNO] <= PC_REGNUM || \
@@ -430,12 +367,6 @@ extern int may_call_alloca;
 /* Maximum number of registers that can appear in a valid memory address.  */
 
 #define MAX_REGS_PER_ADDRESS 1
-
-/* Nonzero if the constant value X is a legitimate general operand.
-   It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
-
-#define LEGITIMATE_CONSTANT_P(X)                                        \
-  (GET_CODE (X) != CONST_DOUBLE || legitimate_const_double_p (X))
 
 /* The macros REG_OK_FOR..._P assume that the arg is a REG rtx
    and check its validity for a certain class.
@@ -492,10 +423,6 @@ extern int may_call_alloca;
 /* Do not break .stabs pseudos into continuations.  */
 #define DBX_CONTIN_LENGTH 0
 
-/* Value is 1 if truncating an integer of INPREC bits to OUTPREC bits
-   is done just by pretending it is already truncated.  */
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
-
 /* Give a comparison code (EQ, NE etc) and the first operand of a COMPARE,
    return the mode to be used for the comparison.  For floating-point, CCFPmode
    should be used.  */
@@ -521,7 +448,7 @@ extern int may_call_alloca;
 
 
 /* Tell emit-rtl.c how to initialize special values on a per-function base.  */
-extern struct rtx_def *cc0_reg_rtx;
+extern rtx cc0_reg_rtx;
 
 #define CC_STATUS_MDEP rtx
 
@@ -679,7 +606,12 @@ extern struct rtx_def *cc0_reg_rtx;
 /* there is no point in avoiding branches on a pdp, 
    since branches are really cheap - I just want to find out
    how much difference the BRANCH_COST macro makes in code */
-#define BRANCH_COST(speed_p, predictable_p) (TARGET_BRANCH_CHEAP ? 0 : 1)
-
+#define BRANCH_COST(speed_p, predictable_p) pdp11_branch_cost ()
 
 #define COMPARE_FLAG_MODE HImode
+
+#define TARGET_HAVE_NAMED_SECTIONS false
+
+/* pdp11-unknown-aout target has no support of C99 runtime */
+#undef TARGET_LIBC_HAS_FUNCTION
+#define TARGET_LIBC_HAS_FUNCTION no_c99_libc_has_function

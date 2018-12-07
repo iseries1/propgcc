@@ -10,6 +10,10 @@ contains
 
   subroutine foo (c, d, e, f, g, h, i, j, k, n)
     use omp_lib
+    interface
+      subroutine GOMP_barrier () bind(c, name="GOMP_barrier")
+      end subroutine
+    end interface
     integer :: n
     character (len = *) :: c
     character (len = n) :: d
@@ -94,7 +98,7 @@ contains
     forall (p = 1:2, q = 3:7, r = 1:7) u(p, q, r) = 30 - x - p + q - 2 * r
     forall (p = 1:5, q = 3:7, p + q .le. 8) v(p, q) = w(1:7)
     forall (p = 1:5, q = 3:7, p + q .gt. 8) v(p, q) = w(20:26)
-!$omp barrier		! { dg-warning "may not be closely nested" }
+    call GOMP_barrier
     y = ''
     if (x .eq. 0) y = '0'
     if (x .eq. 1) y = '1'
@@ -161,7 +165,7 @@ contains
     call check (size (k), 15, l)
 110 continue
 !$omp end parallel do
-    if (l) call abort
+    if (l) STOP 1
     if (z2 == 6) then
       x = 5
       w = 'thread5thr_number_5THREAD5THR_NUMBER_5'
@@ -197,7 +201,7 @@ contains
 	do 115, q = 4, 6
 	  l = l .or. k(p, 1, q - 3) .ne. 19 + x + p + 7 + 3 * q
 115   continue
-      if (l) call abort
+      if (l) STOP 2
     end if
   end subroutine foo
 

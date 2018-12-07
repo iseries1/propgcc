@@ -1,7 +1,7 @@
 #source: tls32.s
 #source: tlslib32.s
 #as: -a32
-#ld: -melf32ppc
+#ld: 
 #readelf: -WSsrl
 #target: powerpc*-*-*
 
@@ -16,15 +16,15 @@ Section Headers:
  +\[[ 0-9]+\] \.dynstr +.*
  +\[[ 0-9]+\] \.rela\.dyn +.*
  +\[[ 0-9]+\] \.rela\.plt +.*
- +\[[ 0-9]+\] \.text +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000070 00 +AX +0 +0 +1
+ +\[[ 0-9]+\] \.text +PROGBITS +[0-9a-f]+ [0-9a-f]+ 0000f0 00 +AX +0 +0 +16
  +\[[ 0-9]+\] \.tdata +PROGBITS +[0-9a-f]+ [0-9a-f]+ 00001c 00 WAT +0 +0 +4
  +\[[ 0-9]+\] \.tbss +NOBITS +[0-9a-f]+ [0-9a-f]+ 00001c 00 WAT +0 +0 +4
  +\[[ 0-9]+\] \.dynamic +DYNAMIC +[0-9a-f]+ [0-9a-f]+ [0-9a-f]+ 08 +WA +4 +0 +4
- +\[[ 0-9]+\] \.got +PROGBITS +[0-9a-f]+ [0-9a-f]+ 00001c 04 WAX +0 +0 +4
- +\[[ 0-9]+\] \.plt +NOBITS +.*
- +\[[ 0-9]+\] \.shstrtab +STRTAB +.*
+ +\[[ 0-9]+\] \.got +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000018 04 +WA +0 +0 +4
+ +\[[ 0-9]+\] \.plt +PROGBITS +[0-9a-f]+ [0-9a-f]+ 000004 00 +WA +0 +0 +4
  +\[[ 0-9]+\] \.symtab +SYMTAB +.*
  +\[[ 0-9]+\] \.strtab +STRTAB +.*
+ +\[[ 0-9]+\] \.shstrtab +STRTAB +.*
 #...
 
 Elf file type is EXEC \(Executable file\)
@@ -33,11 +33,11 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz MemSiz +Flg Align
- +PHDR +0x000034 0x01800034 0x01800034 0x000c0 0x000c0 R E 0x4
+ +PHDR +0x000034 0x01800034 0x01800034 0x000c0 0x000c0 R +0x4
  +INTERP +0x0000f4 0x018000f4 0x018000f4 0x00011 0x00011 R +0x1
  +\[Requesting program interpreter: .*\]
  +LOAD .* R E 0x10000
- +LOAD .* RWE 0x10000
+ +LOAD .* RW +0x10000
  +DYNAMIC .* RW +0x4
  +TLS .* 0x0001c 0x00038 R +0x4
 
@@ -55,7 +55,7 @@ Relocation section '\.rela\.dyn' at offset .* contains 2 entries:
 [0-9a-f ]+R_PPC_TPREL32 +00000000 +gd \+ 0
 [0-9a-f ]+R_PPC_DTPMOD32 +00000000 +ld \+ 0
 
-Relocation section '\.rela\.plt' at offset .* contains 1 entries:
+Relocation section '\.rela\.plt' at offset .* contains 1 entry:
  Offset +Info +Type +Sym\. Value +Symbol's Name \+ Addend
 [0-9a-f ]+R_PPC_JMP_SLOT[0-9a-f ]+__tls_get_addr_opt \+ 0
 
@@ -64,11 +64,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* TLS +GLOBAL +DEFAULT +UND gd
 .* TLS +GLOBAL +DEFAULT +UND ld
-.* NOTYPE +GLOBAL +DEFAULT +12 __end
-.* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr_opt
-.* NOTYPE +GLOBAL +DEFAULT +11 _edata
-.* NOTYPE +GLOBAL +DEFAULT +12 _end
 
 Symbol table '\.symtab' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
@@ -107,7 +103,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +9 ld1
 .* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* FUNC +GLOBAL +DEFAULT +UND __tls_get_addr_opt
-.* NOTYPE +GLOBAL +DEFAULT +11 _edata
+.* NOTYPE +GLOBAL +DEFAULT +12 _edata
 .* NOTYPE +GLOBAL +DEFAULT +12 _end
 .* TLS +GLOBAL +DEFAULT +9 gd0
 .* TLS +GLOBAL +DEFAULT +9 ie0

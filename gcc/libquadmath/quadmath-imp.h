@@ -27,12 +27,26 @@ Boston, MA 02110-1301, USA.  */
 #include "config.h"
 
 
+/* Under IEEE 754, an architecture may determine tininess of
+   floating-point results either "before rounding" or "after
+   rounding", but must do so in the same way for all operations
+   returning binary results.  Define TININESS_AFTER_ROUNDING to 1 for
+   "after rounding" architectures, 0 for "before rounding"
+   architectures.  */
+
+#define TININESS_AFTER_ROUNDING   1
+
+
 /* Prototypes for internal functions.  */
 extern int32_t __quadmath_rem_pio2q (__float128, __float128 *);
 extern void __quadmath_kernel_sincosq (__float128, __float128, __float128 *,
 				       __float128 *, int);
 extern __float128 __quadmath_kernel_sinq (__float128, __float128, int);
 extern __float128 __quadmath_kernel_cosq (__float128, __float128);
+extern __float128 __quadmath_x2y2m1q (__float128 x, __float128 y);
+extern int __quadmath_isinf_nsq (__float128 x);
+
+
 
 
 
@@ -48,6 +62,11 @@ typedef union
   __float128 value;
 
   struct
+#ifdef __MINGW32__
+  /* On mingw targets the ms-bitfields option is active by default.
+     Therefore enforce gnu-bitfield style.  */
+  __attribute__ ((gcc_struct))
+#endif
   {
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     unsigned negative:1;
@@ -89,6 +108,10 @@ typedef union
   } words32;
 
   struct
+#ifdef __MINGW32__
+  /* Make sure we are using gnu-style bitfield handling.  */
+  __attribute__ ((gcc_struct))
+#endif
   {
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
     unsigned negative:1;
@@ -162,5 +185,46 @@ do {                                   \
 #define fpclassifyq(x) \
   __builtin_fpclassify (QUADFP_NAN, QUADFP_INFINITE, QUADFP_NORMAL, \
 			QUADFP_SUBNORMAL, QUADFP_ZERO, x)
+
+#ifndef math_opt_barrier
+# define math_opt_barrier(x) \
+({ __typeof (x) __x = (x); __asm ("" : "+m" (__x)); __x; })
+# define math_force_eval(x) \
+({ __typeof (x) __x = (x); __asm __volatile__ ("" : : "m" (__x)); })
+#endif
+
+/* math_narrow_eval reduces its floating-point argument to the range
+   and precision of its semantic type.  (The original evaluation may
+   still occur with excess range and precision, so the result may be
+   affected by double rounding.)  */
+#define math_narrow_eval(x) (x)
+
+/* If X (which is not a NaN) is subnormal, force an underflow
+   exception.  */
+#define math_check_force_underflow(x)				\
+  do								\
+    {								\
+      __float128 force_underflow_tmp = (x);			\
+      if (fabsq (force_underflow_tmp) < FLT128_MIN)		\
+	{							\
+	  __float128 force_underflow_tmp2			\
+	    = force_underflow_tmp * force_underflow_tmp;	\
+	  math_force_eval (force_underflow_tmp2);		\
+	}							\
+    }								\
+  while (0)
+/* Likewise, but X is also known to be nonnegative.  */
+#define math_check_force_underflow_nonneg(x)			\
+  do								\
+    {								\
+      __float128 force_underflow_tmp = (x);			\
+      if (force_underflow_tmp < FLT128_MIN)			\
+	{							\
+	  __float128 force_underflow_tmp2			\
+	    = force_underflow_tmp * force_underflow_tmp;	\
+	  math_force_eval (force_underflow_tmp2);		\
+	}							\
+    }								\
+  while (0)
 
 #endif

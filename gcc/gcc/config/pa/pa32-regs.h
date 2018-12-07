@@ -1,5 +1,4 @@
-/* Copyright (C) 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2010 Free Software Foundation, Inc.
+/* Copyright (C) 2000-2018 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -167,7 +166,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    point registers are 64 bits wide.  Snake fp regs are treated as
    32 bits wide since the left and right parts are independently
    accessible.  */
-#define HARD_REGNO_NREGS(REGNO, MODE)					\
+#define PA_HARD_REGNO_NREGS(REGNO, MODE)				\
   (FP_REGNO_P (REGNO)							\
    ? (!TARGET_PA_11							\
       ? COMPLEX_MODE_P (MODE) ? 2 : 1					\
@@ -207,7 +206,7 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
    supported under HP-UX using libcalls.  Since TFmode values are passed
    by reference, they never need to be loaded into the floating-point
    registers.  */
-#define HARD_REGNO_MODE_OK(REGNO, MODE) \
+#define PA_HARD_REGNO_MODE_OK(REGNO, MODE) \
   ((REGNO) == 0 ? (MODE) == CCmode || (MODE) == CCFPmode		\
    : (REGNO) == 88 ? SCALAR_INT_MODE_P (MODE)				\
    : !TARGET_PA_11 && FP_REGNO_P (REGNO)				\
@@ -294,24 +293,6 @@ enum reg_class { NO_REGS, R1_REGS, GENERAL_REGS, FPUPPER_REGS, FP_REGS,
   {0xfffffffe, 0xffffffff, 0x02ffffff},	/* GENERAL_OR_FP_REGS */	\
   {0x00000000, 0x00000000, 0x01000000},	/* SHIFT_REGS */		\
   {0xfffffffe, 0xffffffff, 0x03ffffff}}	/* ALL_REGS */
-
-/* The following macro defines cover classes for Integrated Register
-   Allocator.  Cover classes is a set of non-intersected register
-   classes covering all hard registers used for register allocation
-   purpose.  Any move between two registers of a cover class should be
-   cheaper than load or store of the registers.  The macro value is
-   array of register classes with LIM_REG_CLASSES used as the end
-   marker.  */
-
-#define IRA_COVER_CLASSES						\
-{									\
-  GENERAL_REGS, FP_REGS, SHIFT_REGS, LIM_REG_CLASSES			\
-}
-
-/* Defines invalid mode changes.  */
-
-#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) \
-  pa_cannot_change_mode_class (FROM, TO, CLASS)
 
 /* Return the class number of the smallest class containing
    reg number REGNO.  This could be a conditional expression

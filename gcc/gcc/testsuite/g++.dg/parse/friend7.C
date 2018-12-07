@@ -1,5 +1,6 @@
 // PR c++/34488
 // { dg-do compile }
+// { dg-additional-options "-Wno-return-type" }
 
 struct A
 {
@@ -17,16 +18,16 @@ struct B
 
 struct C
 {
-  friend int C ();		// { dg-error "return type|in friend decl" }
+  friend int C ();
   friend int ~C ();		// { dg-error "return type|in friend decl" }
-  friend int C (const C &);	// { dg-error "return type|in friend decl" }
+  friend int C (const C &);
 };
 
 struct D
 {
-  friend int D () {}		// { dg-error "return type|in friend decl" }
+  friend int D () {}
   friend int ~D () {}		// { dg-error "return type|in friend decl" }
-  friend int D (const D &) {}	// { dg-error "return type|in friend decl" }
+  friend int D (const D &) {}
 };
 
 struct E

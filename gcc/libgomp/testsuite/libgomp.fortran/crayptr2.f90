@@ -1,5 +1,5 @@
 ! { dg-do run }
-! { dg-options "-fopenmp -fcray-pointer" }
+! { dg-options "-fcray-pointer" }
 ! { dg-require-effective-target tls_runtime }
 
   use omp_lib
@@ -12,7 +12,7 @@
   b = 2
   c = 3
   l = .false.
-!$omp parallel num_threads (3) reduction (.or.:l)
+!$omp parallel num_threads (3) reduction (.or.:l) private (d)
   if (omp_get_thread_num () .eq. 0) then
     ip = loc (a)
   elseif (omp_get_thread_num () .eq. 1) then
@@ -27,5 +27,5 @@
   l = l .or. (p .ne. d + 1)
 !$omp end parallel
 
-  if (l) call abort
+  if (l) STOP 1
 end

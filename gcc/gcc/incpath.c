@@ -1,7 +1,5 @@
 /* Set up combined include path chain for the preprocessor.
-   Copyright (C) 1986, 1987, 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1986-2018 Free Software Foundation, Inc.
 
    Broken out of cppinit.c and cppfiles.c and rewritten Mar 2003.
 
@@ -22,9 +20,7 @@
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "machmode.h"
 #include "target.h"
-#include "tm.h"
 #include "cpplib.h"
 #include "prefix.h"
 #include "intl.h"
@@ -35,7 +31,7 @@
    VMS has non-numeric inodes.  */
 #ifdef VMS
 # define INO_T_EQ(A, B) (!memcmp (&(A), &(B), sizeof (A)))
-# define INO_T_COPY(DEST, SRC) memcpy(&(DEST), &(SRC), sizeof (SRC))
+# define INO_T_COPY(DEST, SRC) memcpy (&(DEST), &(SRC), sizeof (SRC))
 #elif !defined (HOST_LACKS_INODE_NUMBERS)
 # define INO_T_EQ(A, B) ((A) == (B))
 # define INO_T_COPY(DEST, SRC) (DEST) = (SRC)
@@ -43,14 +39,14 @@
 
 #if defined INO_T_EQ
 #define DIRS_EQ(A, B) ((A)->dev == (B)->dev \
-	&& INO_T_EQ((A)->ino, (B)->ino))
+	&& INO_T_EQ ((A)->ino, (B)->ino))
 #else
-#define DIRS_EQ(A, B) (!strcmp ((A)->canonical_name, (B)->canonical_name))
+#define DIRS_EQ(A, B) (!filename_cmp ((A)->canonical_name, (B)->canonical_name))
 #endif
 
 static const char dir_separator_str[] = { DIR_SEPARATOR, 0 };
 
-static void add_env_var_paths (const char *, int);
+static void add_env_var_paths (const char *, incpath_kind);
 static void add_standard_paths (const char *, const char *, const char *, int);
 static void free_path (struct cpp_dir *, int);
 static void merge_include_chains (const char *, cpp_reader *, int);
@@ -60,8 +56,9 @@ static struct cpp_dir *remove_duplicates (cpp_reader *, struct cpp_dir *,
 					   struct cpp_dir *, int);
 
 /* Include chains heads and tails.  */
-static struct cpp_dir *heads[4];
-static struct cpp_dir *tails[4];
+static struct cpp_dir *heads[INC_MAX];
+static struct cpp_dir *tails[INC_MAX];
+
 static bool quote_ignores_source_dir;
 enum { REASON_QUIET = 0, REASON_NOENT, REASON_DUP, REASON_DUP_SYS };
 
@@ -96,7 +93,7 @@ free_path (struct cpp_dir *path, int reason)
 /* Read ENV_VAR for a PATH_SEPARATOR-separated list of file names; and
    append all the names to the search path CHAIN.  */
 static void
-add_env_var_paths (const char *env_var, int chain)
+add_env_var_paths (const char *env_var, incpath_kind chain)
 {
   char *p, *q, *path;
 
@@ -120,7 +117,7 @@ add_env_var_paths (const char *env_var, int chain)
 	  path[q - p] = '\0';
 	}
 
-      add_path (path, chain, chain == SYSTEM, false);
+      add_path (path, chain, chain == INC_SYSTEM, false);
     }
 }
 
@@ -130,7 +127,7 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 		    const char *imultilib, int cxx_stdinc)
 {
   const struct default_include *p;
-  int relocated = cpp_relocated();
+  int relocated = cpp_relocated ();
   size_t len;
 
   if (iprefix && (len = cpp_GCC_INCLUDE_DIR_len) != 0)
@@ -147,12 +144,23 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 		 now.  */
 	      if (sysroot && p->add_sysroot)
 		continue;
-	      if (!strncmp (p->fname, cpp_GCC_INCLUDE_DIR, len))
+	      if (!filename_ncmp (p->fname, cpp_GCC_INCLUDE_DIR, len))
 		{
 		  char *str = concat (iprefix, p->fname + len, NULL);
-		  if (p->multilib && imultilib)
-		    str = concat (str, dir_separator_str, imultilib, NULL);
-		  add_path (str, SYSTEM, p->cxx_aware, false);
+		  if (p->multilib == 1 && imultilib)
+		    str = reconcat (str, str, dir_separator_str,
+				    imultilib, NULL);
+		  else if (p->multilib == 2)
+		    {
+		      if (!imultiarch)
+			{
+			  free (str);
+			  continue;
+			}
+		      str = reconcat (str, str, dir_separator_str,
+				      imultiarch, NULL);
+		    }
+		  add_path (str, INC_SYSTEM, p->cxx_aware, false);
 		}
 	    }
 	}
@@ -166,11 +174,20 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 
 	  /* Should this directory start with the sysroot?  */
 	  if (sysroot && p->add_sysroot)
-	    str = concat (sysroot, p->fname, NULL);
+	    {
+	      char *sysroot_no_trailing_dir_separator = xstrdup (sysroot);
+	      size_t sysroot_len = strlen (sysroot);
+
+	      if (sysroot_len > 0 && sysroot[sysroot_len - 1] == DIR_SEPARATOR)
+		sysroot_no_trailing_dir_separator[sysroot_len - 1] = '\0';
+	      str = concat (sysroot_no_trailing_dir_separator, p->fname, NULL);
+	      free (sysroot_no_trailing_dir_separator);
+	    }
 	  else if (!p->add_sysroot && relocated
-		   && strncmp (p->fname, cpp_PREFIX, cpp_PREFIX_len) == 0)
+		   && !filename_ncmp (p->fname, cpp_PREFIX, cpp_PREFIX_len))
 	    {
  	      static const char *relocated_prefix;
+	      char *ostr;
 	      /* If this path starts with the configure-time prefix,
 		 but the compiler has been relocated, replace it
 		 with the run-time prefix.  The run-time exec prefix
@@ -186,19 +203,30 @@ add_standard_paths (const char *sysroot, const char *iprefix,
 		    = make_relative_prefix (dummy,
 					    cpp_EXEC_PREFIX,
 					    cpp_PREFIX);
+		  free (dummy);
 		}
-	      str = concat (relocated_prefix,
-			    p->fname + cpp_PREFIX_len,
-			    NULL);
-	      str = update_path (str, p->component);
+	      ostr = concat (relocated_prefix,
+			     p->fname + cpp_PREFIX_len,
+			     NULL);
+	      str = update_path (ostr, p->component);
+	      free (ostr);
 	    }
 	  else
 	    str = update_path (p->fname, p->component);
 
-	  if (p->multilib && imultilib)
-	    str = concat (str, dir_separator_str, imultilib, NULL);
+	  if (p->multilib == 1 && imultilib)
+	    str = reconcat (str, str, dir_separator_str, imultilib, NULL);
+	  else if (p->multilib == 2)
+	    {
+	      if (!imultiarch)
+		{
+		  free (str);
+		  continue;
+		}
+	      str = reconcat (str, str, dir_separator_str, imultiarch, NULL);
+	    }
 
-	  add_path (str, SYSTEM, p->cxx_aware, false);
+	  add_path (str, INC_SYSTEM, p->cxx_aware, false);
 	}
     }
 }
@@ -226,15 +254,17 @@ remove_duplicates (cpp_reader *pfile, struct cpp_dir *head,
 
       if (stat (cur->name, &st))
 	{
-	  /* Dirs that don't exist are silently ignored, unless verbose.  */
-	  if (errno != ENOENT)
+	  /* Dirs that don't exist or have denied permissions are 
+	     silently ignored, unless verbose.  */
+	  if ((errno != ENOENT) && (errno != EPERM))
 	    cpp_errno (pfile, CPP_DL_ERROR, cur->name);
 	  else
 	    {
 	      /* If -Wmissing-include-dirs is given, warn.  */
 	      cpp_options *opts = cpp_get_options (pfile);
 	      if (opts->warn_missing_include_dirs && cur->user_supplied_p)
-		cpp_errno (pfile, CPP_DL_WARNING, cur->name);
+		cpp_warning (pfile, CPP_W_MISSING_INCLUDE_DIRS, "%s: %s",
+			     cur->name, xstrerror (errno));
 	      reason = REASON_NOENT;
 	    }
 	}
@@ -285,7 +315,7 @@ remove_duplicates (cpp_reader *pfile, struct cpp_dir *head,
 }
 
 /* Add SYSROOT to any user-supplied paths in CHAIN starting with
-   "=".  */
+   "=" or "$SYSROOT".  */
 
 static void
 add_sysroot_to_chain (const char *sysroot, int chain)
@@ -293,8 +323,15 @@ add_sysroot_to_chain (const char *sysroot, int chain)
   struct cpp_dir *p;
 
   for (p = heads[chain]; p != NULL; p = p->next)
-    if (p->name[0] == '=' && p->user_supplied_p)
-      p->name = concat (sysroot, p->name + 1, NULL);
+    {
+      if (p->user_supplied_p)
+	{
+	  if (p->name[0] == '=')
+	    p->name = concat (sysroot, p->name + 1, NULL);
+	  if (strncmp (p->name, "$SYSROOT", strlen ("$SYSROOT")) == 0)
+	    p->name = concat (sysroot, p->name + strlen ("$SYSROOT"), NULL);
+	}
+    }
 }
 
 /* Merge the four include chains together in the order quote, bracket,
@@ -313,29 +350,32 @@ merge_include_chains (const char *sysroot, cpp_reader *pfile, int verbose)
   /* Add the sysroot to user-supplied paths starting with "=".  */
   if (sysroot)
     {
-      add_sysroot_to_chain (sysroot, QUOTE);
-      add_sysroot_to_chain (sysroot, BRACKET);
-      add_sysroot_to_chain (sysroot, SYSTEM);
-      add_sysroot_to_chain (sysroot, AFTER);
+      add_sysroot_to_chain (sysroot, INC_QUOTE);
+      add_sysroot_to_chain (sysroot, INC_BRACKET);
+      add_sysroot_to_chain (sysroot, INC_SYSTEM);
+      add_sysroot_to_chain (sysroot, INC_AFTER);
     }
 
   /* Join the SYSTEM and AFTER chains.  Remove duplicates in the
      resulting SYSTEM chain.  */
-  if (heads[SYSTEM])
-    tails[SYSTEM]->next = heads[AFTER];
+  if (heads[INC_SYSTEM])
+    tails[INC_SYSTEM]->next = heads[INC_AFTER];
   else
-    heads[SYSTEM] = heads[AFTER];
-  heads[SYSTEM] = remove_duplicates (pfile, heads[SYSTEM], 0, 0, verbose);
+    heads[INC_SYSTEM] = heads[INC_AFTER];
+  heads[INC_SYSTEM]
+    = remove_duplicates (pfile, heads[INC_SYSTEM], 0, 0, verbose);
 
   /* Remove duplicates from BRACKET that are in itself or SYSTEM, and
      join it to SYSTEM.  */
-  heads[BRACKET] = remove_duplicates (pfile, heads[BRACKET], heads[SYSTEM],
-				      heads[SYSTEM], verbose);
+  heads[INC_BRACKET]
+    = remove_duplicates (pfile, heads[INC_BRACKET], heads[INC_SYSTEM],
+			 heads[INC_SYSTEM], verbose);
 
   /* Remove duplicates from QUOTE that are in itself or SYSTEM, and
      join it to BRACKET.  */
-  heads[QUOTE] = remove_duplicates (pfile, heads[QUOTE], heads[SYSTEM],
-				    heads[BRACKET], verbose);
+  heads[INC_QUOTE]
+    = remove_duplicates (pfile, heads[INC_QUOTE], heads[INC_SYSTEM],
+			 heads[INC_BRACKET], verbose);
 
   /* If verbose, print the list of dirs to search.  */
   if (verbose)
@@ -343,9 +383,9 @@ merge_include_chains (const char *sysroot, cpp_reader *pfile, int verbose)
       struct cpp_dir *p;
 
       fprintf (stderr, _("#include \"...\" search starts here:\n"));
-      for (p = heads[QUOTE];; p = p->next)
+      for (p = heads[INC_QUOTE];; p = p->next)
 	{
-	  if (p == heads[BRACKET])
+	  if (p == heads[INC_BRACKET])
 	    fprintf (stderr, _("#include <...> search starts here:\n"));
 	  if (!p)
 	    break;
@@ -362,10 +402,14 @@ merge_include_chains (const char *sysroot, cpp_reader *pfile, int verbose)
 void
 split_quote_chain (void)
 {
-  heads[QUOTE] = heads[BRACKET];
-  tails[QUOTE] = tails[BRACKET];
-  heads[BRACKET] = NULL;
-  tails[BRACKET] = NULL;
+  if (heads[INC_QUOTE])
+    free_path (heads[INC_QUOTE], REASON_QUIET);
+  if (tails[INC_QUOTE])
+    free_path (tails[INC_QUOTE], REASON_QUIET);
+  heads[INC_QUOTE] = heads[INC_BRACKET];
+  tails[INC_QUOTE] = tails[INC_BRACKET];
+  heads[INC_BRACKET] = NULL;
+  tails[INC_BRACKET] = NULL;
   /* This is NOT redundant.  */
   quote_ignores_source_dir = true;
 }
@@ -373,7 +417,7 @@ split_quote_chain (void)
 /* Add P to the chain specified by CHAIN.  */
 
 void
-add_cpp_dir_path (cpp_dir *p, int chain)
+add_cpp_dir_path (cpp_dir *p, incpath_kind chain)
 {
   if (tails[chain])
     tails[chain]->next = p;
@@ -385,7 +429,7 @@ add_cpp_dir_path (cpp_dir *p, int chain)
 /* Add PATH to the include chain CHAIN. PATH must be malloc-ed and
    NUL-terminated.  */
 void
-add_path (char *path, int chain, int cxx_aware, bool user_supplied_p)
+add_path (char *path, incpath_kind chain, int cxx_aware, bool user_supplied_p)
 {
   cpp_dir *p;
 
@@ -410,7 +454,7 @@ add_path (char *path, int chain, int cxx_aware, bool user_supplied_p)
 #ifndef INO_T_EQ
   p->canonical_name = lrealpath (path);
 #endif
-  if (chain == SYSTEM || chain == AFTER)
+  if (chain == INC_SYSTEM || chain == INC_AFTER)
     p->sysp = 1 + !cxx_aware;
   else
     p->sysp = 0;
@@ -440,8 +484,8 @@ register_include_chains (cpp_reader *pfile, const char *sysroot,
 
   /* CPATH and language-dependent environment variables may add to the
      include chain.  */
-  add_env_var_paths ("CPATH", BRACKET);
-  add_env_var_paths (lang_env_vars[idx], SYSTEM);
+  add_env_var_paths ("CPATH", INC_BRACKET);
+  add_env_var_paths (lang_env_vars[idx], INC_SYSTEM);
 
   target_c_incpath.extra_pre_includes (sysroot, iprefix, stdinc);
 
@@ -453,9 +497,18 @@ register_include_chains (cpp_reader *pfile, const char *sysroot,
 
   merge_include_chains (sysroot, pfile, verbose);
 
-  cpp_set_include_chains (pfile, heads[QUOTE], heads[BRACKET],
+  cpp_set_include_chains (pfile, heads[INC_QUOTE], heads[INC_BRACKET],
 			  quote_ignores_source_dir);
 }
+
+/* Return the current chain of cpp dirs.  */
+
+struct cpp_dir *
+get_added_cpp_dirs (incpath_kind chain)
+{
+  return heads[chain];
+}
+
 #if !(defined TARGET_EXTRA_INCLUDES) || !(defined TARGET_EXTRA_PRE_INCLUDES)
 static void hook_void_charptr_charptr_int (const char *sysroot ATTRIBUTE_UNUSED,
 					   const char *iprefix ATTRIBUTE_UNUSED,

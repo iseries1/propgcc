@@ -1,5 +1,6 @@
 // { dg-lto-do link }
-// { dg-lto-options {{-fPIC -O -flto}} }
+// { dg-require-effective-target fpic }
+// { dg-lto-options {{-fPIC -O -flto -Wno-return-type}} }
 
 typedef double Real;
 class Vector {

@@ -1,6 +1,6 @@
 ! { dg-do compile }
 ! { dg-shouldfail "Invalid Fortran 2003 code" }
-! { dg-options "-std=f2003 -fall-intrinsics" }
+! { dg-options "-std=f2003" }
 ! PR fortran/23994
 !
 ! Test PROTECTED attribute. Within the module everything is allowed.
@@ -53,5 +53,3 @@ program main
   nullify(t%p)         ! { dg-error "pointer association context" }
   allocate(t%array(15))! { dg-error "variable definition context" }
 end program main
-
-! { dg-final { cleanup-modules "good1 good2 bad1 bad2" } }

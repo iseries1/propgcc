@@ -97,8 +97,7 @@ int main (void)
       arr[i].f = i * 5;
       arr[i].g = i - 3;
       arr[i].h = 56;
-      if (arr[i].a == 178)
-         abort(); 
+      asm volatile ("" ::: "memory");
     } 
 
   main1 (arr);
@@ -106,8 +105,10 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" { target { vect_strided_wide } && {! { vect_no_align} } } } } */
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { ! { vect_strided_wide || vect_no_align} } } } } */
-/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 2 loops" 1 "vect" { target { vect_strided8 && { ! { vect_no_align} } } } } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { ! { vect_strided8 || vect_no_align } } } } } */
+/* We fail to vectorize the second loop with variable-length SVE but
+   fall back to 128-bit vectors, which does use SLP.  */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 1 "vect" { target { ! vect_perm } } } } */
+/* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 2 "vect" { target vect_perm } } } */
   

@@ -1,4 +1,5 @@
 /* { dg-do compile } */
+/* { dg-require-profiling "-fprofile-generate" } */
 /* { dg-options "-fprofile-generate" } */
 
 template<class _CharT>     struct char_traits;
@@ -26,4 +27,5 @@ int f(void)
 {
   basic_ostream<char, char_traits<char> > os;
   copy(ostream_iterator<const int>(os, ","));
+  return 0;
 }

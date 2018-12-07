@@ -1,6 +1,5 @@
 /* Common VxWorks target definitions for GNU compiler.
-   Copyright (C) 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2007-2018 Free Software Foundation, Inc.
    Contributed by CodeSourcery, Inc.
 
 This file is part of GCC.
@@ -23,10 +22,11 @@ along with GCC; see the file COPYING3.  If not see
 #include "system.h"
 #include "coretypes.h"
 #include "target.h"
+#include "tree.h"
+#include "stringpool.h"
 #include "diagnostic-core.h"
 #include "output.h"
-#include "tm.h"
-#include "tree.h"
+#include "fold-const.h"
 
 /* Like default_named_section_asm_out_constructor, except that even
    constructors with DEFAULT_INIT_PRIORITY must go in a numbered
@@ -80,8 +80,10 @@ vxworks_emutls_var_fields (tree type, tree *name)
   DECL_CHAIN (field) = next_field;
   next_field = field;
 
+  /* The offset field is declared as an unsigned int with pointer mode.  */
   field = build_decl (BUILTINS_LOCATION, FIELD_DECL,
-		      get_identifier ("offset"), unsigned_type_node);
+		      get_identifier ("offset"), long_unsigned_type_node);
+
   DECL_CONTEXT (field) = type;
   DECL_CHAIN (field) = next_field;
 
@@ -96,25 +98,24 @@ vxworks_emutls_var_fields (tree type, tree *name)
 static tree
 vxworks_emutls_var_init (tree var, tree decl, tree tmpl_addr)
 {
-  VEC(constructor_elt,gc) *v = VEC_alloc (constructor_elt, gc, 3);
-  constructor_elt *elt;
+  vec<constructor_elt, va_gc> *v;
+  vec_alloc (v, 3);
   
   tree type = TREE_TYPE (var);
   tree field = TYPE_FIELDS (type);
   
-  elt = VEC_quick_push (constructor_elt, v, NULL);
-  elt->index = field;
-  elt->value = fold_convert (TREE_TYPE (field), tmpl_addr);
+  constructor_elt elt = {field, fold_convert (TREE_TYPE (field), tmpl_addr)};
+  v->quick_push (elt);
   
-  elt = VEC_quick_push (constructor_elt, v, NULL);
   field = DECL_CHAIN (field);
-  elt->index = field;
-  elt->value = build_int_cst (TREE_TYPE (field), 0);
+  elt.index = field;
+  elt.value = build_int_cst (TREE_TYPE (field), 0);
+  v->quick_push (elt);
   
-  elt = VEC_quick_push (constructor_elt, v, NULL);
   field = DECL_CHAIN (field);
-  elt->index = field;
-  elt->value = fold_convert (TREE_TYPE (field), DECL_SIZE_UNIT (decl));
+  elt.index = field;
+  elt.value = fold_convert (TREE_TYPE (field), DECL_SIZE_UNIT (decl));
+  v->quick_push (elt);
   
   return build_constructor (type, v);
 }
@@ -124,24 +125,38 @@ vxworks_emutls_var_init (tree var, tree decl, tree tmpl_addr)
 void
 vxworks_override_options (void)
 {
-  /* We don't support __thread via target hooks.  */
-  targetm.have_tls = false;
+  /* Setup the tls emulation bits if the OS misses proper
+     tls support.  */
+  targetm.have_tls = VXWORKS_HAVE_TLS;
 
-  targetm.emutls.get_address = "__builtin___tls_lookup";
-  targetm.emutls.register_common = NULL;
-  targetm.emutls.var_section = ".tls_vars";
-  targetm.emutls.tmpl_section = ".tls_data";
-  targetm.emutls.var_prefix = "__tls__";
-  targetm.emutls.tmpl_prefix = "";
-  targetm.emutls.var_fields = vxworks_emutls_var_fields;
-  targetm.emutls.var_init = vxworks_emutls_var_init;
-  targetm.emutls.var_align_fixed = true;
-  targetm.emutls.debug_form_tls_address = true;
-  
+  if (!VXWORKS_HAVE_TLS)
+    {
+      targetm.emutls.get_address = "__builtin___tls_lookup";
+      targetm.emutls.register_common = NULL;
+      targetm.emutls.var_section = ".tls_vars";
+      targetm.emutls.tmpl_section = ".tls_data";
+      targetm.emutls.var_prefix = "__tls__";
+      targetm.emutls.tmpl_prefix = "";
+      targetm.emutls.var_fields = vxworks_emutls_var_fields;
+      targetm.emutls.var_init = vxworks_emutls_var_init;
+      targetm.emutls.var_align_fixed = true;
+      targetm.emutls.debug_form_tls_address = true;
+    }
+
   /* We can use .ctors/.dtors sections only in RTP mode.  */
   targetm.have_ctors_dtors = TARGET_VXWORKS_RTP;
 
   /* PIC is only supported for RTPs.  */
   if (flag_pic && !TARGET_VXWORKS_RTP)
     error ("PIC is only supported for RTPs");
+
+  /* VxWorks comes with non-gdb debuggers which only support strict
+     dwarf up to certain version.  Default dwarf control to friendly
+     values for these.  */
+
+  if (!global_options_set.x_dwarf_strict)
+    dwarf_strict = 1;
+
+  if (!global_options_set.x_dwarf_version)
+    dwarf_version = VXWORKS_DWARF_VERSION_DEFAULT;
 }

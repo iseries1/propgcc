@@ -1,10 +1,11 @@
 // { dg-lto-do link }
+// { dg-require-effective-target fpic }
 // { dg-lto-options {{-fPIC}} }
 // { dg-extra-ld-options "-fPIC -r -nostdlib" }
 
 template < class T > 
 class DataArray {
-    int max() const { }
+    int max() const { return 0; }
 };
 class Name { };
 class DataHashTable {

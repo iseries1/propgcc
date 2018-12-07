@@ -25,7 +25,7 @@
     REAL :: buffer_conc(1:anzKomponenten)
     buffer_conc = solveCConvert ()
     if (any(buffer_conc .ne. (/(real(i), i = 1, anzKomponenten)/))) &
-          call abort ()
+          STOP 1
   END SUBROUTINE outDiffKoeff
 
   program missing_ref
@@ -43,5 +43,3 @@
     REAL :: solveCConvert(1:anzKomponenten)
     solveCConvert = (/(real(i), i = 1, anzKomponenten)/)
   END FUNCTION solveCConvert
-
-! { dg-final { cleanup-modules "MODULE_CONC MODULE_THERMOCALC" } }

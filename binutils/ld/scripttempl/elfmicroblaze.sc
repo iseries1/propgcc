@@ -1,11 +1,19 @@
 # Adapted from mips.sc
+#
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
+#
 # These variables may be overridden by the emulation file.  The
 # defaults are appropriate for a DECstation running Ultrix.
+
 test -z "$ENTRY" && ENTRY=_start
 
 #test -z "$TEXT_START_ADDR" && TEXT_START_ADDR="0x0"
 
-CTOR=".ctors ${CONSTRUCTING-0} : 
+CTOR=".ctors ${CONSTRUCTING-0} :
   {
     ${CONSTRUCTING+${CTOR_START}}
     /* gcc uses crtbegin.o to find the start of
@@ -42,6 +50,12 @@ DTOR=" .dtors       ${CONSTRUCTING-0} :
   }"
 
 cat <<EOF
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}", "${BIG_OUTPUT_FORMAT}",
 	      "${LITTLE_OUTPUT_FORMAT}")
 /*${LIB_SEARCH_DIRS}*/
@@ -49,7 +63,7 @@ ${RELOCATING+${LIB_SEARCH_DIRS}}
 
 ${RELOCATING+ENTRY (${ENTRY})}
 
-_TEXT_START_ADDR = DEFINED(_TEXT_START_ADDR) ? _TEXT_START_ADDR : 0x50;		
+_TEXT_START_ADDR = DEFINED(_TEXT_START_ADDR) ? _TEXT_START_ADDR : 0x50;
 _HEAP_SIZE = DEFINED(_HEAP_SIZE) ? _HEAP_SIZE : 0x0;
 _STACK_SIZE = DEFINED(_STACK_SIZE) ? _STACK_SIZE : 0x400;
 
@@ -107,7 +121,7 @@ SECTIONS
   }
   ${RELOCATING+. = ALIGN(4);}
   .sbss2 : {
-    ${RELOCATING+PROVIDE (__sbss2_start = .);}	
+    ${RELOCATING+PROVIDE (__sbss2_start = .);}
     ${RELOCATING+*(.sbss2)}
     ${RELOCATING+*(.sbss2.*)}
     ${RELOCATING+*(.gnu.linkonce.sb2.*)}
@@ -126,30 +140,30 @@ SECTIONS
     ${CONSTRUCTING+CONSTRUCTORS}; /* Is this needed? */
   }
   ${RELOCATING+ _edata = . ;}
-  
+
    /* Added to handle pic code */
-  .got : {  
+  .got : {
     ${RELOCATING+*(.got)}
   }
 
-  .got1 : {  
+  .got1 : {
     ${RELOCATING+*(.got1)}
   }
 
-  .got2 : {  
+  .got2 : {
     ${RELOCATING+*(.got2)}
   }
 
   /* Added by Sathya to handle C++ exceptions */
-  .eh_frame : {  
+  .eh_frame : {
     ${RELOCATING+*(.eh_frame)}
   }
-  
-  .jcr : {  
+
+  .jcr : {
     ${RELOCATING+*(.jcr)}
   }
 
-  .gcc_except_table : {  
+  .gcc_except_table : {
     ${RELOCATING+*(.gcc_except_table)}
   }
 
@@ -164,7 +178,7 @@ SECTIONS
   }
   ${RELOCATING+. = ALIGN(4);}
   .sbss : {
-    ${RELOCATING+PROVIDE (__sbss_start = .);}	
+    ${RELOCATING+PROVIDE (__sbss_start = .);}
     ${RELOCATING+*(.sbss)}
     ${RELOCATING+*(.sbss.*)}
     ${RELOCATING+*(.gnu.linkonce.sb.*)}
@@ -178,13 +192,13 @@ SECTIONS
   ${RELOCATING+ . = ALIGN(4);}
   ${RELOCATING+ _fbss = .;}
   .bss : {
-    ${RELOCATING+PROVIDE (__bss_start = .);}	
+    ${RELOCATING+PROVIDE (__bss_start = .);}
     ${RELOCATING+*(.bss)}
     ${RELOCATING+*(.bss.*)}
     ${RELOCATING+*(.gnu.linkonce.b.*)}
     ${RELOCATING+*(COMMON)}
-    ${RELOCATING+. = ALIGN(4);}  
-    
+    ${RELOCATING+. = ALIGN(. != 0 ? 4 : 1);}
+
     ${RELOCATING+PROVIDE (__bss_end = .);}
 
   }
@@ -196,24 +210,24 @@ SECTIONS
     ${RELOCATING+ _heap_start = .;}
     ${RELOCATING+ . += _HEAP_SIZE;}
     ${RELOCATING+ _heap_end = .;}
-  } 
+  }
 
   ${RELOCATING+ . = ALIGN(4);}
 
   .stack : {
     ${RELOCATING+ _stack_end = .;}
     ${RELOCATING+ . += _STACK_SIZE;}
-    ${RELOCATING+ . = ALIGN(8);}
+    ${RELOCATING+ . = ALIGN(. != 0 ? 8 : 1);}
     ${RELOCATING+ _stack = .;}
     ${RELOCATING+ _end = .;}
   }
 
-  .tdata : {  
+  .tdata : {
     ${RELOCATING+*(.tdata)}
     ${RELOCATING+*(.tdata.*)}
     ${RELOCATING+*(.gnu.linkonce.td.*)}
   }
-  .tbss : {  
+  .tbss : {
     ${RELOCATING+*(.tbss)}
     ${RELOCATING+*(.tbss.*)}
     ${RELOCATING+*(.gnu.linkonce.tb.*)}

@@ -1,5 +1,5 @@
 ! { dg-do compile }
-! { dg-options "-std=legacy" }
+! { dg-options "-std=gnu" }
 !
 ! PR 40848: [4.5 Regression] ICE with alternate returns
 !
@@ -27,9 +27,6 @@ END MODULE
 
   USE TT
   CALL M(1,*2)
-  CALL ABORT()
+  STOP 1
 2 CONTINUE
 END
-
-! { dg-final { cleanup-modules "tt" } }
-

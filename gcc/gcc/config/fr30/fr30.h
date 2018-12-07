@@ -1,8 +1,7 @@
 /*{{{  Comment.  */ 
 
 /* Definitions of FR30 target. 
-   Copyright (C) 1998, 1999, 2000, 2001, 2002, 2004, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1998-2018 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This file is part of GCC.
@@ -38,8 +37,6 @@ along with GCC; see the file COPYING3.  If not see
       builtin_assert ("machine=fr30");		\
     }						\
    while (0)
-
-#define TARGET_VERSION fprintf (stderr, " (fr30)");
 
 #undef  STARTFILE_SPEC
 #define STARTFILE_SPEC "crt0.o%s crti.o%s crtbegin.o%s"
@@ -89,10 +86,6 @@ along with GCC; see the file COPYING3.  If not see
 #define DATA_ALIGNMENT(TYPE, ALIGN)		\
   (TREE_CODE (TYPE) == ARRAY_TYPE		\
    && TYPE_MODE (TREE_TYPE (TYPE)) == QImode	\
-   && (ALIGN) < BITS_PER_WORD ? BITS_PER_WORD : (ALIGN))
-
-#define CONSTANT_ALIGNMENT(EXP, ALIGN)  \
-  (TREE_CODE (EXP) == STRING_CST	\
    && (ALIGN) < BITS_PER_WORD ? BITS_PER_WORD : (ALIGN))
 
 #define STRICT_ALIGNMENT 1
@@ -241,30 +234,6 @@ along with GCC; see the file COPYING3.  If not see
 }
 
 /*}}}*/ 
-/*{{{  How Values Fit in Registers.  */ 
-
-/* A C expression for the number of consecutive hard registers, starting at
-   register number REGNO, required to hold a value of mode MODE.  */
-
-#define HARD_REGNO_NREGS(REGNO, MODE) 			\
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
-/* A C expression that is nonzero if it is permissible to store a value of mode
-   MODE in hard register number REGNO (or in several registers starting with
-   that one).  */
-
-#define HARD_REGNO_MODE_OK(REGNO, MODE) 1
-
-/* A C expression that is nonzero if it is desirable to choose register
-   allocation so as to avoid move instructions between a value of mode MODE1
-   and a value of mode MODE2.
-
-   If `HARD_REGNO_MODE_OK (R, MODE1)' and `HARD_REGNO_MODE_OK (R, MODE2)' are
-   ever different for any R, then `MODES_TIEABLE_P (MODE1, MODE2)' must be
-   zero.  */
-#define MODES_TIEABLE_P(MODE1, MODE2) 1
-
-/*}}}*/ 
 /*{{{  Register Classes.  */ 
 
 /* An enumeral type that must be defined with all the register class names as
@@ -289,11 +258,6 @@ enum reg_class
 
 #define GENERAL_REGS 	REAL_REGS
 #define N_REG_CLASSES 	((int) LIM_REG_CLASSES)
-
-#define IRA_COVER_CLASSES				\
-{							\
-  REAL_REGS, MULTIPLY_64_REG, LIM_REG_CLASSES		\
-}
 
 /* An initializer containing the names of the register classes as C string
    constants.  These names are used in writing some of the debugging dumps.  */
@@ -368,16 +332,7 @@ enum reg_class
    will reload one or both registers only if neither labeling works.  */
 #define REGNO_OK_FOR_INDEX_P(NUM) 1
 
-/* A C expression for the maximum number of consecutive registers of
-   class CLASS needed to hold a value of mode MODE.
-
-   This is closely related to the macro `HARD_REGNO_NREGS'.  In fact, the value
-   of the macro `CLASS_MAX_NREGS (CLASS, MODE)' should be the maximum value of
-   `HARD_REGNO_NREGS (REGNO, MODE)' for all REGNO values in the class CLASS.
-
-   This macro helps control the handling of multiple-word values in
-   the reload pass.  */
-#define CLASS_MAX_NREGS(CLASS, MODE) HARD_REGNO_NREGS (0, MODE)
+#define CLASS_MAX_NREGS(CLASS, MODE) targetm.hard_regno_nregs (0, MODE)
 
 /*}}}*/ 
 /*{{{  Basic Stack Layout.  */ 
@@ -389,15 +344,6 @@ enum reg_class
 /* Define this to macro nonzero if the addresses of local variable slots
    are at negative offsets from the frame pointer.  */
 #define FRAME_GROWS_DOWNWARD 1
-
-/* Offset from the frame pointer to the first local variable slot to be
-   allocated.
-
-   If `FRAME_GROWS_DOWNWARD', find the next slot's offset by subtracting the
-   first slot's length from `STARTING_FRAME_OFFSET'.  Otherwise, it is found by
-   adding the length of the first slot to the value `STARTING_FRAME_OFFSET'.  */
-/* #define STARTING_FRAME_OFFSET -4 */
-#define STARTING_FRAME_OFFSET 0
 
 /* Offset from the stack pointer register to the first location at which
    outgoing arguments are placed.  If not specified, the default value of zero
@@ -468,9 +414,8 @@ enum reg_class
   {FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM}	\
 }
 
-/* This macro is similar to `INITIAL_FRAME_POINTER_OFFSET'.  It specifies the
-   initial difference between the specified pair of registers.  This macro must
-   be defined if `ELIMINABLE_REGS' is defined.  */
+/* This macro returns the initial difference between the specified pair
+   of registers.  */
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)			\
      (OFFSET) = fr30_compute_frame_size (FROM, TO)
 
@@ -674,12 +619,6 @@ enum reg_class
    will reload one or both registers only if neither labeling works.  */
 #define REG_OK_FOR_INDEX_P(X) REG_OK_FOR_BASE_P (X)
 
-/* A C expression that is nonzero if X is a legitimate constant for an
-   immediate operand on the target machine.  You can assume that X satisfies
-   `CONSTANT_P', so you need not check this.  In fact, `1' is a suitable
-   definition for this macro on machines where anything `CONSTANT_P' is valid.  */
-#define LEGITIMATE_CONSTANT_P(X) 1
-
 /*}}}*/ 
 /*{{{  Describing Relative Costs of Operations */ 
 
@@ -709,13 +648,6 @@ enum reg_class
    `".data"' is right.  */
 #define DATA_SECTION_ASM_OP "\t.data"
 
-/* If defined, a C expression whose value is a string containing the
-   assembler operation to identify the following data as
-   uninitialized global data.  If not defined, and neither
-   `ASM_OUTPUT_BSS' nor `ASM_OUTPUT_ALIGNED_BSS' are defined,
-   uninitialized global data will be output in the data section if
-   `-fno-common' is passed, otherwise `ASM_OUTPUT_COMMON' will be
-   used.  */
 #define BSS_SECTION_ASM_OP "\t.section .bss"
 
 /*}}}*/ 
@@ -831,18 +763,6 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
    memory to memory.  */
 #define MOVE_MAX 8
 
-/* A C expression which is nonzero if on this machine it is safe to "convert"
-   an integer of INPREC bits to one of OUTPREC bits (where OUTPREC is smaller
-   than INPREC) by merely operating on it as if it had only OUTPREC bits.
-
-   On many machines, this expression can be 1.
-
-   When `TRULY_NOOP_TRUNCATION' returns 1 for a pair of sizes for modes for
-   which `MODES_TIEABLE_P' is 0, suboptimal code can result.  If this is the
-   case, making `TRULY_NOOP_TRUNCATION' return 0 in such cases may improve
-   things.  */
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
-
 /* An alias for the machine mode for pointers.  On most machines, define this
    to be the integer mode corresponding to the width of a hardware pointer;
    `SImode' on 32-bit machine or `DImode' on 64-bit machines.  On some machines
@@ -858,11 +778,6 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
    called, in `call' RTL expressions.  On most machines this should be
    `QImode'.  */
 #define FUNCTION_MODE QImode
-
-/* If cross-compiling, don't require stdio.h etc to build libgcc.a.  */
-#if defined CROSS_DIRECTORY_STRUCTURE && ! defined inhibit_libc
-#define inhibit_libc
-#endif
 
 /*}}}*/ 
 

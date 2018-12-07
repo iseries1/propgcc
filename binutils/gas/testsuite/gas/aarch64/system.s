@@ -44,6 +44,8 @@
 	all_barriers	op=isb, from=0, to=15
 
 	isb
+	ssbb
+	pssbb
 
 	//
 	// PREFETCHS
@@ -60,3 +62,15 @@
 	.endm
 
 	all_prefetchs	op=prfm, from=0, to=31
+
+	//
+	// PREFETCHS with named operation
+	//
+
+	.irp op, pld, pli, pst
+	.irp l, l1, l2, l3
+	.irp t, keep, strm
+	prfm	\op\l\t, [x3, #24]
+	.endr
+	.endr
+	.endr

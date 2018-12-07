@@ -1,16 +1,15 @@
 // Positive test for auto
-// { dg-do run }
-// { dg-options "-std=c++0x" }
+// { dg-do run { target c++11 } }
 
 #include <typeinfo>
 extern "C" void abort();
 
-int f() {}
+int f() { return 0; }
 
 struct A
 {
   int i;
-  int f() {}
+  int f() { return 0; }
   A operator+(A a) { return a; }
 };
 
@@ -71,4 +70,5 @@ int main()
     }
 
   auto j = 42, k = 24;
+  return 0;
 }

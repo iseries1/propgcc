@@ -1,6 +1,6 @@
 // ehframe.h -- handle exception frame sections for gold  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -174,10 +174,14 @@ class Fde
   }
 
   // Create an FDE associated with a PLT.
-  Fde(Output_data* plt, const unsigned char* contents, size_t length)
+  Fde(Output_data* plt, const unsigned char* contents, size_t length,
+      bool post_map)
     : object_(NULL),
       contents_(reinterpret_cast<const char*>(contents), length)
-  { this->u_.from_linker.plt = plt; }
+  {
+    this->u_.from_linker.plt = plt;
+    this->u_.from_linker.post_map = post_map;
+  }
 
   // Return the length of this FDE.  Add 4 for the length and 4 for
   // the offset to the CIE.
@@ -188,13 +192,19 @@ class Fde
   // Add a mapping for this FDE to MERGE_MAP, so that relocations
   // against the FDE are applied to right part of the output file.
   void
-  add_mapping(section_offset_type output_offset, Merge_map* merge_map) const
+  add_mapping(section_offset_type output_offset,
+              Output_section_data* output_data) const
   {
     if (this->object_ != NULL)
-      merge_map->add_mapping(this->object_, this->u_.from_object.shndx,
+      this->object_->add_merge_mapping(output_data, this->u_.from_object.shndx,
 			     this->u_.from_object.input_offset, this->length(),
 			     output_offset);
   }
+
+  // Return whether this FDE was added after merge mapping.
+  bool
+  post_map()
+  { return this->object_ == NULL && this->u_.from_linker.post_map; }
 
   // Write the FDE to OVIEW starting at OFFSET.  FDE_ENCODING is the
   // encoding, from the CIE.  Round up the bytes to ADDRALIGN if
@@ -202,10 +212,12 @@ class Fde
   // FDE in EH_FRAME_HDR.  Return the new offset.
   template<int size, bool big_endian>
   section_offset_type
-  write(unsigned char* oview, section_offset_type offset,
-	uint64_t address, unsigned int addralign,
+  write(unsigned char* oview, section_offset_type output_section_offset,
+	section_offset_type offset, uint64_t address, unsigned int addralign,
 	section_offset_type cie_offset, unsigned char fde_encoding,
 	Eh_frame_hdr* eh_frame_hdr);
+
+  bool operator==(const Fde&) const;
 
  private:
   // The object in which this FDE was seen.  This will be NULL for a
@@ -229,11 +241,28 @@ class Fde
       // The only linker generated FDEs are for PLT sections, and this
       // points to the PLT section.
       Output_data* plt;
+      // Set if the FDE was added after merge mapping.
+      bool post_map;
     } from_linker;
   } u_;
   // FDE data.
   std::string contents_;
 };
+
+// A FDE plus some info from a CIE to allow later writing of the FDE.
+
+struct Post_fde
+{
+  Post_fde(Fde* f, section_offset_type cie_off, unsigned char encoding)
+    : fde(f), cie_offset(cie_off), fde_encoding(encoding)
+  { }
+
+  Fde* fde;
+  section_offset_type cie_offset;
+  unsigned char fde_encoding;
+};
+
+typedef std::vector<Post_fde> Post_fdes;
 
 // This class holds a CIE.
 
@@ -271,6 +300,10 @@ class Cie
   add_fde(Fde* fde)
   { this->fdes_.push_back(fde); }
 
+  // Remove an FDE associated with this CIE.  Only the last FDE may be removed.
+  void
+  remove_fde(const Fde*);
+
   // Return the number of FDEs.
   unsigned int
   fde_count() const
@@ -282,16 +315,24 @@ class Cie
   // mapping.  It returns the new output offset.
   section_offset_type
   set_output_offset(section_offset_type output_offset, unsigned int addralign,
-		    Merge_map*);
+		    Output_section_data*);
 
-  // Write the CIE to OVIEW starting at OFFSET.  EH_FRAME_HDR is the
-  // exception frame header for FDE recording.  Round up the bytes to
-  // ADDRALIGN.  ADDRESS is the virtual address of OVIEW.  Return the
-  // new offset.
+  // Write the CIE to OVIEW starting at OFFSET.  Round up the bytes to
+  // ADDRALIGN.  ADDRESS is the virtual address of OVIEW.
+  // EH_FRAME_HDR is the exception frame header for FDE recording.
+  // POST_FDES stashes FDEs created after mappings were done, for later
+  // writing.  Return the new offset.
   template<int size, bool big_endian>
   section_offset_type
-  write(unsigned char* oview, section_offset_type offset, uint64_t address,
-	unsigned int addralign, Eh_frame_hdr* eh_frame_hdr);
+  write(unsigned char* oview, section_offset_type output_section_offset,
+	section_offset_type offset, uint64_t address,
+	unsigned int addralign, Eh_frame_hdr* eh_frame_hdr,
+	Post_fdes* post_fdes);
+
+  // Return the FDE encoding.
+  unsigned char
+  fde_encoding() const
+  { return this->fde_encoding_; }
 
   friend bool operator<(const Cie&, const Cie&);
   friend bool operator==(const Cie&, const Cie&);
@@ -329,6 +370,14 @@ extern bool operator==(const Cie&, const Cie&);
 class Eh_frame : public Output_section_data
 {
  public:
+  enum Eh_frame_section_disposition
+  {
+    EH_EMPTY_SECTION,
+    EH_UNRECOGNIZED_SECTION,
+    EH_OPTIMIZABLE_SECTION,
+    EH_END_MARKER_SECTION
+  };
+
   Eh_frame();
 
   // Record the associated Eh_frame_hdr, if any.
@@ -344,7 +393,7 @@ class Eh_frame : public Output_section_data
   // returns whether the section was incorporated into the .eh_frame
   // data.
   template<int size, bool big_endian>
-  bool
+  Eh_frame_section_disposition
   add_ehframe_input_section(Sized_relobj_file<size, big_endian>* object,
 			    const unsigned char* symbols,
 			    section_size_type symbols_size,
@@ -362,6 +411,13 @@ class Eh_frame : public Output_section_data
 		      size_t cie_length, const unsigned char* fde_data,
 		      size_t fde_length);
 
+  // Remove unwind information for a PLT.  Only the last FDE added may
+  // be removed.
+  void
+  remove_ehframe_for_plt(Output_data* plt, const unsigned char* cie_data,
+			 size_t cie_length, const unsigned char* fde_data,
+			 size_t fde_length);
+
   // Return the number of FDEs.
   unsigned int
   fde_count() const;
@@ -376,10 +432,6 @@ class Eh_frame : public Output_section_data
   do_output_offset(const Relobj*, unsigned int shndx,
 		   section_offset_type offset,
 		   section_offset_type* poutput) const;
-
-  // Return whether this is the merge section for an input section.
-  bool
-  do_is_merge_section_for(const Relobj*, unsigned int shndx) const;
 
   // Write the data to the file.
   void
@@ -475,8 +527,6 @@ class Eh_frame : public Output_section_data
   // A mapping from unmergeable CIEs to their offset in the output
   // file.
   Unmergeable_cie_offsets unmergeable_cie_offsets_;
-  // A mapping from input sections to the output section.
-  Merge_map merge_map_;
   // Whether we have created the mappings to the output section.
   bool mappings_are_done_;
   // The final data size.  This is only set if mappings_are_done_ is

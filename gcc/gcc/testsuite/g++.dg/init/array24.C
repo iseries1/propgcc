@@ -1,7 +1,8 @@
 // PR c++/29175
-// { dg-options "" }
+// { dg-options "-Wno-vla" }
+// { dg-require-effective-target alloca }
 
 void foo(int i)
 {
-  int x[][i] = { 0 }; // { dg-error "variable-sized|storage size" }
+  int x[][i] = { 0 };
 }

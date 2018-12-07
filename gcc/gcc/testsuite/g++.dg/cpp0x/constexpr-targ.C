@@ -1,4 +1,4 @@
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
 struct A
 {
@@ -10,4 +10,4 @@ struct B
 { };
 
 constexpr A a { };
-B<a> b;				// { dg-error "template argument|invalid type" }
+B<a> b;			 // { dg-error "template argument|converted constant" }

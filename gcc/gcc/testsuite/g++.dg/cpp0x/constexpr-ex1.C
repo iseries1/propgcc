@@ -1,5 +1,4 @@
-// { dg-do compile }
-// { dg-options "-std=gnu++0x" }
+// { dg-do compile { target c++11 } }
 
 // From N2235
 
@@ -13,13 +12,13 @@
 // 2 defined before first use
 // NOTE: this is only needed in contexts that require a constant-expression
 struct S {
-    constexpr int twice();
-    constexpr int t();		// { dg-message "used but never defined" }
+    constexpr int twice() const;
+    constexpr int t() const;	// { dg-message "used but never defined" }
 private:
     static constexpr int val = 7;  // constexpr variable
 };
 
-constexpr int S::twice() { return val + val; }
+constexpr int S::twice() const { return val + val; }
 constexpr S s = { };
 int x1 = s.twice();     // ok
 int x2 = s.t();         // error: S::t() not defined
@@ -45,8 +44,8 @@ const double* p = &x;          // the &x forces x into memory
 // 1
 struct complex {
    constexpr complex(double r, double i) : re(r), im(i) { }
-   constexpr double real() { return re; }
-   constexpr double imag() { return im; }
+   constexpr double real() const { return re; }
+   constexpr double imag() const { return im; }
 private:
    double re;
    double im;
@@ -55,7 +54,7 @@ constexpr complex I(0, 1);  // OK -- literal complex
 
 
 // 2 invoked with non-const args
-double x5 = 1.0;	       // { dg-message "not declared .constexpr" }
+double x5 = 1.0;	       // { dg-message "not declared .constexpr." }
 constexpr complex unit(x5, 0);	// { dg-error "x5|argument" } error: x5 non-constant
 const complex one(x5, 0);   // OK, ‘‘ordinary const’’ -- dynamic
                            //   initialization
@@ -88,7 +87,7 @@ struct resource {
   }
 };
 constexpr resource f(resource d)
-{ return d; }                  // { dg-error "not .constexpr" }
-constexpr resource d = f(9);   // { dg-error "resource" }
+{ return d; }                  // { dg-error "non-.constexpr." }
+constexpr resource d = f(9);   // { dg-message ".constexpr." }
 
 // 4.4 floating-point constant expressions

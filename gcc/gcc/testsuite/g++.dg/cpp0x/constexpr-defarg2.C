@@ -1,5 +1,5 @@
 // PR c++/46368
-// { dg-options "-std=c++0x" }
+// { dg-do compile { target c++11 } }
 
 class A;
 
@@ -25,6 +25,9 @@ struct A : D
 
 A baz (const char *, A = C ());
 
+C c;
+A a (c);
+
 A
 B::foo ()
 {
@@ -35,10 +38,13 @@ B::foo ()
   catch (...)
     {
     }
+
+  return a;
 }
 
 A
 B::bar ()
 {
   baz ("bar");
+  return a;
 }

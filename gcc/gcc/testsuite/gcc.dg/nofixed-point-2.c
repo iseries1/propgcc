@@ -21,9 +21,9 @@ f3 (void)
 }
 
 _Sat
-f4 (void)			/* { dg-error "not supported" "reject fixed-point" } */
+/* { dg-error "not supported" "reject fixed-point" { target *-*-* } .-1 } */
+/* { dg-error "is used without" "" { target *-*-* } .-2 } */
+f4 (void)
 {
   return 0k;			/* { dg-error "not supported" "reject fixed-point" } */
 }
-
-/* { dg-error "is used without" "" { target *-*-* } 24 } */

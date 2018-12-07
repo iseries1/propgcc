@@ -12,10 +12,9 @@ CONTAINS
   SUBROUTINE S1(I) 
     INTEGER, INTENT(IN) :: I 
     TYPE(T1) :: D(1:I)
-    IF (any (D(:)%I.NE.7)) CALL ABORT() 
+    IF (any (D(:)%I.NE.7)) STOP 1 
   END SUBROUTINE S1 
 END MODULE M1
   USE M1 
   CALL S1(2) 
 END 
-! { dg-final { cleanup-modules "m1" } }

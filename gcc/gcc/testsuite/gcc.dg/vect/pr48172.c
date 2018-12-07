@@ -1,4 +1,4 @@
-/* { dg-do run } */
+#include "tree-vect.h"
 
 extern void *memset(void *s, int c, __SIZE_TYPE__ n);
 extern void abort (void);
@@ -9,6 +9,8 @@ extern void abort (void);
 int main() {
   unsigned int array[ASIZE];
   int i;
+
+  check_vect ();
 
   memset(array, 0, sizeof(array));
 
@@ -30,4 +32,3 @@ int main() {
   return 0;
 }
 
-/* { dg-final { cleanup-tree-dump "vect" } } */

@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2001, 2002, 2003, 2005, 2007 Free Software Foundation, Inc.
+#   Copyright (C) 2001-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -29,7 +29,7 @@ fragment <<EOF
 static void
 elfmmix_before_parse (void)
 {
-  gld${EMULATION_NAME}_before_parse ();
+  mmix_before_parse ();
 
   /* Make sure we don't create a demand-paged executable.  Unfortunately
      this isn't changeable with a command-line option.  It makes no
@@ -38,6 +38,8 @@ elfmmix_before_parse (void)
      full system with shared libraries and demand paging, you will want to
      exclude this file.  */
   config.magic_demand_paged = FALSE;
+
+  config.separate_code = `if test "x${SEPARATE_CODE}" = xyes ; then echo TRUE ; else echo FALSE ; fi`;
 }
 EOF
 

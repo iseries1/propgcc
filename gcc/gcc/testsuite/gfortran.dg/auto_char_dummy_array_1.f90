@@ -11,21 +11,23 @@ end module global
 program oh_no_not_pr15908_again
   character(12), dimension(:), pointer :: ptr
 
+  nullify(ptr)
+
   call a (ptr, 12)
-  if (.not.associated (ptr) ) call abort ()
-  if (any (ptr.ne."abc")) call abort ()
+  if (.not.associated (ptr) ) STOP 1
+  if (any (ptr.ne."abc")) STOP 2
 
   ptr => null ()              ! ptr points to 't' here.
   allocate (ptr(3))
   ptr = "xyz"
   call a (ptr, 12)
 
-  if (.not.associated (ptr)) call abort ()
-  if (any (ptr.ne."lmn")) call abort ()
+  if (.not.associated (ptr)) STOP 3
+  if (any (ptr.ne."lmn")) STOP 4
 
   call a (ptr, 0)
 
-  if (associated (ptr)) call abort ()
+  if (associated (ptr)) STOP 5
 
 contains
 
@@ -46,12 +48,10 @@ contains
       t = "abc"
       p => t
     else
-      if (size (p,1).ne.3) call abort ()
-      if (any (p.ne."xyz")) call abort ()
+      if (size (p,1).ne.3) STOP 6
+      if (any (p.ne."xyz")) STOP 7
       p = s
     end if
   end subroutine a
 
 end program oh_no_not_pr15908_again
-
-! { dg-final { cleanup-modules "global" } }

@@ -1,6 +1,5 @@
 /* Disassemble D30V instructions.
-   Copyright 1997, 1998, 2000, 2001, 2005, 2007, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1997-2018 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -22,7 +21,7 @@
 #include "sysdep.h"
 #include <stdio.h>
 #include "opcode/d30v.h"
-#include "dis-asm.h"
+#include "disassemble.h"
 #include "opintl.h"
 
 #define PC_MASK 0xFFFFFFFF
@@ -226,7 +225,9 @@ print_insn (struct disassemble_info *info,
 		  val |= OPERAND_FLAG;
 		  break;
 		default:
-		  fprintf (stderr, "illegal id (%d)\n", id);
+		  /* xgettext: c-format */
+		  opcodes_error_handler (_("illegal id (%d)"), id);
+		  abort ();
 		}
 	    }
 	  else if (oper->flags & OPERAND_ACC)

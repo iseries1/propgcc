@@ -1,4 +1,4 @@
-/* s_asinhl.c -- long double version of s_asinh.c.
+/* asinhq.c -- __float128 version of s_asinh.c.
  * Conversion to long double by Ulrich Drepper,
  * Cygnus Support, drepper@cygnus.com.
  */
@@ -46,6 +46,7 @@ asinhq (__float128 x)
     return x + x;		/* x is inf or NaN */
   if (ix < 0x3fc70000)
     {				/* |x| < 2^ -56 */
+      math_check_force_underflow (x);
       if (huge + x > one)
 	return x;		/* return x inexact except 0 */
     }

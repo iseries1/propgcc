@@ -9,6 +9,32 @@ case "${host}" in
     # This is a freestanding configuration; there is nothing to do here.
     ;;
 
+  avr*-*-*)
+    AC_DEFINE(HAVE_ACOSF)
+    AC_DEFINE(HAVE_ASINF)
+    AC_DEFINE(HAVE_ATAN2F)
+    AC_DEFINE(HAVE_ATANF)
+    AC_DEFINE(HAVE_CEILF)
+    AC_DEFINE(HAVE_COSF)
+    AC_DEFINE(HAVE_COSHF)
+    AC_DEFINE(HAVE_EXPF)
+    AC_DEFINE(HAVE_FABSF)
+    AC_DEFINE(HAVE_FLOORF)
+    AC_DEFINE(HAVE_FMODF)
+    AC_DEFINE(HAVE_FREXPF)
+    AC_DEFINE(HAVE_SQRTF)
+    AC_DEFINE(HAVE_HYPOTF)
+    AC_DEFINE(HAVE_LDEXPF)
+    AC_DEFINE(HAVE_LOG10F)
+    AC_DEFINE(HAVE_LOGF)
+    AC_DEFINE(HAVE_MODFF)
+    AC_DEFINE(HAVE_POWF)
+    AC_DEFINE(HAVE_SINF)
+    AC_DEFINE(HAVE_SINHF)
+    AC_DEFINE(HAVE_TANF)
+    AC_DEFINE(HAVE_TANHF)
+    ;;
+
   mips*-sde-elf*)
     # These definitions are for the SDE C library rather than newlib.
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
@@ -26,6 +52,14 @@ case "${host}" in
     AC_DEFINE(HAVE_LDEXPF)
     AC_DEFINE(HAVE_MODF)
     AC_DEFINE(HAVE_SQRTF)
+    ;;
+
+  spu-*-elf*)
+    GLIBCXX_CHECK_COMPILER_FEATURES
+    GLIBCXX_CHECK_LINKER_FEATURES
+    GLIBCXX_CHECK_MATH_SUPPORT
+    GLIBCXX_CHECK_STDLIB_SUPPORT
+    AM_ICONV
     ;;
 
   *-aix*)
@@ -98,7 +132,15 @@ case "${host}" in
       AC_DEFINE(HAVE_ISINFL)
       AC_DEFINE(HAVE_ISNANL)
     fi
+    AC_CHECK_FUNCS(__cxa_thread_atexit)
+    AC_CHECK_FUNCS(aligned_alloc posix_memalign memalign _aligned_malloc)
     ;;
+
+  *-fuchsia*)
+    SECTION_FLAGS='-ffunction-sections -fdata-sections'
+    AC_SUBST(SECTION_FLAGS)
+    ;;
+
   *-hpux*)
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
     AC_SUBST(SECTION_FLAGS)
@@ -141,19 +183,22 @@ case "${host}" in
 	;;
     esac
     ;;
-  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-knetbsd*-gnu)
+  *-linux* | *-uclinux* | *-gnu* | *-kfreebsd*-gnu | *-cygwin* | *-solaris*)
     GLIBCXX_CHECK_COMPILER_FEATURES
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_MATH_SUPPORT
     GLIBCXX_CHECK_STDLIB_SUPPORT
     AC_DEFINE(_GLIBCXX_USE_RANDOM_TR1)
     GCC_CHECK_TLS
+    AC_CHECK_FUNCS(__cxa_thread_atexit_impl)
+    AC_CHECK_FUNCS(aligned_alloc posix_memalign memalign _aligned_malloc)
     AM_ICONV
     ;;
   *-mingw32*)
     GLIBCXX_CHECK_LINKER_FEATURES
     GLIBCXX_CHECK_MATH_SUPPORT
     GLIBCXX_CHECK_STDLIB_SUPPORT
+    AC_CHECK_FUNCS(aligned_alloc posix_memalign memalign _aligned_malloc)
     ;;
   *-netbsd*)
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
@@ -172,14 +217,7 @@ case "${host}" in
       AC_DEFINE(HAVE_ISINFL)
       AC_DEFINE(HAVE_ISNANL)
     fi
-    ;;
-  *-netware)
-    SECTION_FLAGS='-ffunction-sections -fdata-sections'
-    AC_SUBST(SECTION_FLAGS)
-    GLIBCXX_CHECK_LINKER_FEATURES
-    AC_DEFINE(HAVE_HYPOT)
-    AC_DEFINE(HAVE_ISINF)
-    AC_DEFINE(HAVE_ISNAN)
+    AC_CHECK_FUNCS(aligned_alloc posix_memalign memalign _aligned_malloc)
     ;;
   *-qnx6.1* | *-qnx6.2*)
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
@@ -204,34 +242,10 @@ case "${host}" in
     GLIBCXX_CHECK_MATH_SUPPORT
     GLIBCXX_CHECK_STDLIB_SUPPORT
     ;;
-  *-solaris*)
-    case "$target" in
-      *-solaris2.8 | *-solaris2.9 | *-solaris2.10)
-         GLIBCXX_CHECK_LINKER_FEATURES
-         AC_DEFINE(HAVE_MBSTATE_T)
-         AC_DEFINE(HAVE_FINITE)
-         AC_DEFINE(HAVE_FPCLASS)
-         # All of the dependencies for wide character support are here, so
-         # turn it on. 
-         AC_DEFINE(_GLIBCXX_USE_WCHAR_T) 
-        ;;
-    esac
-    case "$target" in
-      *-*-solaris2.10)
-      # These two C99 functions are present only in Solaris >= 10
-      AC_DEFINE(HAVE_STRTOF)
-      AC_DEFINE(HAVE_STRTOLD)
-     ;;
-    esac
-    AC_DEFINE(HAVE_ISNAN)
-    AC_DEFINE(HAVE_ISNANF)
-    AC_DEFINE(HAVE_MODFF)
-    AC_DEFINE(HAVE_HYPOT)
-    ;;
   *-tpf)
     SECTION_FLAGS='-ffunction-sections -fdata-sections'
+    SECTION_LDFLAGS='-Wl,--gc-sections $SECTION_LDFLAGS'
     AC_SUBST(SECTION_FLAGS)
-    GLIBCXX_CHECK_LINKER_FEATURES
     AC_DEFINE(HAVE_FINITE)
     AC_DEFINE(HAVE_FINITEF)
     AC_DEFINE(HAVE_FREXPF)
@@ -248,6 +262,12 @@ case "${host}" in
       AC_DEFINE(HAVE_ISINFL)
       AC_DEFINE(HAVE_ISNANL)
     fi
+    ;;
+  *-*vms*)
+    # Check for available headers.
+    # Don't call GLIBCXX_CHECK_LINKER_FEATURES, VMS doesn't have a GNU ld
+    GLIBCXX_CHECK_MATH_SUPPORT
+    GLIBCXX_CHECK_STDLIB_SUPPORT
     ;;
   *-vxworks)
     AC_DEFINE(HAVE_ACOSF)

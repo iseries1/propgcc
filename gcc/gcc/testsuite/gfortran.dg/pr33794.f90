@@ -1,5 +1,5 @@
 ! { dg-do run }
-! { dg-options "-O2 -ffast-math -mfpmath=387" { target { { i?86-*-* x86_64-*-* } && lp64 } } }
+! { dg-options "-O2 -ffast-math -mfpmath=387" { target { { i?86-*-* x86_64-*-* } && { ! { ia32 } } } } }
 ! { dg-options "-O2 -ffast-math" }
 
 module scc_m
@@ -30,7 +30,7 @@ contains
             tan(alpha)**2)
   expected = 3.66008420600434162E-002_dp
   if (abs(self_l - expected) / expected > 1e-3) &
-        call abort
+        STOP 1
   end subroutine self_ind_cir_coil
 end module scc_m
 
@@ -46,5 +46,3 @@ program test
 
   call self_ind_cir_coil (r, l, turns, mu, self_l)
 end program test
-
-! { dg-final { cleanup-modules "scc_m" } }

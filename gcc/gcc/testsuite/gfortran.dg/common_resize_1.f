@@ -13,13 +13,13 @@ c
 c
 c     unpack connection data
 c
-      common/aux32/kka(lnv),kkb(lnv),kkc(lnv),
+      common/aux32/kka(lnv),kkb(lnv),kkc(lnv), ! { dg-warning "shall be of the same size as elsewhere" }
      1 kk1(lnv),kk2(lnv),kk3(lnv),dxy(lnv),
      2 dyx(lnv),dyz(lnv),dzy(lnv),dzx(lnv),
      3 dxz(lnv),vx17(lnv),vx28(lnv),vx35(lnv),
      4 vx46(lnv),vy17(lnv),vy28(lnv),
      5 vy35(lnv),vy46(lnv),vz17(lnv),vz28(lnv),vz35(lnv),vz46(lnv)
-      common/aux33/ix1(lnv),ix2(lnv),ix3(lnv),ix4(lnv),ix5(lnv),
+      common/aux33/ix1(lnv),ix2(lnv),ix3(lnv),ix4(lnv),ix5(lnv), ! { dg-warning "shall be of the same size as elsewhere" }
      1             ix6(lnv),ix7(lnv),ix8(lnv),mxt(lnv)
       dimension ixp(nwcon,*)
 c
@@ -125,8 +125,8 @@ c
       do 60 i=lft,llt
    60 dett(i)=o64th/det(i)
 
-      if (det(lft) .ne. 1d0) call abort ()
-      if (det(llt) .ne. 1d0) call abort ()
+      if (det(lft) .ne. 1d0) STOP 1
+      if (det(llt) .ne. 1d0) STOP 2
 
       return
 c

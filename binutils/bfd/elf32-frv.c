@@ -1,6 +1,5 @@
 /* FRV-specific support for 32-bit ELF.
-   Copyright 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 2002-2018 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -26,6 +25,7 @@
 #include "elf/frv.h"
 #include "dwarf2.h"
 #include "hashtab.h"
+#include "libiberty.h"
 
 /* Forward declarations.  */
 
@@ -35,11 +35,11 @@ static reloc_howto_type elf32_frv_howto_table [] =
   /* This reloc does nothing.  */
   HOWTO (R_FRV_NONE,		/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
+	 3,			/* size (0 = byte, 1 = short, 2 = long) */
+	 0,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
+	 complain_overflow_dont, /* complain_on_overflow */
 	 bfd_elf_generic_reloc,	/* special_function */
 	 "R_FRV_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
@@ -797,8 +797,8 @@ static reloc_howto_type elf32_frv_rel_tlsoff_howto =
 
 
 
-extern const bfd_target bfd_elf32_frvfdpic_vec;
-#define IS_FDPIC(bfd) ((bfd)->xvec == &bfd_elf32_frvfdpic_vec)
+extern const bfd_target frv_elf32_fdpic_vec;
+#define IS_FDPIC(bfd) ((bfd)->xvec == &frv_elf32_fdpic_vec)
 
 /* An extension of the elf hash table data structure, containing some
    additional FRV-specific data.  */
@@ -806,16 +806,8 @@ struct frvfdpic_elf_link_hash_table
 {
   struct elf_link_hash_table elf;
 
-  /* A pointer to the .got section.  */
-  asection *sgot;
-  /* A pointer to the .rel.got section.  */
-  asection *sgotrel;
   /* A pointer to the .rofixup section.  */
   asection *sgotfixup;
-  /* A pointer to the .plt section.  */
-  asection *splt;
-  /* A pointer to the .rel.plt section.  */
-  asection *spltrel;
   /* GOT base offset.  */
   bfd_vma got0;
   /* Location of the first non-lazy PLT entry, i.e., the number of
@@ -838,15 +830,15 @@ struct frvfdpic_elf_link_hash_table
   == FRV_ELF_DATA ? ((struct frvfdpic_elf_link_hash_table *) ((p)->hash)) : NULL)
 
 #define frvfdpic_got_section(info) \
-  (frvfdpic_hash_table (info)->sgot)
+  (frvfdpic_hash_table (info)->elf.sgot)
 #define frvfdpic_gotrel_section(info) \
-  (frvfdpic_hash_table (info)->sgotrel)
+  (frvfdpic_hash_table (info)->elf.srelgot)
 #define frvfdpic_gotfixup_section(info) \
   (frvfdpic_hash_table (info)->sgotfixup)
 #define frvfdpic_plt_section(info) \
-  (frvfdpic_hash_table (info)->splt)
+  (frvfdpic_hash_table (info)->elf.splt)
 #define frvfdpic_pltrel_section(info) \
-  (frvfdpic_hash_table (info)->spltrel)
+  (frvfdpic_hash_table (info)->elf.srelplt)
 #define frvfdpic_relocs_info(info) \
   (frvfdpic_hash_table (info)->relocs_info)
 #define frvfdpic_got_initial_offset(info) \
@@ -952,7 +944,7 @@ frvfdpic_elf_link_hash_table_create (bfd *abfd)
   struct frvfdpic_elf_link_hash_table *ret;
   bfd_size_type amt = sizeof (struct frvfdpic_elf_link_hash_table);
 
-  ret = bfd_zalloc (abfd, amt);
+  ret = bfd_zmalloc (amt);
   if (ret == NULL)
     return NULL;
 
@@ -1055,7 +1047,7 @@ struct frvfdpic_relocs_info
      for symbol+addend.  Should be implied by something like:
      (plt || fdgotoff12 || fdgotofflos || fdgotofflohi
       || ((fd || fdgot12 || fdgotlos || fdgothilo)
-          && (symndx != -1 || FRVFDPIC_FUNCDESC_LOCAL (info, d.h))))  */
+	  && (symndx != -1 || FRVFDPIC_FUNCDESC_LOCAL (info, d.h))))  */
   unsigned privfd:1;
   /* Whether a lazy PLT entry is needed for this symbol+addend.
      Should be implied by something like:
@@ -1385,7 +1377,7 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
       /* If we're linking an executable at a fixed address, we can
 	 omit the dynamic relocation as long as the symbol is local to
 	 this module.  */
-      if (info->executable && !info->pie
+      if (bfd_link_pde (info)
 	  && (entry->symndx != -1
 	      || FRVFDPIC_SYM_LOCAL (info, entry->d.h)))
 	{
@@ -1440,7 +1432,7 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
 	  if (entry->symndx == -1
 	      && ! FRVFDPIC_FUNCDESC_LOCAL (info, entry->d.h)
 	      && FRVFDPIC_SYM_LOCAL (info, entry->d.h)
-	      && !(info->executable && !info->pie))
+	      && !bfd_link_pde (info))
 	    {
 	      reloc = R_FRV_FUNCDESC;
 	      idx = elf_section_data (entry->d.h->root.u.def.section
@@ -1483,7 +1475,7 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
 	     dynamic symbol entry for the got section, so idx will be
 	     zero, which means we can and should compute the address
 	     of the private descriptor ourselves.  */
-	  if (info->executable && !info->pie
+	  if (bfd_link_pde (info)
 	      && (entry->symndx != -1
 		  || FRVFDPIC_FUNCDESC_LOCAL (info, entry->d.h)))
 	    {
@@ -1546,7 +1538,7 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
       /* If we're linking an executable at a fixed address, we can
 	 omit the dynamic relocation as long as the symbol is local to
 	 this module.  */
-      if (info->executable && !info->pie
+      if (bfd_link_pde (info)
 	  && (entry->symndx != -1 || FRVFDPIC_SYM_LOCAL (info, entry->d.h)))
 	{
 	  if (sec)
@@ -1594,7 +1586,9 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
 
       /* If we've omitted the dynamic relocation, just emit the fixed
 	 addresses of the symbol and of the local GOT base offset.  */
-      if (info->executable && !info->pie && sec && sec->output_section)
+      if (bfd_link_pde (info)
+	  && sec
+	  && sec->output_section)
 	{
 	  lowword = ad;
 	  highword = frvfdpic_got_section (info)->output_section->vma
@@ -1769,14 +1763,14 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
 
       /* *ABS*+addend is special for TLS relocations, use only the
 	 addend.  */
-      if (info->executable
+      if (bfd_link_executable (info)
 	  && idx == 0
 	  && (bfd_is_abs_section (sec)
 	      || bfd_is_und_section (sec)))
 	;
       /* If we're linking an executable, we can entirely omit the
 	 dynamic relocation if the symbol is local to this module.  */
-      else if (info->executable
+      else if (bfd_link_executable (info)
 	       && (entry->symndx != -1
 		   || FRVFDPIC_SYM_LOCAL (info, entry->d.h)))
 	{
@@ -1842,10 +1836,10 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
       /* If we didn't set up a TLS offset entry, but we're linking an
 	 executable and the symbol binds locally, we can use the
 	 module offset in the TLS descriptor in relaxations.  */
-      if (info->executable && ! entry->tlsoff_entry)
+      if (bfd_link_executable (info) && ! entry->tlsoff_entry)
 	entry->tlsoff_entry = entry->tlsdesc_entry + 4;
 
-      if (info->executable && !info->pie
+      if (bfd_link_pde (info)
 	  && ((idx == 0
 	       && (bfd_is_abs_section (sec)
 		   || bfd_is_und_section (sec)))
@@ -1944,7 +1938,7 @@ _frvfdpic_emit_got_relocs_plt_entries (struct frvfdpic_relocs_info *entry,
       bfd_byte *plt_code = frvfdpic_plt_section (info)->contents
 	+ entry->tlsplt_entry;
 
-      if (info->executable
+      if (bfd_link_executable (info)
 	  && (entry->symndx != -1
 	      || FRVFDPIC_SYM_LOCAL (info, entry->d.h)))
 	{
@@ -2306,8 +2300,8 @@ elf32_frv_relocate_gprelhi (struct bfd_link_info *info,
   h = bfd_link_hash_lookup (info->hash, "_gp", FALSE, FALSE, TRUE);
 
   gp = (h->u.def.value
-        + h->u.def.section->output_section->vma
-        + h->u.def.section->output_offset);
+	+ h->u.def.section->output_section->vma
+	+ h->u.def.section->output_offset);
 
   value -= input_section->output_section->vma;
   value -= (gp - input_section->output_section->vma);
@@ -2339,8 +2333,8 @@ elf32_frv_relocate_gprello (struct bfd_link_info *info,
   h = bfd_link_hash_lookup (info->hash, "_gp", FALSE, FALSE, TRUE);
 
   gp = (h->u.def.value
-        + h->u.def.section->output_section->vma
-        + h->u.def.section->output_offset);
+	+ h->u.def.section->output_section->vma
+	+ h->u.def.section->output_offset);
 
   value -= input_section->output_section->vma;
   value -= (gp - input_section->output_section->vma);
@@ -2539,7 +2533,7 @@ frv_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED, const char *r_name)
 
 /* Set the howto pointer for an FRV ELF reloc.  */
 
-static void
+static bfd_boolean
 frv_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
 			arelent *cache_ptr,
 			Elf_Internal_Rela *dst)
@@ -2558,13 +2552,23 @@ frv_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
       break;
 
     default:
+      if (r_type >= ARRAY_SIZE (elf32_frv_howto_table))
+	{
+	  /* xgettext:c-format */
+	  _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
+			      abfd, r_type);
+	  bfd_set_error (bfd_error_bad_value);
+	  return FALSE;
+	}
       cache_ptr->howto = & elf32_frv_howto_table [r_type];
       break;
     }
+  return TRUE;
 }
 
 /* Set the howto pointer for an FRV ELF REL reloc.  */
-static void
+
+static bfd_boolean
 frvfdpic_info_to_howto_rel (bfd *abfd ATTRIBUTE_UNUSED,
 			    arelent *cache_ptr, Elf_Internal_Rela *dst)
 {
@@ -2595,8 +2599,9 @@ frvfdpic_info_to_howto_rel (bfd *abfd ATTRIBUTE_UNUSED,
 
     default:
       cache_ptr->howto = NULL;
-      break;
+      return FALSE;
     }
+  return TRUE;
 }
 
 /* Perform a single relocation.  By default we use the standard BFD
@@ -2662,7 +2667,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   Elf_Internal_Rela *relend;
   unsigned isec_segment, got_segment, plt_segment, gprel_segment, tls_segment,
     check_segment[2];
-  int silence_segment_error = !(info->shared || info->pie);
+  int silence_segment_error = !bfd_link_pic (info);
   unsigned long insn;
 
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
@@ -2735,13 +2740,13 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 	  bfd_boolean unresolved_reloc;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	  osec = sec;
 	  name = h->root.root.string;
 	}
@@ -2750,7 +2755,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, 1, relend, howto, 0, contents);
 
-      if (info->relocatable)
+      if (bfd_link_relocatable (info))
 	continue;
 
       if (r_type != R_FRV_TLSMOFF
@@ -2769,6 +2774,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	case R_FRV_32:
 	  if (! IS_FDPIC (output_bfd))
 	    goto non_fdpic;
+	  /* Fall through.  */
 
 	case R_FRV_GOT12:
 	case R_FRV_GOTHI:
@@ -2819,6 +2825,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 						      rel->r_addend))
 	    {
 	      info->callbacks->einfo
+		/* xgettext:c-format */
 		(_("%H: relocation to `%s+%v'"
 		   " may have caused the error above\n"),
 		 input_bfd, input_section, rel->r_offset, name, rel->r_addend);
@@ -2876,10 +2883,10 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  {
 
 #define LOCAL_EXEC_P(info, picrel) \
-  ((info)->executable \
+  (bfd_link_executable (info) \
    && (picrel->symndx != -1 || FRVFDPIC_SYM_LOCAL ((info), (picrel)->d.h)))
 #define INITIAL_EXEC_P(info, picrel) \
-  (((info)->executable || (info)->flags & DF_STATIC_TLS) \
+  ((bfd_link_executable (info)|| (info)->flags & DF_STATIC_TLS) \
    && (picrel)->tlsoff_entry)
 
 #define IN_RANGE_FOR_OFST12_P(value) \
@@ -3178,8 +3185,8 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		bfd_put_32 (input_bfd, insn, contents + rel->r_offset);
 
 		/* #tlsoff(symbol+offset) is just a relaxation
-                    annotation, so there's nothing left to
-                    relocate.  */
+		    annotation, so there's nothing left to
+		    relocate.  */
 		continue;
 	      }
 
@@ -3363,7 +3370,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		   with ldi @(grB, #gottlsoff12(symbol+offset), grC.
 		   Preserve the packing bit.  */
 		insn = (insn & (unsigned long)0xfe03f000)
-		  | (unsigned long)0x00c80000;;
+		  | (unsigned long)0x00c80000;
 		bfd_put_32 (input_bfd, insn, contents + rel->r_offset);
 
 		r_type = R_FRV_GOTTLSOFF12;
@@ -3516,7 +3523,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		   section+offset.  */
 		if (h && ! FRVFDPIC_FUNCDESC_LOCAL (info, h)
 		    && FRVFDPIC_SYM_LOCAL (info, h)
-		    && !(info->executable && !info->pie))
+		    && !bfd_link_pde (info))
 		  {
 		    dynindx = elf_section_data (h->root.u.def.section
 						->output_section)->dynindx;
@@ -3528,9 +3535,10 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		    if (addend)
 		      {
 			info->callbacks->einfo
-			  (_("%H: R_FRV_FUNCDESC references dynamic symbol"
+			  (_("%H: %s references dynamic symbol"
 			     " with nonzero addend\n"),
-			   input_bfd, input_section, rel->r_offset);
+			   input_bfd, input_section, rel->r_offset,
+			   "R_FRV_FUNCDESC");
 			return FALSE;
 		      }
 		    dynindx = h->dynindx;
@@ -3554,7 +3562,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		   dynamic symbol entry for the got section, so idx will
 		   be zero, which means we can and should compute the
 		   address of the private descriptor ourselves.  */
-		if (info->executable && !info->pie
+		if (bfd_link_pde (info)
 		    && (!h || FRVFDPIC_FUNCDESC_LOCAL (info, h)))
 		  {
 		    addend += frvfdpic_got_section (info)->output_section->vma;
@@ -3649,9 +3657,10 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		if (addend && r_type == R_FRV_FUNCDESC_VALUE)
 		  {
 		    info->callbacks->einfo
-		      (_("%H: R_FRV_FUNCDESC_VALUE"
-			 " references dynamic symbol with nonzero addend\n"),
-		       input_bfd, input_section, rel->r_offset);
+		      (_("%H: %s references dynamic symbol"
+			 " with nonzero addend\n"),
+		       input_bfd, input_section, rel->r_offset,
+		       "R_FRV_FUNCDESC_VALUE");
 		    return FALSE;
 		  }
 		dynindx = h->dynindx;
@@ -3676,7 +3685,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	       can omit the dynamic relocation as long as the symbol
 	       is defined in the current link unit (which is implied
 	       by its output section not being NULL).  */
-	    if (info->executable && !info->pie
+	    if (bfd_link_pde (info)
 		&& (!h || FRVFDPIC_SYM_LOCAL (info, h)))
 	      {
 		if (osec)
@@ -3765,7 +3774,7 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		/* If we've omitted the dynamic relocation, just emit
 		   the fixed addresses of the symbol and of the local
 		   GOT base offset.  */
-		if (info->executable && !info->pie
+		if (bfd_link_pde (info)
 		    && (!h || FRVFDPIC_SYM_LOCAL (info, h)))
 		  bfd_put_32 (output_bfd,
 			      frvfdpic_got_section (info)->output_section->vma
@@ -3905,10 +3914,11 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 		   && picrel->d.h->root.type == bfd_link_hash_undefined))
 	    {
 	      info->callbacks->einfo
+		/* xgettext:c-format */
 		(_("%H: reloc against `%s' references a different segment\n"),
 		 input_bfd, input_section, rel->r_offset, name);
 	    }
-	  if (!silence_segment_error && (info->shared || info->pie))
+	  if (!silence_segment_error && bfd_link_pic (info))
 	    return FALSE;
 	  elf_elfheader (output_bfd)->e_flags |= EF_FRV_PIC;
 	}
@@ -4025,13 +4035,13 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
-	      r = info->callbacks->reloc_overflow
+	      (*info->callbacks->reloc_overflow)
 		(info, (h ? &h->root : NULL), name, howto->name,
 		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
-	      r = info->callbacks->undefined_symbol
+	      (*info->callbacks->undefined_symbol)
 		(info, name, input_bfd, input_section, rel->r_offset, TRUE);
 	      break;
 
@@ -4055,13 +4065,11 @@ elf32_frv_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	  if (msg)
 	    {
 	      info->callbacks->einfo
+		/* xgettext:c-format */
 		(_("%H: reloc against `%s': %s\n"),
 		 input_bfd, input_section, rel->r_offset, name, msg);
 	      return FALSE;
 	    }
-
-	  if (! r)
-	    return FALSE;
 	}
     }
 
@@ -4102,7 +4110,7 @@ elf32_frv_add_symbol_hook (bfd *abfd,
 			   bfd_vma *valp)
 {
   if (sym->st_shndx == SHN_COMMON
-      && !info->relocatable
+      && !bfd_link_relocatable (info)
       && (int)sym->st_size <= (int)bfd_get_gp_size (abfd))
     {
       /* Common symbols less than or equal to -G nn bytes are
@@ -4167,7 +4175,7 @@ _frv_create_got_section (bfd *abfd, struct bfd_link_info *info)
   int offset;
 
   /* This function may be called more than once.  */
-  s = bfd_get_linker_section (abfd, ".got");
+  s = elf_hash_table (info)->sgot;
   if (s != NULL)
     return TRUE;
 
@@ -4182,17 +4190,10 @@ _frv_create_got_section (bfd *abfd, struct bfd_link_info *info)
   pltflags = flags;
 
   s = bfd_make_section_anyway_with_flags (abfd, ".got", flags);
+  elf_hash_table (info)->sgot = s;
   if (s == NULL
       || !bfd_set_section_alignment (abfd, s, ptralign))
     return FALSE;
-
-  if (bed->want_got_plt)
-    {
-      s = bfd_make_section_anyway_with_flags (abfd, ".got.plt", flags);
-      if (s == NULL
-	  || !bfd_set_section_alignment (abfd, s, ptralign))
-	return FALSE;
-    }
 
   if (bed->want_got_sym)
     {
@@ -4218,7 +4219,6 @@ _frv_create_got_section (bfd *abfd, struct bfd_link_info *info)
      data for the got.  */
   if (IS_FDPIC (abfd))
     {
-      frvfdpic_got_section (info) = s;
       frvfdpic_relocs_info (info) = htab_try_create (1,
 						     frvfdpic_relocs_info_hash,
 						     frvfdpic_relocs_info_eq,
@@ -4228,11 +4228,10 @@ _frv_create_got_section (bfd *abfd, struct bfd_link_info *info)
 
       s = bfd_make_section_anyway_with_flags (abfd, ".rel.got",
 					      (flags | SEC_READONLY));
+      elf_hash_table (info)->srelgot = s;
       if (s == NULL
 	  || ! bfd_set_section_alignment (abfd, s, 2))
 	return FALSE;
-
-      frvfdpic_gotrel_section (info) = s;
 
       /* Machine-specific.  */
       s = bfd_make_section_anyway_with_flags (abfd, ".rofixup",
@@ -4367,7 +4366,7 @@ elf32_frvfdpic_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
      be needed, we can discard it later.  We will never need this
      section when generating a shared object, since they do not use
      copy relocs.  */
-      if (! info->shared)
+      if (! bfd_link_pic (info))
 	{
 	  s = bfd_make_section_anyway_with_flags (abfd,
 						  (bed->default_use_rela_p
@@ -4504,7 +4503,7 @@ _frvfdpic_count_relocs_fixups (struct frvfdpic_relocs_info *entry,
 {
   bfd_vma relocs = 0, fixups = 0, tlsrets = 0;
 
-  if (!dinfo->info->executable || dinfo->info->pie)
+  if (!bfd_link_pde (dinfo->info))
     {
       relocs = entry->relocs32 + entry->relocsfd + entry->relocsfdv
 	+ entry->relocstlsd;
@@ -4516,7 +4515,7 @@ _frvfdpic_count_relocs_fixups (struct frvfdpic_relocs_info *entry,
 	 emit dynamic relocations even for local symbols, because we
 	 don't know the module id the library is going to get at
 	 run-time, nor its TLS base offset.  */
-      if (!dinfo->info->executable
+      if (!bfd_link_executable (dinfo->info)
 	  || (entry->symndx == -1
 	      && ! FRVFDPIC_SYM_LOCAL (dinfo->info, entry->d.h)))
 	relocs += entry->relocstlsoff;
@@ -4575,7 +4574,7 @@ _frvfdpic_relax_tls_entries (struct frvfdpic_relocs_info *entry,
 {
   bfd_boolean changed = ! relaxing;
 
-  BFD_ASSERT (dinfo->info->executable
+  BFD_ASSERT (bfd_link_executable (dinfo->info)
 	      || (dinfo->info->flags & DF_STATIC_TLS));
 
   if (entry->tlsdesc12 || entry->tlsdesclos || entry->tlsdeschilo)
@@ -4594,7 +4593,7 @@ _frvfdpic_relax_tls_entries (struct frvfdpic_relocs_info *entry,
 	 to GOTTLSOFF, we must keep the GOT entry in range.  We know
 	 it has to fit because we'll be trading the 4 words of hte TLS
 	 descriptor for a single word in the same range.  */
-      if (! dinfo->info->executable
+      if (! bfd_link_executable (dinfo->info)
 	  || (entry->symndx == -1
 	      && ! FRVFDPIC_SYM_LOCAL (dinfo->info, entry->d.h)))
 	{
@@ -4618,7 +4617,7 @@ _frvfdpic_relax_tls_entries (struct frvfdpic_relocs_info *entry,
      do better than this.  */
   if ((entry->tlsplt
        || entry->tlsoff12 || entry->tlsofflos || entry->tlsoffhilo)
-      && dinfo->info->executable && relaxing
+      && bfd_link_executable (dinfo->info) && relaxing
       && ((entry->symndx == -1
 	   && FRVFDPIC_SYM_LOCAL (dinfo->info, entry->d.h)
 	   /* The above may hold for an undefweak TLS symbol, so make
@@ -4634,7 +4633,7 @@ _frvfdpic_relax_tls_entries (struct frvfdpic_relocs_info *entry,
 			    + 32768) < (bfd_vma)65536))
 	  || (entry->symndx != -1
 	      && (elf_hash_table (dinfo->info)->tls_sec->size
-		  + abs (entry->addend) < 32768 + FRVFDPIC_TLS_BIAS))))
+		  + entry->addend < 32768 + FRVFDPIC_TLS_BIAS))))
     {
       if (! changed)
 	{
@@ -4691,7 +4690,8 @@ _frvfdpic_count_got_plt_entries (void **entryp, void *dinfo_)
 
   _frvfdpic_count_nontls_entries (entry, dinfo);
 
-  if (dinfo->info->executable || (dinfo->info->flags & DF_STATIC_TLS))
+  if (bfd_link_executable (dinfo->info)
+      || (dinfo->info->flags & DF_STATIC_TLS))
     _frvfdpic_relax_tls_entries (entry, dinfo, FALSE);
   else
     {
@@ -5084,7 +5084,7 @@ _frvfdpic_assign_plt_entries (void **entryp, void *info_)
       entry->tlsplt_entry
 	= frvfdpic_plt_section (dinfo->g.info)->size;
 
-      if (dinfo->g.info->executable
+      if (bfd_link_executable (dinfo->g.info)
 	  && (entry->symndx != -1
 	      || FRVFDPIC_SYM_LOCAL (dinfo->g.info, entry->d.h)))
 	{
@@ -5435,7 +5435,7 @@ elf32_frvfdpic_size_dynamic_sections (bfd *output_bfd,
   if (elf_hash_table (info)->dynamic_sections_created)
     {
       /* Set the contents of the .interp section to the interpreter.  */
-      if (info->executable)
+      if (bfd_link_executable (info) && !info->nointerp)
 	{
 	  s = bfd_get_linker_section (dynobj, ".interp");
 	  BFD_ASSERT (s != NULL);
@@ -5494,36 +5494,10 @@ static bfd_boolean
 elf32_frvfdpic_always_size_sections (bfd *output_bfd,
 				     struct bfd_link_info *info)
 {
-  if (!info->relocatable)
-    {
-      struct elf_link_hash_entry *h;
-
-      /* Force a PT_GNU_STACK segment to be created.  */
-      if (! elf_tdata (output_bfd)->stack_flags)
-	elf_tdata (output_bfd)->stack_flags = PF_R | PF_W | PF_X;
-
-      /* Define __stacksize if it's not defined yet.  */
-      h = elf_link_hash_lookup (elf_hash_table (info), "__stacksize",
-				FALSE, FALSE, FALSE);
-      if (! h || h->root.type != bfd_link_hash_defined
-	  || h->type != STT_OBJECT
-	  || !h->def_regular)
-	{
-	  struct bfd_link_hash_entry *bh = NULL;
-
-	  if (!(_bfd_generic_link_add_one_symbol
-		(info, output_bfd, "__stacksize",
-		 BSF_GLOBAL, bfd_abs_section_ptr, DEFAULT_STACK_SIZE,
-		 (const char *) NULL, FALSE,
-		 get_elf_backend_data (output_bfd)->collect, &bh)))
-	    return FALSE;
-
-	  h = (struct elf_link_hash_entry *) bh;
-	  h->def_regular = 1;
-	  h->type = STT_OBJECT;
-	  /* This one must NOT be hidden.  */
-	}
-    }
+  if (!bfd_link_relocatable (info)
+      && !bfd_elf_stack_segment_size (output_bfd, info,
+				      "__stacksize", DEFAULT_STACK_SIZE))
+    return FALSE;
 
   return TRUE;
 }
@@ -5533,7 +5507,7 @@ elf32_frvfdpic_always_size_sections (bfd *output_bfd,
 static bfd_boolean
 _frvfdpic_check_discarded_relocs (bfd *abfd, asection *sec,
 				  struct bfd_link_info *info,
-				  
+
 				  bfd_boolean *changed)
 {
   Elf_Internal_Shdr *symtab_hdr;
@@ -5662,7 +5636,7 @@ elf32_frvfdpic_relax_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec,
 {
   struct _frvfdpic_dynamic_got_plt_info gpinfo;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     (*info->callbacks->einfo)
       (_("%P%F: --relax and -r may not be used together\n"));
 
@@ -5675,7 +5649,7 @@ elf32_frvfdpic_relax_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec,
 
   /* We can only relax when linking the main executable or a library
      that can't be dlopened.  */
-  if (! info->executable && ! (info->flags & DF_STATIC_TLS))
+  if (! bfd_link_executable (info) && ! (info->flags & DF_STATIC_TLS))
     return TRUE;
 
   /* If there isn't a TLS section for this binary, we can't do
@@ -5715,51 +5689,6 @@ elf32_frvfdpic_relax_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec,
 	 we might have changed the size of a section processed before this
 	 one.  */
       *again = TRUE;
-    }
-
-  return TRUE;
-}
-
-static bfd_boolean
-elf32_frvfdpic_modify_program_headers (bfd *output_bfd,
-				       struct bfd_link_info *info)
-{
-  struct elf_obj_tdata *tdata = elf_tdata (output_bfd);
-  struct elf_segment_map *m;
-  Elf_Internal_Phdr *p;
-
-  /* objcopy and strip preserve what's already there using
-     elf32_frvfdpic_copy_private_bfd_data ().  */
-  if (! info)
-    return TRUE;
-
-  for (p = tdata->phdr, m = tdata->segment_map; m != NULL; m = m->next, p++)
-    if (m->p_type == PT_GNU_STACK)
-      break;
-
-  if (m)
-    {
-      struct elf_link_hash_entry *h;
-
-      /* Obtain the pointer to the __stacksize symbol.  */
-      h = elf_link_hash_lookup (elf_hash_table (info), "__stacksize",
-				FALSE, FALSE, FALSE);
-      if (h)
-	{
-	  while (h->root.type == bfd_link_hash_indirect
-		 || h->root.type == bfd_link_hash_warning)
-	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-	  BFD_ASSERT (h->root.type == bfd_link_hash_defined);
-	}
-
-      /* Set the header p_memsz from the symbol value.  We
-	 intentionally ignore the symbol section.  */
-      if (h && h->root.type == bfd_link_hash_defined)
-	p->p_memsz = h->root.u.def.value;
-      else
-	p->p_memsz = DEFAULT_STACK_SIZE;
-
-      p->p_align = 8;
     }
 
   return TRUE;
@@ -5903,7 +5832,7 @@ elf32_frvfdpic_adjust_dynamic_symbol
 
   /* Make sure we know what is going on here.  */
   BFD_ASSERT (dynobj != NULL
-	      && (h->u.weakdef != NULL
+	      && (h->is_weakalias
 		  || (h->def_dynamic
 		      && h->ref_regular
 		      && !h->def_regular)));
@@ -5911,12 +5840,13 @@ elf32_frvfdpic_adjust_dynamic_symbol
   /* If this is a weak symbol, and there is a real definition, the
      processor independent code will have arranged for us to see the
      real definition first, and we can just use the same value.  */
-  if (h->u.weakdef != NULL)
+  if (h->is_weakalias)
     {
-      BFD_ASSERT (h->u.weakdef->root.type == bfd_link_hash_defined
-		  || h->u.weakdef->root.type == bfd_link_hash_defweak);
-      h->root.u.def.section = h->u.weakdef->root.u.def.section;
-      h->root.u.def.value = h->u.weakdef->root.u.def.value;
+      struct elf_link_hash_entry *def = weakdef (h);
+      BFD_ASSERT (def->root.type == bfd_link_hash_defined);
+      h->root.u.def.section = def->root.u.def.section;
+      h->root.u.def.value = def->root.u.def.value;
+      return TRUE;
     }
 
   return TRUE;
@@ -6095,7 +6025,7 @@ elf32_frv_check_relocs (bfd *abfd,
   bfd *dynobj;
   struct frvfdpic_relocs_info *picrel;
 
-  if (info->relocatable)
+  if (bfd_link_relocatable (info))
     return TRUE;
 
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
@@ -6110,7 +6040,7 @@ elf32_frv_check_relocs (bfd *abfd,
 
       r_symndx = ELF32_R_SYM (rel->r_info);
       if (r_symndx < symtab_hdr->sh_info)
-        h = NULL;
+	h = NULL;
       else
 	{
 	  h = sym_hashes[r_symndx - symtab_hdr->sh_info];
@@ -6199,7 +6129,7 @@ elf32_frv_check_relocs (bfd *abfd,
 	}
 
       switch (ELF32_R_TYPE (rel->r_info))
-        {
+	{
 	case R_FRV_LABEL24:
 	  if (IS_FDPIC (abfd))
 	    picrel->call = 1;
@@ -6297,21 +6227,21 @@ elf32_frv_check_relocs (bfd *abfd,
 	  info->flags |= DF_STATIC_TLS;
 	  goto bad_reloc;
 
-        /* This relocation describes the C++ object vtable hierarchy.
-           Reconstruct it for later use during GC.  */
-        case R_FRV_GNU_VTINHERIT:
-          if (!bfd_elf_gc_record_vtinherit (abfd, sec, h, rel->r_offset))
-            return FALSE;
-          break;
+	/* This relocation describes the C++ object vtable hierarchy.
+	   Reconstruct it for later use during GC.  */
+	case R_FRV_GNU_VTINHERIT:
+	  if (!bfd_elf_gc_record_vtinherit (abfd, sec, h, rel->r_offset))
+	    return FALSE;
+	  break;
 
-        /* This relocation describes which C++ vtable entries are actually
-           used.  Record for later use during GC.  */
-        case R_FRV_GNU_VTENTRY:
-          BFD_ASSERT (h != NULL);
-          if (h != NULL
-              && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
-            return FALSE;
-          break;
+	/* This relocation describes which C++ vtable entries are actually
+	   used.  Record for later use during GC.  */
+	case R_FRV_GNU_VTENTRY:
+	  BFD_ASSERT (h != NULL);
+	  if (h != NULL
+	      && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
+	    return FALSE;
+	  break;
 
 	case R_FRV_LABEL16:
 	case R_FRV_LO16:
@@ -6328,11 +6258,11 @@ elf32_frv_check_relocs (bfd *abfd,
 
 	default:
 	bad_reloc:
-	  info->callbacks->einfo
-	    (_("%B: unsupported relocation type %i\n"),
-	     abfd, ELF32_R_TYPE (rel->r_info));
+	  /* xgettext:c-format */
+	  _bfd_error_handler (_("%pB: unsupported relocation type %#x"),
+			      abfd, (unsigned int) ELF32_R_TYPE (rel->r_info));
 	  return FALSE;
-        }
+	}
     }
 
   return TRUE;
@@ -6380,27 +6310,6 @@ frv_elf_set_private_flags (bfd *abfd, flagword flags)
   return TRUE;
 }
 
-/* Copy backend specific data from one object module to another.  */
-
-static bfd_boolean
-frv_elf_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
-{
-  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return TRUE;
-
-  BFD_ASSERT (!elf_flags_init (obfd)
-	      || elf_elfheader (obfd)->e_flags == elf_elfheader (ibfd)->e_flags);
-
-  elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
-  elf_flags_init (obfd) = TRUE;
-
-  /* Copy object attributes.  */
-  _bfd_elf_copy_obj_attributes (ibfd, obfd);
-
-  return TRUE;
-}
-
 /* Return true if the architecture described by elf header flag
    EXTENSION is an extension of the architecture described by BASE.  */
 
@@ -6428,56 +6337,13 @@ frv_elf_arch_extension_p (flagword base, flagword extension)
   return FALSE;
 }
 
-static bfd_boolean
-elf32_frvfdpic_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
-{
-  unsigned i;
-
-  if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
-      || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
-    return TRUE;
-
-  if (! frv_elf_copy_private_bfd_data (ibfd, obfd))
-    return FALSE;
-
-  if (! elf_tdata (ibfd) || ! elf_tdata (ibfd)->phdr
-      || ! elf_tdata (obfd) || ! elf_tdata (obfd)->phdr)
-    return TRUE;
-
-  /* Copy the stack size.  */
-  for (i = 0; i < elf_elfheader (ibfd)->e_phnum; i++)
-    if (elf_tdata (ibfd)->phdr[i].p_type == PT_GNU_STACK)
-      {
-	Elf_Internal_Phdr *iphdr = &elf_tdata (ibfd)->phdr[i];
-
-	for (i = 0; i < elf_elfheader (obfd)->e_phnum; i++)
-	  if (elf_tdata (obfd)->phdr[i].p_type == PT_GNU_STACK)
-	    {
-	      memcpy (&elf_tdata (obfd)->phdr[i], iphdr, sizeof (*iphdr));
-
-	      /* Rewrite the phdrs, since we're only called after they
-		 were first written.  */
-	      if (bfd_seek (obfd, (bfd_signed_vma) get_elf_backend_data (obfd)
-			    ->s->sizeof_ehdr, SEEK_SET) != 0
-		  || get_elf_backend_data (obfd)->s
-		  ->write_out_phdrs (obfd, elf_tdata (obfd)->phdr,
-				     elf_elfheader (obfd)->e_phnum) != 0)
-		return FALSE;
-	      break;
-	    }
-
-	break;
-      }
-
-  return TRUE;
-}
-
 /* Merge backend specific data from an object file to the output
    object file when linking.  */
 
 static bfd_boolean
-frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
+frv_elf_merge_private_bfd_data (bfd *ibfd, struct bfd_link_info *info)
 {
+  bfd *obfd = info->output_bfd;
   flagword old_flags, old_partial;
   flagword new_flags, new_partial;
   bfd_boolean error = FALSE;
@@ -6492,9 +6358,10 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     new_flags &= ~EF_FRV_PIC;
 
 #ifdef DEBUG
-  (*_bfd_error_handler) ("old_flags = 0x%.8lx, new_flags = 0x%.8lx, init = %s, filename = %s",
-			 old_flags, new_flags, elf_flags_init (obfd) ? "yes" : "no",
-			 bfd_get_filename (ibfd));
+  _bfd_error_handler
+    ("old_flags = 0x%.8x, new_flags = 0x%.8x, init = %s, filename = %s",
+     old_flags, new_flags, elf_flags_init (obfd) ? "yes" : "no",
+     bfd_get_filename (ibfd));
 #endif
 
   if (!elf_flags_init (obfd))			/* First call, no flags set.  */
@@ -6509,7 +6376,7 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
   else						/* Possibly incompatible flags.  */
     {
       /* Warn if different # of gprs are used.  Note, 0 means nothing is
-         said about the size of gprs.  */
+	 said about the size of gprs.  */
       new_partial = (new_flags & EF_FRV_GPR_MASK);
       old_partial = (old_flags & EF_FRV_GPR_MASK);
       if (new_partial == old_partial)
@@ -6539,7 +6406,7 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 	}
 
       /* Warn if different # of fprs are used.  Note, 0 means nothing is
-         said about the size of fprs.  */
+	 said about the size of fprs.  */
       new_partial = (new_flags & EF_FRV_FPR_MASK);
       old_partial = (old_flags & EF_FRV_FPR_MASK);
       if (new_partial == old_partial)
@@ -6571,7 +6438,7 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 	}
 
       /* Warn if different dword support was used.  Note, 0 means nothing is
-         said about the dword support.  */
+	 said about the dword support.  */
       new_partial = (new_flags & EF_FRV_DWORD_MASK);
       old_partial = (old_flags & EF_FRV_DWORD_MASK);
       if (new_partial == old_partial)
@@ -6616,14 +6483,14 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 		   | (old_flags & new_flags & EF_FRV_NOPACK));
 
       /* We don't have to do anything if the pic flags are the same, or the new
-         module(s) were compiled with -mlibrary-pic.  */
+	 module(s) were compiled with -mlibrary-pic.  */
       new_partial = (new_flags & EF_FRV_PIC_FLAGS);
       old_partial = (old_flags & EF_FRV_PIC_FLAGS);
       if ((new_partial == old_partial) || ((new_partial & EF_FRV_LIBPIC) != 0))
 	;
 
       /* If the old module(s) were compiled with -mlibrary-pic, copy in the pic
-         flags if any from the new module.  */
+	 flags if any from the new module.  */
       else if ((old_partial & EF_FRV_LIBPIC) != 0)
 	old_flags = (old_flags & ~ EF_FRV_PIC_FLAGS) | new_partial;
 
@@ -6632,7 +6499,7 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 	old_flags |= new_partial;
 
       /* One module was compiled for pic and the other was not, see if we have
-         had any relocations that are not pic-safe.  */
+	 had any relocations that are not pic-safe.  */
       else
 	{
 	  if ((old_flags & EF_FRV_NON_PIC_RELOCS) == 0)
@@ -6642,10 +6509,11 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 	      old_flags &= ~ EF_FRV_PIC_FLAGS;
 #ifndef FRV_NO_PIC_ERROR
 	      error = TRUE;
-	      (*_bfd_error_handler)
-		(_("%s: compiled with %s and linked with modules that use non-pic relocations"),
-		 bfd_get_filename (ibfd),
-		 (new_flags & EF_FRV_BIGPIC) ? "-fPIC" : "-fpic");
+	      _bfd_error_handler
+		/* xgettext:c-format */
+		(_("%pB: compiled with %s and linked with modules"
+		   " that use non-pic relocations"),
+		 ibfd, (new_flags & EF_FRV_BIGPIC) ? "-fPIC" : "-fpic");
 #endif
 	    }
 	}
@@ -6695,9 +6563,10 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
       if (new_opt[0])
 	{
 	  error = TRUE;
-	  (*_bfd_error_handler)
-	    (_("%s: compiled with %s and linked with modules compiled with %s"),
-	     bfd_get_filename (ibfd), new_opt, old_opt);
+	  _bfd_error_handler
+	    /* xgettext:c-format */
+	    (_("%pB: compiled with %s and linked with modules compiled with %s"),
+	     ibfd, new_opt, old_opt);
 	}
 
       /* Warn about any other mismatches */
@@ -6707,9 +6576,11 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 	{
 	  old_flags |= new_partial;
 	  error = TRUE;
-	  (*_bfd_error_handler)
-	    (_("%s: uses different unknown e_flags (0x%lx) fields than previous modules (0x%lx)"),
-	     bfd_get_filename (ibfd), (long)new_partial, (long)old_partial);
+	  _bfd_error_handler
+	    /* xgettext:c-format */
+	    (_("%pB: uses different unknown e_flags (%#x) fields"
+	       " than previous modules (%#x)"),
+	     ibfd, new_partial, old_partial);
 	}
     }
 
@@ -6728,13 +6599,13 @@ frv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     {
       error = TRUE;
       if (IS_FDPIC (obfd))
-	(*_bfd_error_handler)
-	  (_("%s: cannot link non-fdpic object file into fdpic executable"),
-	   bfd_get_filename (ibfd));
+	_bfd_error_handler
+	  (_("%pB: cannot link non-fdpic object file into fdpic executable"),
+	   ibfd);
       else
-	(*_bfd_error_handler)
-	  (_("%s: cannot link fdpic object file into non-fdpic executable"),
-	   bfd_get_filename (ibfd));
+	_bfd_error_handler
+	  (_("%pB: cannot link fdpic object file into non-fdpic executable"),
+	   ibfd);
     }
 
   if (error)
@@ -6839,15 +6710,15 @@ elf32_frv_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
 	return FALSE;
 
       /* The Linux/FRV elf_prstatus struct is 268 bytes long.  The other
-         hardcoded offsets and sizes listed below (and contained within
+	 hardcoded offsets and sizes listed below (and contained within
 	 this lexical block) refer to fields in the target's elf_prstatus
 	 struct.  */
-      case 268:	
+      case 268:
 	/* `pr_cursig' is at offset 12.  */
-	elf_tdata (abfd)->core_signal = bfd_get_16 (abfd, note->descdata + 12);
+	elf_tdata (abfd)->core->signal = bfd_get_16 (abfd, note->descdata + 12);
 
 	/* `pr_pid' is at offset 24.  */
-	elf_tdata (abfd)->core_lwpid = bfd_get_32 (abfd, note->descdata + 24);
+	elf_tdata (abfd)->core->lwpid = bfd_get_32 (abfd, note->descdata + 24);
 
 	/* `pr_reg' is at offset 72.  */
 	offset = 72;
@@ -6858,7 +6729,7 @@ elf32_frv_grok_prstatus (bfd *abfd, Elf_Internal_Note *note)
 	   and `pr_interp_fdpic_loadmap', both of which (by design)
 	   immediately follow `pr_reg'.  This will allow these fields to
 	   be viewed by GDB as registers.
-	   
+
 	   `pr_reg' is 184 bytes long.  `pr_exec_fdpic_loadmap' and
 	   `pr_interp_fdpic_loadmap' are 4 bytes each.  */
 	raw_size = 184 + 4 + 4;
@@ -6883,11 +6754,11 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
       case 124:
 
 	/* `pr_fname' is found at offset 28 and is 16 bytes long.  */
-	elf_tdata (abfd)->core_program
+	elf_tdata (abfd)->core->program
 	  = _bfd_elfcore_strndup (abfd, note->descdata + 28, 16);
 
 	/* `pr_psargs' is found at offset 44 and is 80 bytes long.  */
-	elf_tdata (abfd)->core_command
+	elf_tdata (abfd)->core->command
 	  = _bfd_elfcore_strndup (abfd, note->descdata + 44, 80);
     }
 
@@ -6896,7 +6767,7 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
      implementations, so strip it off if it exists.  */
 
   {
-    char *command = elf_tdata (abfd)->core_command;
+    char *command = elf_tdata (abfd)->core->command;
     int n = strlen (command);
 
     if (0 < n && command[n - 1] == ' ')
@@ -6906,27 +6777,26 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
   return TRUE;
 }
 #define ELF_ARCH		bfd_arch_frv
-#define ELF_TARGET_ID		FRV_ELF_DATA
 #define ELF_MACHINE_CODE	EM_CYGNUS_FRV
 #define ELF_MAXPAGESIZE		0x1000
 
-#define TARGET_BIG_SYM          bfd_elf32_frv_vec
+#define TARGET_BIG_SYM		frv_elf32_vec
 #define TARGET_BIG_NAME		"elf32-frv"
 
 #define elf_info_to_howto			frv_info_to_howto_rela
 #define elf_backend_relocate_section		elf32_frv_relocate_section
 #define elf_backend_gc_mark_hook		elf32_frv_gc_mark_hook
-#define elf_backend_check_relocs                elf32_frv_check_relocs
+#define elf_backend_check_relocs		elf32_frv_check_relocs
 #define elf_backend_object_p			elf32_frv_object_p
-#define elf_backend_add_symbol_hook             elf32_frv_add_symbol_hook
+#define elf_backend_add_symbol_hook		elf32_frv_add_symbol_hook
 
+#define elf_backend_stack_align			8
 #define elf_backend_can_gc_sections		1
 #define elf_backend_rela_normal			1
 
 #define bfd_elf32_bfd_reloc_type_lookup		frv_reloc_type_lookup
 #define bfd_elf32_bfd_reloc_name_lookup	frv_reloc_name_lookup
 #define bfd_elf32_bfd_set_private_flags		frv_elf_set_private_flags
-#define bfd_elf32_bfd_copy_private_bfd_data	frv_elf_copy_private_bfd_data
 #define bfd_elf32_bfd_merge_private_bfd_data	frv_elf_merge_private_bfd_data
 #define bfd_elf32_bfd_print_private_bfd_data	frv_elf_print_private_bfd_data
 
@@ -6943,13 +6813,17 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_grok_prstatus	elf32_frv_grok_prstatus
 #define elf_backend_grok_psinfo		elf32_frv_grok_psinfo
 
+#define elf_backend_linux_prpsinfo32_ugid16	TRUE
+
 #include "elf32-target.h"
 
+#undef ELF_TARGET_ID
+#define ELF_TARGET_ID		FRV_ELF_DATA
 #undef ELF_MAXPAGESIZE
 #define ELF_MAXPAGESIZE		0x4000
 
 #undef TARGET_BIG_SYM
-#define TARGET_BIG_SYM          bfd_elf32_frvfdpic_vec
+#define TARGET_BIG_SYM		frv_elf32_fdpic_vec
 #undef TARGET_BIG_NAME
 #define TARGET_BIG_NAME		"elf32-frvfdpic"
 #undef	elf32_bed
@@ -6964,12 +6838,6 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #undef elf_backend_always_size_sections
 #define elf_backend_always_size_sections \
 		elf32_frvfdpic_always_size_sections
-#undef elf_backend_modify_program_headers
-#define elf_backend_modify_program_headers \
-		elf32_frvfdpic_modify_program_headers
-#undef bfd_elf32_bfd_copy_private_bfd_data
-#define bfd_elf32_bfd_copy_private_bfd_data \
-		elf32_frvfdpic_copy_private_bfd_data
 
 #undef elf_backend_create_dynamic_sections
 #define elf_backend_create_dynamic_sections \
@@ -7004,12 +6872,12 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 		frvfdpic_elf_encode_eh_address
 
 #undef elf_backend_may_use_rel_p
-#define elf_backend_may_use_rel_p       1
+#define elf_backend_may_use_rel_p	1
 #undef elf_backend_may_use_rela_p
-#define elf_backend_may_use_rela_p      1
+#define elf_backend_may_use_rela_p	1
 /* We use REL for dynamic relocations only.  */
 #undef elf_backend_default_use_rela_p
-#define elf_backend_default_use_rela_p  1
+#define elf_backend_default_use_rela_p	1
 
 #undef elf_backend_omit_section_dynsym
 #define elf_backend_omit_section_dynsym _frvfdpic_link_omit_section_dynsym

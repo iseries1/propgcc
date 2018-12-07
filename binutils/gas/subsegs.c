@@ -1,7 +1,5 @@
 /* subsegs.c - subsegments -
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2018 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -57,7 +55,7 @@ subsegs_begin (void)
  * segment context correct.
  */
 void
-subseg_change (register segT seg, register int subseg)
+subseg_change (segT seg, int subseg)
 {
   segment_info_type *seginfo = seg_info (seg);
   now_seg = seg;
@@ -65,7 +63,7 @@ subseg_change (register segT seg, register int subseg)
 
   if (! seginfo)
     {
-      seginfo = (segment_info_type *) xcalloc (1, sizeof (*seginfo));
+      seginfo = XCNEW (segment_info_type);
       seginfo->bfd_section = seg;
       bfd_set_section_userdata (stdoutput, seg, seginfo);
     }
@@ -167,7 +165,7 @@ subseg_get (const char *segname, int force_new)
   if (! seginfo)
     {
       secptr->output_section = secptr;
-      seginfo = (segment_info_type *) xcalloc (1, sizeof (*seginfo));
+      seginfo = XCNEW (segment_info_type);
       seginfo->bfd_section = secptr;
       bfd_set_section_userdata (stdoutput, secptr, seginfo);
     }
@@ -280,7 +278,7 @@ seg_not_empty_p (segT sec ATTRIBUTE_UNUSED)
 
   if (!seginfo)
     return 0;
-  
+
   for (chain = seginfo->frchainP; chain; chain = chain->frch_next)
     {
       for (frag = chain->frch_root; frag; frag = frag->fr_next)
@@ -298,6 +296,10 @@ subsegs_print_statistics (FILE *file)
 {
   frchainS *frchp;
   asection *s;
+
+  /* PR 20897 - check to see if the output bfd was actually created.  */
+  if (stdoutput == NULL)
+    return;
 
   fprintf (file, "frag chains:\n");
   for (s = stdoutput->sections; s; s = s->next)

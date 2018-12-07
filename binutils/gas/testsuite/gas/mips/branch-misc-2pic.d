@@ -1,10 +1,9 @@
-#skip: mips-*-ecoff
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: MIPS branch-misc-2pic
 #source: branch-misc-2.s
 #as: -32 -call_shared
 
-# Test the backward branches to globals symbols in current file.
+# Test branches to global symbols in current file.
 
 .*: +file format .*mips.*
 
@@ -33,13 +32,4 @@ Disassembly of section .text:
 	\.\.\.
 	\.\.\.
 	\.\.\.
-0+00a8 <[^>]*> 1000ffff 	b	000000a8 <g6>
-[ 	]*a8: R_MIPS_PC16	x1
-0+00ac <[^>]*> 00000000 	nop
-0+00b0 <[^>]*> 1000ffff 	b	000000b0 <g6\+0x8>
-[ 	]*b0: R_MIPS_PC16	x2
-0+00b4 <[^>]*> 00000000 	nop
-0+00b8 <[^>]*> 1000ffff 	b	000000b8 <g6\+0x10>
-[ 	]*b8: R_MIPS_PC16	\.Ldata
-0+00bc <[^>]*> 00000000 	nop
 	\.\.\.

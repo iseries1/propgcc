@@ -1,5 +1,5 @@
 // PR c++/47049
-// { dg-options -std=c++0x }
+// { dg-do compile { target c++11 } }
 
 enum { E = 0, F = 1 };
 template <int N, int M = ((N == 1) ? F : E)> class S {};
@@ -10,7 +10,7 @@ struct T
   foo (S<N> *p)
   {
     S<N> u;
-    [&u] ()->bool {} ();
+    [&u] ()->bool { return true; } ();
   }
 };
 

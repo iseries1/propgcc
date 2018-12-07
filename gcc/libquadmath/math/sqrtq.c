@@ -8,14 +8,17 @@ sqrtq (const __float128 x)
   __float128 y;
   int exp;
 
+  if (isnanq (x) || (isinfq (x) && x > 0))
+    return x;
+
   if (x == 0)
     return x;
 
-  if (isnanq (x))
-    return x;
-
   if (x < 0)
-    return nanq ("");
+    {
+      /* Return NaN with invalid signal.  */
+      return (x - x) / (x - x);
+    }
 
   if (x <= DBL_MAX && x >= DBL_MIN)
   {
@@ -29,14 +32,17 @@ sqrtq (const __float128 x)
   }
 
 #ifdef HAVE_SQRTL
-  if (x <= LDBL_MAX && x >= LDBL_MIN)
   {
-    /* Use long double result as starting point.  */
-    y = sqrtl ((long double) x);
+    long double xl = (long double) x;
+    if (xl <= LDBL_MAX && xl >= LDBL_MIN)
+      {
+	/* Use long double result as starting point.  */
+	y = (__float128) sqrtl (xl);
 
-    /* One Newton iteration.  */
-    y -= 0.5q * (y - x / y);
-    return y;
+	/* One Newton iteration.  */
+	y -= 0.5q * (y - x / y);
+	return y;
+      }
   }
 #endif
 

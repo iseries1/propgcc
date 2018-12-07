@@ -9,7 +9,7 @@ struct A {
   static int operator()(int a);	   // { dg-error "must be a nonstatic member" }
   static int operator+(A,A);	   // { dg-error "either a non-static member" } 
   int operator+(int a, int b = 1); // { dg-error "either zero or one" }
-  int operator++(char);		   // { dg-error "must take 'int'" } 
+  int operator++(char);		   // { dg-error "must have 'int'" }
   void operator delete (void *);   
   void operator delete (void *, unsigned long);	
 };
@@ -29,4 +29,4 @@ void * operator new (A a);	// { dg-error "first parameter" }
 void operator delete (A a);	// { dg-error "first parameter" }
 
 char * operator char * (int);	// { dg-error "return type" "ret" }
-// { dg-error "nonstatic member function" "mem" { target *-*-* } 31 }
+// { dg-error "nonstatic member function" "mem" { target *-*-* } .-1 }

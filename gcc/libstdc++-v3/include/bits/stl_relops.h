@@ -1,7 +1,6 @@
 // std::rel_ops implementation -*- C++ -*-
 
-// Copyright (C) 2001, 2002, 2004, 2005, 2008, 2010, 2011
-// Free Software Foundation, Inc.
+// Copyright (C) 2001-2018 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -67,19 +66,19 @@
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
+_GLIBCXX_BEGIN_NAMESPACE_VERSION
+
   namespace rel_ops
   {
-  _GLIBCXX_BEGIN_NAMESPACE_VERSION
-
     /** @namespace std::rel_ops
      *  @brief  The generated relational operators are sequestered here.
      */
 
     /**
      *  @brief Defines @c != for arbitrary types, in terms of @c ==.
-     *  @param  x  A thing.
-     *  @param  y  Another thing.
-     *  @return   x != y
+     *  @param  __x  A thing.
+     *  @param  __y  Another thing.
+     *  @return   __x != __y
      *
      *  This function uses @c == to determine its result.
      */
@@ -90,9 +89,9 @@ namespace std _GLIBCXX_VISIBILITY(default)
 
     /**
      *  @brief Defines @c > for arbitrary types, in terms of @c <.
-     *  @param  x  A thing.
-     *  @param  y  Another thing.
-     *  @return   x > y
+     *  @param  __x  A thing.
+     *  @param  __y  Another thing.
+     *  @return   __x > __y
      *
      *  This function uses @c < to determine its result.
      */
@@ -103,9 +102,9 @@ namespace std _GLIBCXX_VISIBILITY(default)
 
     /**
      *  @brief Defines @c <= for arbitrary types, in terms of @c <.
-     *  @param  x  A thing.
-     *  @param  y  Another thing.
-     *  @return   x <= y
+     *  @param  __x  A thing.
+     *  @param  __y  Another thing.
+     *  @return   __x <= __y
      *
      *  This function uses @c < to determine its result.
      */
@@ -116,9 +115,9 @@ namespace std _GLIBCXX_VISIBILITY(default)
 
     /**
      *  @brief Defines @c >= for arbitrary types, in terms of @c <.
-     *  @param  x  A thing.
-     *  @param  y  Another thing.
-     *  @return   x >= y
+     *  @param  __x  A thing.
+     *  @param  __y  Another thing.
+     *  @return   __x >= __y
      *
      *  This function uses @c < to determine its result.
      */
@@ -126,10 +125,9 @@ namespace std _GLIBCXX_VISIBILITY(default)
       inline bool
       operator>=(const _Tp& __x, const _Tp& __y)
       { return !(__x < __y); }
-
-  _GLIBCXX_END_NAMESPACE_VERSION
   } // namespace rel_ops
 
+_GLIBCXX_END_NAMESPACE_VERSION
 } // namespace std
 
 #endif /* _STL_RELOPS_H */

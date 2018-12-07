@@ -15,7 +15,7 @@ contains
 
     write (ca,f) a
     write (cb,f) b
-    if (ca /= cb) call abort
+    if (ca /= cb) STOP 1
   end subroutine testoutput
 end module testmod
 
@@ -36,5 +36,3 @@ program test
   x = -huge(0_8)
   call testoutput (x,-huge(0_8),50,'(I50)')
 end program test
-
-! { dg-final { cleanup-modules "testmod" } }

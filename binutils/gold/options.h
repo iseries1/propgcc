@@ -1,6 +1,6 @@
 // options.h -- handle command line options for gold  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2006-2018 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -120,7 +120,7 @@ parse_set(const char* option_name, const char* arg, String_set* retval);
 
 extern void
 parse_choices(const char* option_name, const char* arg, const char** retval,
-              const char* choices[], int num_choices);
+	      const char* choices[], int num_choices);
 
 struct Struct_var;
 
@@ -154,6 +154,8 @@ enum Dashes
 //    --OPTION VALUE.
 // READER provides parse_to_value, which is a function that will convert
 //    a char* argument into the proper type and store it in some variable.
+// IS_DEFAULT is true for boolean options that are on by default,
+//    and thus should have "(default)" printed with the helpstring.
 // A One_option struct initializes itself with the global list of options
 // at constructor time, so be careful making one of these.
 struct One_option
@@ -166,11 +168,14 @@ struct One_option
   const char* helparg;
   bool optional_arg;
   Struct_var* reader;
+  bool is_default;
 
   One_option(const char* ln, Dashes d, char sn, const char* dv,
-             const char* hs, const char* ha, bool oa, Struct_var* r)
+	     const char* hs, const char* ha, bool oa, Struct_var* r,
+	     bool id)
     : longname(ln), dashes(d), shortname(sn), default_value(dv ? dv : ""),
-      helpstring(hs), helparg(ha), optional_arg(oa), reader(r)
+      helpstring(hs), helparg(ha), optional_arg(oa), reader(r),
+      is_default(id)
   {
     // In longname, we convert all underscores to dashes, since GNU
     // style uses dashes in option names.  longname is likely to have
@@ -219,7 +224,7 @@ struct Struct_var
   // OPTIONS: the global General_options object.  Used by DEFINE_special.
   virtual void
   parse_to_value(const char* option, const char* arg,
-                 Command_line* cmdline, General_options* options) = 0;
+		 Command_line* cmdline, General_options* options) = 0;
   virtual
   ~Struct_var()  // To make gcc happy.
   { }
@@ -230,16 +235,17 @@ struct Struct_special : public Struct_var
 {
   // If you change this, change the parse-fn in DEFINE_special as well.
   typedef void (General_options::*Parse_function)(const char*, const char*,
-                                                  Command_line*);
+						  Command_line*);
   Struct_special(const char* varname, Dashes dashes, char shortname,
-                 Parse_function parse_function,
-                 const char* helpstring, const char* helparg)
-    : option(varname, dashes, shortname, "", helpstring, helparg, false, this),
+		 Parse_function parse_function,
+		 const char* helpstring, const char* helparg)
+    : option(varname, dashes, shortname, "", helpstring, helparg, false, this,
+	     false),
       parse(parse_function)
   { }
 
   void parse_to_value(const char* option, const char* arg,
-                      Command_line* cmdline, General_options* options)
+		      Command_line* cmdline, General_options* options)
   { (options->*(this->parse))(option, arg, cmdline); }
 
   One_option option;
@@ -261,38 +267,41 @@ struct Struct_special : public Struct_var
 // avoid unintended macro substitution of "assert()", we need to enclose
 // varname__ with parenthese.
 #define DEFINE_var(varname__, dashes__, shortname__, default_value__,        \
-                   default_value_as_string__, helpstring__, helparg__,       \
-                   optional_arg__, type__, param_type__, parse_fn__)	     \
+		   default_value_as_string__, helpstring__, helparg__,       \
+		   optional_arg__, type__, param_type__, parse_fn__,         \
+		   is_default__)					     \
  public:                                                                     \
   param_type__                                                               \
   (varname__)() const                                                        \
   { return this->varname__##_.value; }                                       \
-                                                                             \
+									     \
   bool                                                                       \
   user_set_##varname__() const                                               \
   { return this->varname__##_.user_set_via_option; }                         \
-                                                                             \
+									     \
   void									     \
   set_user_set_##varname__()						     \
   { this->varname__##_.user_set_via_option = true; }			     \
+									     \
+  static const bool varname__##is_default = is_default__;		     \
 									     \
  private:                                                                    \
   struct Struct_##varname__ : public options::Struct_var                     \
   {                                                                          \
     Struct_##varname__()                                                     \
       : option(#varname__, dashes__, shortname__, default_value_as_string__, \
-               helpstring__, helparg__, optional_arg__, this),		     \
-        user_set_via_option(false), value(default_value__)                   \
+	       helpstring__, helparg__, optional_arg__, this, is_default__), \
+	user_set_via_option(false), value(default_value__)                   \
     { }                                                                      \
-                                                                             \
+									     \
     void                                                                     \
     parse_to_value(const char* option_name, const char* arg,                 \
-                   Command_line*, General_options*)                          \
+		   Command_line*, General_options*)                          \
     {                                                                        \
       parse_fn__(option_name, arg, &this->value);                            \
       this->user_set_via_option = true;                                      \
     }                                                                        \
-                                                                             \
+									     \
     options::One_option option;                                              \
     bool user_set_via_option;                                                \
     type__ value;                                                            \
@@ -308,98 +317,128 @@ struct Struct_special : public Struct_var
 // VARNAME, we also create an option called no-VARNAME (or, for a -z
 // option, noVARNAME).
 #define DEFINE_bool(varname__, dashes__, shortname__, default_value__,   \
-                    helpstring__, no_helpstring__)                       \
+		    helpstring__, no_helpstring__)                       \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,          \
-             default_value__ ? "true" : "false", helpstring__, NULL,     \
-             false, bool, bool, options::parse_bool)			 \
+	     default_value__ ? "true" : "false", helpstring__, NULL,     \
+	     false, bool, bool, options::parse_bool, default_value__)	 \
   struct Struct_no_##varname__ : public options::Struct_var              \
   {                                                                      \
     Struct_no_##varname__() : option((dashes__ == options::DASH_Z	 \
 				      ? "no" #varname__			 \
 				      : "no-" #varname__),		 \
 				     dashes__, '\0',			 \
-                                     default_value__ ? "false" : "true", \
-                                     no_helpstring__, NULL, false, this) \
+				     default_value__ ? "false" : "true", \
+				     no_helpstring__, NULL, false, this, \
+				     !(default_value__))                 \
     { }                                                                  \
-                                                                         \
+									 \
     void                                                                 \
     parse_to_value(const char*, const char*,                             \
-                   Command_line*, General_options* options)              \
+		   Command_line*, General_options* options)              \
     {                                                                    \
       options->set_##varname__(false);                                   \
       options->set_user_set_##varname__();                               \
     }                                                                    \
-                                                                         \
+									 \
+    options::One_option option;                                          \
+  };                                                                     \
+  Struct_no_##varname__ no_##varname__##_initializer_
+
+#define DEFINE_bool_ignore(varname__, dashes__, shortname__,		 \
+		    helpstring__, no_helpstring__)                       \
+  DEFINE_var(varname__, dashes__, shortname__, false,			 \
+	     "false", helpstring__, NULL,				 \
+	     false, bool, bool, options::parse_bool, false)		 \
+  struct Struct_no_##varname__ : public options::Struct_var              \
+  {                                                                      \
+    Struct_no_##varname__() : option((dashes__ == options::DASH_Z	 \
+				      ? "no" #varname__			 \
+				      : "no-" #varname__),		 \
+				     dashes__, '\0',			 \
+				     "false",				 \
+				     no_helpstring__, NULL, false, this, \
+				     false)				 \
+    { }                                                                  \
+									 \
+    void                                                                 \
+    parse_to_value(const char*, const char*,                             \
+		   Command_line*, General_options* options)              \
+    {                                                                    \
+      options->set_##varname__(false);                                   \
+      options->set_user_set_##varname__();                               \
+    }                                                                    \
+									 \
     options::One_option option;                                          \
   };                                                                     \
   Struct_no_##varname__ no_##varname__##_initializer_
 
 #define DEFINE_enable(varname__, dashes__, shortname__, default_value__, \
-                      helpstring__, no_helpstring__)                     \
+		      helpstring__, no_helpstring__)                     \
   DEFINE_var(enable_##varname__, dashes__, shortname__, default_value__, \
-             default_value__ ? "true" : "false", helpstring__, NULL,     \
-             false, bool, bool, options::parse_bool)			 \
+	     default_value__ ? "true" : "false", helpstring__, NULL,     \
+	     false, bool, bool, options::parse_bool, default_value__)	 \
   struct Struct_disable_##varname__ : public options::Struct_var         \
   {                                                                      \
     Struct_disable_##varname__() : option("disable-" #varname__,         \
-                                     dashes__, '\0',                     \
-                                     default_value__ ? "false" : "true", \
-                                     no_helpstring__, NULL, false, this) \
+				     dashes__, '\0',                     \
+				     default_value__ ? "false" : "true", \
+				     no_helpstring__, NULL, false, this, \
+				     !default_value__)                   \
     { }                                                                  \
-                                                                         \
+									 \
     void                                                                 \
     parse_to_value(const char*, const char*,                             \
-                   Command_line*, General_options* options)              \
+		   Command_line*, General_options* options)              \
     { options->set_enable_##varname__(false); }                          \
-                                                                         \
+									 \
     options::One_option option;                                          \
   };                                                                     \
   Struct_disable_##varname__ disable_##varname__##_initializer_
 
 #define DEFINE_int(varname__, dashes__, shortname__, default_value__,   \
-                   helpstring__, helparg__)                             \
+		   helpstring__, helparg__)                             \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,         \
-             #default_value__, helpstring__, helparg__, false,		\
-             int, int, options::parse_int)
+	     #default_value__, helpstring__, helparg__, false,		\
+	     int, int, options::parse_int, false)
 
 #define DEFINE_uint(varname__, dashes__, shortname__, default_value__,  \
-                   helpstring__, helparg__)                             \
+		   helpstring__, helparg__)                             \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,         \
-             #default_value__, helpstring__, helparg__, false,		\
-             int, int, options::parse_uint)
+	     #default_value__, helpstring__, helparg__, false,		\
+	     int, int, options::parse_uint, false)
 
 #define DEFINE_uint64(varname__, dashes__, shortname__, default_value__, \
-                      helpstring__, helparg__)                           \
+		      helpstring__, helparg__)                           \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,          \
-             #default_value__, helpstring__, helparg__, false,		 \
-             uint64_t, uint64_t, options::parse_uint64)
+	     #default_value__, helpstring__, helparg__, false,		 \
+	     uint64_t, uint64_t, options::parse_uint64, false)
 
 #define DEFINE_double(varname__, dashes__, shortname__, default_value__, \
 		      helpstring__, helparg__)				 \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,		 \
 	     #default_value__, helpstring__, helparg__, false,		 \
-	     double, double, options::parse_double)
+	     double, double, options::parse_double, false)
 
 #define DEFINE_percent(varname__, dashes__, shortname__, default_value__, \
 		       helpstring__, helparg__)				  \
   DEFINE_var(varname__, dashes__, shortname__, default_value__ / 100.0,	  \
 	     #default_value__, helpstring__, helparg__, false,		  \
-	     double, double, options::parse_percent)
+	     double, double, options::parse_percent, false)
 
 #define DEFINE_string(varname__, dashes__, shortname__, default_value__, \
-                      helpstring__, helparg__)                           \
+		      helpstring__, helparg__)                           \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,          \
-             default_value__, helpstring__, helparg__, false,		 \
-             const char*, const char*, options::parse_string)
+	     default_value__, helpstring__, helparg__, false,		 \
+	     const char*, const char*, options::parse_string, false)
 
 // This is like DEFINE_string, but we convert each occurrence to a
 // Search_directory and store it in a vector.  Thus we also have the
 // add_to_VARNAME() method, to append to the vector.
 #define DEFINE_dirlist(varname__, dashes__, shortname__,                  \
-                           helpstring__, helparg__)                       \
+			   helpstring__, helparg__)                       \
   DEFINE_var(varname__, dashes__, shortname__, ,                          \
-             "", helpstring__, helparg__, false, options::Dir_list,	  \
-             const options::Dir_list&, options::parse_dirlist)            \
+	     "", helpstring__, helparg__, false, options::Dir_list,	  \
+	     const options::Dir_list&, options::parse_dirlist, false)     \
   void                                                                    \
   add_to_##varname__(const char* new_value)                               \
   { options::parse_dirlist(NULL, new_value, &this->varname__##_.value); } \
@@ -409,10 +448,10 @@ struct Struct_special : public Struct_var
 
 // This is like DEFINE_string, but we store a set of strings.
 #define DEFINE_set(varname__, dashes__, shortname__,                      \
-                   helpstring__, helparg__)                               \
+		   helpstring__, helparg__)                               \
   DEFINE_var(varname__, dashes__, shortname__, ,                          \
-             "", helpstring__, helparg__, false, options::String_set,     \
-             const options::String_set&, options::parse_set)              \
+	     "", helpstring__, helparg__, false, options::String_set,     \
+	     const options::String_set&, options::parse_set, false)       \
  public:                                                                  \
   bool                                                                    \
   any_##varname__() const                                                 \
@@ -422,8 +461,8 @@ struct Struct_special : public Struct_var
   is_##varname__(const char* symbol) const                                \
   {                                                                       \
     return (!this->varname__##_.value.empty()                             \
-            && (this->varname__##_.value.find(std::string(symbol))        \
-                != this->varname__##_.value.end()));                      \
+	    && (this->varname__##_.value.find(std::string(symbol))        \
+		!= this->varname__##_.value.end()));                      \
   }									  \
 									  \
   options::String_set::const_iterator					  \
@@ -432,23 +471,27 @@ struct Struct_special : public Struct_var
 									  \
   options::String_set::const_iterator					  \
   varname__##_end() const						  \
-  { return this->varname__##_.value.end(); }
+  { return this->varname__##_.value.end(); }                              \
+                                                                          \
+  options::String_set::size_type                                          \
+  varname__##_size() const                                                \
+  { return this->varname__##_.value.size(); }                             \
 
 // When you have a list of possible values (expressed as string)
 // After helparg__ should come an initializer list, like
 //   {"foo", "bar", "baz"}
 #define DEFINE_enum(varname__, dashes__, shortname__, default_value__,   \
-                    helpstring__, helparg__, ...)                        \
+		    helpstring__, helparg__, ...)                        \
   DEFINE_var(varname__, dashes__, shortname__, default_value__,          \
-             default_value__, helpstring__, helparg__, false,		 \
-             const char*, const char*, parse_choices_##varname__)        \
+	     default_value__, helpstring__, helparg__, false,		 \
+	     const char*, const char*, parse_choices_##varname__, false) \
  private:                                                                \
   static void parse_choices_##varname__(const char* option_name,         \
-                                        const char* arg,                 \
-                                        const char** retval) {           \
+					const char* arg,                 \
+					const char** retval) {           \
     const char* choices[] = __VA_ARGS__;                                 \
     options::parse_choices(option_name, arg, retval,                     \
-                           choices, sizeof(choices) / sizeof(*choices)); \
+			   choices, sizeof(choices) / sizeof(*choices)); \
   }
 
 // This is like DEFINE_bool, but VARNAME is the name of a different
@@ -461,7 +504,8 @@ struct Struct_special : public Struct_var
   {									\
     Struct_##option__()							\
       : option(#option__, dashes__, shortname__, "", helpstring__,	\
-	       NULL, false, this)					\
+	       NULL, false, this,					\
+	       General_options::varname__##is_default ^ invert__)	\
     { }									\
 									\
     void								\
@@ -483,7 +527,8 @@ struct Struct_special : public Struct_var
 		? "no" #option__					\
 		: "no-" #option__),					\
 	       dashes__, '\0', "", no_helpstring__,			\
-	       NULL, false, this)					\
+	       NULL, false, this,					\
+	       !General_options::varname__##is_default ^ invert__)	\
     { }									\
 									\
     void								\
@@ -498,22 +543,48 @@ struct Struct_special : public Struct_var
   };									\
   Struct_no_##option__ no_##option__##_initializer_
 
+// This is like DEFINE_uint64, but VARNAME is the name of a different
+// option.  This option becomes an alias for that one.
+#define DEFINE_uint64_alias(option__, varname__, dashes__, shortname__,	\
+			    helpstring__, helparg__)			\
+ private:								\
+  struct Struct_##option__ : public options::Struct_var			\
+  {									\
+    Struct_##option__()							\
+      : option(#option__, dashes__, shortname__, "", helpstring__,	\
+	       helparg__, false, this, false)				\
+    { }									\
+									\
+    void								\
+    parse_to_value(const char* option_name, const char* arg,		\
+		   Command_line*, General_options* options)		\
+    {									\
+      uint64_t value;							\
+      options::parse_uint64(option_name, arg, &value);			\
+      options->set_##varname__(value);					\
+      options->set_user_set_##varname__();				\
+    }									\
+									\
+    options::One_option option;						\
+  };									\
+  Struct_##option__ option__##_;
+
 // This is used for non-standard flags.  It defines no functions; it
 // just calls General_options::parse_VARNAME whenever the flag is
 // seen.  We declare parse_VARNAME as a static member of
 // General_options; you are responsible for defining it there.
 // helparg__ should be NULL iff this special-option is a boolean.
 #define DEFINE_special(varname__, dashes__, shortname__,                \
-                       helpstring__, helparg__)                         \
+		       helpstring__, helparg__)                         \
  private:                                                               \
   void parse_##varname__(const char* option, const char* arg,           \
-                         Command_line* inputs);                         \
+			 Command_line* inputs);                         \
   struct Struct_##varname__ : public options::Struct_special            \
   {                                                                     \
     Struct_##varname__()                                                \
       : options::Struct_special(#varname__, dashes__, shortname__,      \
-                                &General_options::parse_##varname__,    \
-                                helpstring__, helparg__)                \
+				&General_options::parse_##varname__,    \
+				helpstring__, helparg__)                \
     { }                                                                 \
   };                                                                    \
   Struct_##varname__ varname__##_initializer_
@@ -525,8 +596,9 @@ struct Struct_special : public Struct_var
 			       default_value__,				\
 			       helpstring__, helparg__)			\
   DEFINE_var(varname__, dashes__, shortname__, default_value__,		\
-             default_value__, helpstring__, helparg__, true,		\
-             const char*, const char*, options::parse_optional_string)
+	     default_value__, helpstring__, helparg__, true,		\
+	     const char*, const char*, options::parse_optional_string,  \
+	     false)
 
 // A directory to search.  For each directory we record whether it is
 // in the sysroot.  We need to know this so that, if a linker script
@@ -594,11 +666,11 @@ class General_options
   // NOTE: For every option that you add here, also consider if you
   // should add it to Position_dependent_options.
   DEFINE_special(help, options::TWO_DASHES, '\0',
-                 N_("Report usage information"), NULL);
+		 N_("Report usage information"), NULL);
   DEFINE_special(version, options::TWO_DASHES, 'v',
-                 N_("Report version information"), NULL);
+		 N_("Report version information"), NULL);
   DEFINE_special(V, options::EXACTLY_ONE_DASH, '\0',
-                 N_("Report version and target information"), NULL);
+		 N_("Report version and target information"), NULL);
 
   // These options are sorted approximately so that for each letter in
   // the alphabet, we show the option whose shortname is that letter
@@ -606,35 +678,61 @@ class General_options
   // alphabetical order).  For both, lowercase sorts before uppercase.
   // The -z options come last.
 
+  // a
+
   DEFINE_bool(add_needed, options::TWO_DASHES, '\0', false,
 	      N_("Not supported"),
 	      N_("Do not copy DT_NEEDED tags from shared libraries"));
 
   DEFINE_bool_alias(allow_multiple_definition, muldefs, options::TWO_DASHES,
-		    '\0', N_("Allow multiple definitions of symbols"),
+		    '\0',
+		    N_("Allow multiple definitions of symbols"),
 		    N_("Do not allow multiple definitions"), false);
 
   DEFINE_bool(allow_shlib_undefined, options::TWO_DASHES, '\0', false,
-              N_("Allow unresolved references in shared libraries"),
-              N_("Do not allow unresolved references in shared libraries"));
+	      N_("Allow unresolved references in shared libraries"),
+	      N_("Do not allow unresolved references in shared libraries"));
+
+  DEFINE_bool(apply_dynamic_relocs, options::TWO_DASHES, '\0', true,
+	      N_("Apply link-time values for dynamic relocations"),
+	      N_("(aarch64 only) Do not apply link-time values "
+		 "for dynamic relocations"));
 
   DEFINE_bool(as_needed, options::TWO_DASHES, '\0', false,
-              N_("Only set DT_NEEDED for shared libraries if used"),
-              N_("Always DT_NEEDED for shared libraries"));
+	      N_("Use DT_NEEDED only for shared libraries that are used"),
+	      N_("Use DT_NEEDED for all shared libraries"));
 
   DEFINE_enum(assert, options::ONE_DASH, '\0', NULL,
 	      N_("Ignored"), N_("[ignored]"),
 	      {"definitions", "nodefinitions", "nosymbolic", "pure-text"});
+
+  // b
 
   // This should really be an "enum", but it's too easy for folks to
   // forget to update the list as they add new targets.  So we just
   // accept any string.  We'll fail later (when the string is parsed),
   // if the target isn't actually supported.
   DEFINE_string(format, options::TWO_DASHES, 'b', "elf",
-                N_("Set input format"), ("[elf,binary]"));
+		N_("Set input format"), ("[elf,binary]"));
+
+  DEFINE_bool(be8, options::TWO_DASHES, '\0', false,
+	      N_("Output BE8 format image"), NULL);
+
+  DEFINE_optional_string(build_id, options::TWO_DASHES, '\0', "tree",
+			 N_("Generate build ID note"),
+			 N_("[=STYLE]"));
+
+  DEFINE_uint64(build_id_chunk_size_for_treehash,
+		options::TWO_DASHES, '\0', 2 << 20,
+		N_("Chunk size for '--build-id=tree'"), N_("SIZE"));
+
+  DEFINE_uint64(build_id_min_file_size_for_treehash, options::TWO_DASHES,
+		'\0', 40 << 20,
+		N_("Minimum output file size for '--build-id=tree' to work"
+		   " differently than '--build-id=sha1'"), N_("SIZE"));
 
   DEFINE_bool(Bdynamic, options::ONE_DASH, '\0', true,
-              N_("-l searches for shared libraries"), NULL);
+	      N_("-l searches for shared libraries"), NULL);
   DEFINE_bool_alias(Bstatic, Bdynamic, options::ONE_DASH, '\0',
 		    N_("-l does not search for shared libraries"), NULL,
 		    true);
@@ -646,31 +744,25 @@ class General_options
   DEFINE_bool(Bgroup, options::ONE_DASH, '\0', false,
 	      N_("Use group name lookup rules for shared library"), NULL);
 
+  DEFINE_bool(Bshareable, options::ONE_DASH, '\0', false,
+	      N_("Generate shared library (alias for -G/-shared)"), NULL);
+
   DEFINE_bool(Bsymbolic, options::ONE_DASH, '\0', false,
-              N_("Bind defined symbols locally"), NULL);
+	      N_("Bind defined symbols locally"), NULL);
 
   DEFINE_bool(Bsymbolic_functions, options::ONE_DASH, '\0', false,
 	      N_("Bind defined function symbols locally"), NULL);
 
-  DEFINE_optional_string(build_id, options::TWO_DASHES, '\0', "sha1",
-			 N_("Generate build ID note"),
-			 N_("[=STYLE]"));
+  // c
 
   DEFINE_bool(check_sections, options::TWO_DASHES, '\0', true,
-	      N_("Check segment addresses for overlaps (default)"),
+	      N_("Check segment addresses for overlaps"),
 	      N_("Do not check segment addresses for overlaps"));
 
-#ifdef HAVE_ZLIB_H
   DEFINE_enum(compress_debug_sections, options::TWO_DASHES, '\0', "none",
-              N_("Compress .debug_* sections in the output file"),
-              ("[none,zlib]"),
-              {"none", "zlib"});
-#else
-  DEFINE_enum(compress_debug_sections, options::TWO_DASHES, '\0', "none",
-              N_("Compress .debug_* sections in the output file"),
-              N_("[none]"),
-              {"none"});
-#endif
+	      N_("Compress .debug_* sections in the output file"),
+	      ("[none,zlib,zlib-gnu,zlib-gabi]"),
+	      {"none", "zlib", "zlib-gnu", "zlib-gabi"});
 
   DEFINE_bool(copy_dt_needed_entries, options::TWO_DASHES, '\0', false,
 	      N_("Not supported"),
@@ -681,79 +773,88 @@ class General_options
 	      N_("Do not output cross reference table"));
 
   DEFINE_bool(ctors_in_init_array, options::TWO_DASHES, '\0', true,
-	      N_("Use DT_INIT_ARRAY for all constructors (default)"),
+	      N_("Use DT_INIT_ARRAY for all constructors"),
 	      N_("Handle constructors as directed by compiler"));
 
+  // d
+
   DEFINE_bool(define_common, options::TWO_DASHES, 'd', false,
-              N_("Define common symbols"),
-              N_("Do not define common symbols"));
+	      N_("Define common symbols"),
+	      N_("Do not define common symbols in relocatable output"));
   DEFINE_bool(dc, options::ONE_DASH, '\0', false,
-              N_("Alias for -d"), NULL);
+	      N_("Alias for -d"), NULL);
   DEFINE_bool(dp, options::ONE_DASH, '\0', false,
-              N_("Alias for -d"), NULL);
+	      N_("Alias for -d"), NULL);
 
   DEFINE_string(debug, options::TWO_DASHES, '\0', "",
-                N_("Turn on debugging"),
-                N_("[all,files,script,task][,...]"));
+		N_("Turn on debugging"),
+		N_("[all,files,script,task][,...]"));
 
   DEFINE_special(defsym, options::TWO_DASHES, '\0',
-                 N_("Define a symbol"), N_("SYMBOL=EXPRESSION"));
+		 N_("Define a symbol"), N_("SYMBOL=EXPRESSION"));
 
   DEFINE_optional_string(demangle, options::TWO_DASHES, '\0', NULL,
 			 N_("Demangle C++ symbols in log messages"),
 			 N_("[=STYLE]"));
-
   DEFINE_bool(no_demangle, options::TWO_DASHES, '\0', false,
 	      N_("Do not demangle C++ symbols in log messages"),
 	      NULL);
 
   DEFINE_bool(detect_odr_violations, options::TWO_DASHES, '\0', false,
-              N_("Look for violations of the C++ One Definition Rule"),
+	      N_("Look for violations of the C++ One Definition Rule"),
 	      N_("Do not look for violations of the C++ One Definition Rule"));
 
-  DEFINE_bool(discard_all, options::TWO_DASHES, 'x', false,
-	      N_("Delete all local symbols"), NULL);
-  DEFINE_bool(discard_locals, options::TWO_DASHES, 'X', false,
-              N_("Delete all temporary local symbols"), NULL);
-
   DEFINE_bool(dynamic_list_data, options::TWO_DASHES, '\0', false,
-              N_("Add data symbols to dynamic symbols"), NULL);
+	      N_("Add data symbols to dynamic symbols"), NULL);
 
   DEFINE_bool(dynamic_list_cpp_new, options::TWO_DASHES, '\0', false,
-              N_("Add C++ operator new/delete to dynamic symbols"), NULL);
+	      N_("Add C++ operator new/delete to dynamic symbols"), NULL);
 
   DEFINE_bool(dynamic_list_cpp_typeinfo, options::TWO_DASHES, '\0', false,
-              N_("Add C++ typeinfo to dynamic symbols"), NULL);
+	      N_("Add C++ typeinfo to dynamic symbols"), NULL);
 
   DEFINE_special(dynamic_list, options::TWO_DASHES, '\0',
-                 N_("Read a list of dynamic symbols"), N_("FILE"));
+		 N_("Read a list of dynamic symbols"), N_("FILE"));
+
+  // e
+
+  DEFINE_bool(emit_stub_syms, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC only) Label linker stubs with a symbol"),
+	      N_("(PowerPC only) Do not label linker stubs with a symbol"));
 
   DEFINE_string(entry, options::TWO_DASHES, 'e', NULL,
-                N_("Set program start address"), N_("ADDRESS"));
+		N_("Set program start address"), N_("ADDRESS"));
+
+  DEFINE_bool(eh_frame_hdr, options::TWO_DASHES, '\0', false,
+	      N_("Create exception frame header"),
+	      N_("Do not create exception frame header"));
+
+  // Alphabetized under 'e' because the option is spelled --enable-new-dtags.
+  DEFINE_enable(new_dtags, options::EXACTLY_TWO_DASHES, '\0', true,
+		N_("Enable use of DT_RUNPATH"),
+		N_("Disable use of DT_RUNPATH"));
+
+  DEFINE_bool(enum_size_warning, options::TWO_DASHES, '\0', true, NULL,
+	      N_("(ARM only) Do not warn about objects with incompatible "
+		 "enum sizes"));
 
   DEFINE_special(exclude_libs, options::TWO_DASHES, '\0',
 		 N_("Exclude libraries from automatic export"),
 		 N_(("lib,lib ...")));
 
   DEFINE_bool(export_dynamic, options::TWO_DASHES, 'E', false,
-              N_("Export all dynamic symbols"),
-	      N_("Do not export all dynamic symbols (default)"));
+	      N_("Export all dynamic symbols"),
+	      N_("Do not export all dynamic symbols"));
 
   DEFINE_set(export_dynamic_symbol, options::TWO_DASHES, '\0',
 	     N_("Export SYMBOL to dynamic symbol table"), N_("SYMBOL"));
 
   DEFINE_special(EB, options::ONE_DASH, '\0',
 		 N_("Link big-endian objects."), NULL);
-
   DEFINE_special(EL, options::ONE_DASH, '\0',
 		 N_("Link little-endian objects."), NULL);
 
-  DEFINE_bool(eh_frame_hdr, options::TWO_DASHES, '\0', false,
-              N_("Create exception frame header"), NULL);
-
-  DEFINE_bool(enum_size_warning, options::TWO_DASHES, '\0', true, NULL,
-	      N_("(ARM only) Do not warn about objects with incompatible "
-		 "enum sizes"));
+  // f
 
   DEFINE_set(auxiliary, options::TWO_DASHES, 'f',
 	     N_("Auxiliary filter for shared object symbol table"),
@@ -768,53 +869,84 @@ class General_options
 	      N_("Do not treat warnings as errors"));
 
   DEFINE_string(fini, options::ONE_DASH, '\0', "_fini",
-                N_("Call SYMBOL at unload-time"), N_("SYMBOL"));
-
-  DEFINE_bool(fix_cortex_a8, options::TWO_DASHES, '\0', false,
-	      N_("(ARM only) Fix binaries for Cortex-A8 erratum."),
-	      N_("(ARM only) Do not fix binaries for Cortex-A8 erratum."));
+		N_("Call SYMBOL at unload-time"), N_("SYMBOL"));
 
   DEFINE_bool(fix_arm1176, options::TWO_DASHES, '\0', true,
-	      N_("(ARM only) Fix binaries for ARM1176 erratum."),
-	      N_("(ARM only) Do not fix binaries for ARM1176 erratum."));
+	      N_("(ARM only) Fix binaries for ARM1176 erratum"),
+	      N_("(ARM only) Do not fix binaries for ARM1176 erratum"));
 
-  DEFINE_bool(merge_exidx_entries, options::TWO_DASHES, '\0', true,
-	      N_("(ARM only) Merge exidx entries in debuginfo."),
-	      N_("(ARM only) Do not merge exidx entries in debuginfo."));
+  DEFINE_bool(fix_cortex_a8, options::TWO_DASHES, '\0', false,
+	      N_("(ARM only) Fix binaries for Cortex-A8 erratum"),
+	      N_("(ARM only) Do not fix binaries for Cortex-A8 erratum"));
+
+  DEFINE_bool(fix_cortex_a53_843419, options::TWO_DASHES, '\0', false,
+	      N_("(AArch64 only) Fix Cortex-A53 erratum 843419"),
+	      N_("(AArch64 only) Do not fix Cortex-A53 erratum 843419"));
+
+  DEFINE_bool(fix_cortex_a53_835769, options::TWO_DASHES, '\0', false,
+	      N_("(AArch64 only) Fix Cortex-A53 erratum 835769"),
+	      N_("(AArch64 only) Do not fix Cortex-A53 erratum 835769"));
 
   DEFINE_special(fix_v4bx, options::TWO_DASHES, '\0',
-                 N_("(ARM only) Rewrite BX rn as MOV pc, rn for ARMv4"),
-                 NULL);
+		 N_("(ARM only) Rewrite BX rn as MOV pc, rn for ARMv4"),
+		 NULL);
 
   DEFINE_special(fix_v4bx_interworking, options::TWO_DASHES, '\0',
-                 N_("(ARM only) Rewrite BX rn branch to ARMv4 interworking "
-                    "veneer"),
-                 NULL);
+		 N_("(ARM only) Rewrite BX rn branch to ARMv4 interworking "
+		    "veneer"),
+		 NULL);
+
+  DEFINE_string(fuse_ld, options::ONE_DASH, '\0', "",
+		N_("Ignored for GCC linker option compatibility"),
+		N_("[gold,bfd]"));
+
+  // g
 
   DEFINE_bool(g, options::EXACTLY_ONE_DASH, '\0', false,
 	      N_("Ignored"), NULL);
+
+  DEFINE_bool(gc_sections, options::TWO_DASHES, '\0', false,
+	      N_("Remove unused sections"),
+	      N_("Don't remove unused sections"));
 
   DEFINE_bool(gdb_index, options::TWO_DASHES, '\0', false,
 	      N_("Generate .gdb_index section"),
 	      N_("Do not generate .gdb_index section"));
 
   DEFINE_bool(gnu_unique, options::TWO_DASHES, '\0', true,
-	      N_("Enable STB_GNU_UNIQUE symbol binding (default)"),
+	      N_("Enable STB_GNU_UNIQUE symbol binding"),
 	      N_("Disable STB_GNU_UNIQUE symbol binding"));
 
+  DEFINE_bool(shared, options::ONE_DASH, 'G', false,
+	      N_("Generate shared library"), NULL);
+
+  // h
+
   DEFINE_string(soname, options::ONE_DASH, 'h', NULL,
-                N_("Set shared library name"), N_("FILENAME"));
+		N_("Set shared library name"), N_("FILENAME"));
 
   DEFINE_double(hash_bucket_empty_fraction, options::TWO_DASHES, '\0', 0.0,
 		N_("Min fraction of empty buckets in dynamic hash"),
 		N_("FRACTION"));
 
-  DEFINE_enum(hash_style, options::TWO_DASHES, '\0', "sysv",
+  DEFINE_enum(hash_style, options::TWO_DASHES, '\0', DEFAULT_HASH_STYLE,
 	      N_("Dynamic hash style"), N_("[sysv,gnu,both]"),
 	      {"sysv", "gnu", "both"});
 
-  DEFINE_string(dynamic_linker, options::TWO_DASHES, 'I', NULL,
-                N_("Set dynamic linker path"), N_("PROGRAM"));
+  // i
+
+  DEFINE_bool_alias(i, relocatable, options::EXACTLY_ONE_DASH, '\0',
+		    N_("Alias for -r"), NULL, false);
+
+  DEFINE_enum(icf, options::TWO_DASHES, '\0', "none",
+	      N_("Identical Code Folding. "
+		 "\'--icf=safe\' Folds ctors, dtors and functions whose"
+		 " pointers are definitely not taken"),
+	      ("[none,all,safe]"),
+	      {"none", "all", "safe"});
+
+  DEFINE_uint(icf_iterations, options::TWO_DASHES , '\0', 0,
+	      N_("Number of iterations of ICF (default 2)"), N_("COUNT"));
 
   DEFINE_special(incremental, options::TWO_DASHES, '\0',
 		 N_("Do an incremental link if possible; "
@@ -832,71 +964,89 @@ class General_options
 		 N_("Do an incremental link; exit if not possible"), NULL);
 
   DEFINE_string(incremental_base, options::TWO_DASHES, '\0', NULL,
-                N_("Set base file for incremental linking"
-                   " (default is output file)"),
-                N_("FILE"));
+		N_("Set base file for incremental linking"
+		   " (default is output file)"),
+		N_("FILE"));
 
   DEFINE_special(incremental_changed, options::TWO_DASHES, '\0',
-                 N_("Assume files changed"), NULL);
+		 N_("Assume files changed"), NULL);
 
   DEFINE_special(incremental_unchanged, options::TWO_DASHES, '\0',
-                 N_("Assume files didn't change"), NULL);
+		 N_("Assume files didn't change"), NULL);
 
   DEFINE_special(incremental_unknown, options::TWO_DASHES, '\0',
-                 N_("Use timestamps to check files (default)"), NULL);
+		 N_("Use timestamps to check files (default)"), NULL);
 
   DEFINE_special(incremental_startup_unchanged, options::TWO_DASHES, '\0',
-                 N_("Assume startup files unchanged "
+		 N_("Assume startup files unchanged "
 		    "(files preceding this option)"), NULL);
 
   DEFINE_percent(incremental_patch, options::TWO_DASHES, '\0', 10,
-		 N_("Amount of extra space to allocate for patches"),
+		 N_("Amount of extra space to allocate for patches "
+		    "(default 10)"),
 		 N_("PERCENT"));
 
   DEFINE_string(init, options::ONE_DASH, '\0', "_init",
-                N_("Call SYMBOL at load-time"), N_("SYMBOL"));
+		N_("Call SYMBOL at load-time"), N_("SYMBOL"));
+
+  DEFINE_string(dynamic_linker, options::TWO_DASHES, 'I', NULL,
+		N_("Set dynamic linker path"), N_("PROGRAM"));
+
+  // j
 
   DEFINE_special(just_symbols, options::TWO_DASHES, '\0',
-                 N_("Read only symbol values from FILE"), N_("FILE"));
+		 N_("Read only symbol values from FILE"), N_("FILE"));
+
+  // k
+
+  DEFINE_bool(keep_files_mapped, options::TWO_DASHES, '\0', true,
+	      N_("Keep files mapped across passes"),
+	      N_("Release mapped files after each pass"));
+
+  DEFINE_set(keep_unique, options::TWO_DASHES, '\0',
+	     N_("Do not fold this symbol during ICF"), N_("SYMBOL"));
+
+  // l
+
+  DEFINE_special(library, options::TWO_DASHES, 'l',
+		 N_("Search for library LIBNAME"), N_("LIBNAME"));
+
+  DEFINE_bool(ld_generated_unwind_info, options::TWO_DASHES, '\0', true,
+	      N_("Generate unwind information for PLT"),
+	      N_("Do not generate unwind information for PLT"));
+
+  DEFINE_dirlist(library_path, options::TWO_DASHES, 'L',
+		 N_("Add directory to search path"), N_("DIR"));
+
+  DEFINE_bool(long_plt, options::TWO_DASHES, '\0', false,
+	      N_("(ARM only) Generate long PLT entries"),
+	      N_("(ARM only) Do not generate long PLT entries"));
+
+  // m
+
+  DEFINE_string(m, options::EXACTLY_ONE_DASH, 'm', "",
+		N_("Set GNU linker emulation; obsolete"), N_("EMULATION"));
 
   DEFINE_bool(map_whole_files, options::TWO_DASHES, '\0',
 	      sizeof(void*) >= 8,
-              N_("Map whole files to memory (default on 64-bit hosts)"),
-              N_("Map relevant file parts to memory (default on 32-bit "
-                 "hosts)"));
-  DEFINE_bool(keep_files_mapped, options::TWO_DASHES, '\0', true,
-              N_("Keep files mapped across passes (default)"),
-              N_("Release mapped files after each pass"));
+	      N_("Map whole files to memory"),
+	      N_("Map relevant file parts to memory"));
 
-  DEFINE_bool(ld_generated_unwind_info, options::TWO_DASHES, '\0', true,
-	      N_("Generate unwind information for PLT (default)"),
-	      N_("Do not generate unwind information for PLT"));
-
-  DEFINE_special(library, options::TWO_DASHES, 'l',
-                 N_("Search for library LIBNAME"), N_("LIBNAME"));
-
-  DEFINE_dirlist(library_path, options::TWO_DASHES, 'L',
-                 N_("Add directory to search path"), N_("DIR"));
-
-  DEFINE_bool(nostdlib, options::ONE_DASH, '\0', false,
-              N_(" Only search directories specified on the command line."),
-              NULL);
-
-  DEFINE_bool(rosegment, options::TWO_DASHES, '\0', false,
-              N_(" Put read-only non-executable sections in their own segment"),
-              NULL);
-
-  DEFINE_string(m, options::EXACTLY_ONE_DASH, 'm', "",
-                N_("Set GNU linker emulation; obsolete"), N_("EMULATION"));
+  DEFINE_bool(merge_exidx_entries, options::TWO_DASHES, '\0', true,
+	      N_("(ARM only) Merge exidx entries in debuginfo"),
+	      N_("(ARM only) Do not merge exidx entries in debuginfo"));
 
   DEFINE_bool(mmap_output_file, options::TWO_DASHES, '\0', true,
-              N_("Map the output file for writing (default)."),
-              N_("Do not map the output file for writing."));
+	      N_("Map the output file for writing"),
+	      N_("Do not map the output file for writing"));
 
   DEFINE_bool(print_map, options::TWO_DASHES, 'M', false,
 	      N_("Write map file on standard output"), NULL);
+
   DEFINE_string(Map, options::ONE_DASH, '\0', NULL, N_("Write map file"),
 		N_("MAPFILENAME"));
+
+  // n
 
   DEFINE_bool(nmagic, options::TWO_DASHES, 'n', false,
 	      N_("Do not page align data"), NULL);
@@ -904,52 +1054,99 @@ class General_options
 	      N_("Do not page align data, do not make text readonly"),
 	      N_("Page align data, make text readonly"));
 
-  DEFINE_enable(new_dtags, options::EXACTLY_TWO_DASHES, '\0', false,
-		N_("Enable use of DT_RUNPATH and DT_FLAGS"),
-		N_("Disable use of DT_RUNPATH and DT_FLAGS"));
-
-  DEFINE_bool(noinhibit_exec, options::TWO_DASHES, '\0', false,
-	      N_("Create an output file even if errors occur"), NULL);
+  DEFINE_bool(no_keep_memory, options::TWO_DASHES, '\0', false,
+	      N_("Use less memory and more disk I/O "
+		 "(included only for compatibility with GNU ld)"), NULL);
 
   DEFINE_bool_alias(no_undefined, defs, options::TWO_DASHES, '\0',
 		    N_("Report undefined symbols (even with --shared)"),
 		    NULL, false);
 
-  DEFINE_string(output, options::TWO_DASHES, 'o', "a.out",
-                N_("Set output file name"), N_("FILE"));
+  DEFINE_bool(noinhibit_exec, options::TWO_DASHES, '\0', false,
+	      N_("Create an output file even if errors occur"), NULL);
 
-  DEFINE_uint(optimize, options::EXACTLY_ONE_DASH, 'O', 0,
-              N_("Optimize output file size"), N_("LEVEL"));
+  DEFINE_bool(nostdlib, options::ONE_DASH, '\0', false,
+	      N_("Only search directories specified on the command line"),
+	      NULL);
+
+  // o
+
+  DEFINE_string(output, options::TWO_DASHES, 'o', "a.out",
+		N_("Set output file name"), N_("FILE"));
 
   DEFINE_string(oformat, options::EXACTLY_TWO_DASHES, '\0', "elf",
 		N_("Set output format"), N_("[binary]"));
 
-  DEFINE_bool(p, options::ONE_DASH, '\0', false,
-	      N_("(ARM only) Ignore for backward compatibility"), NULL);
+  DEFINE_uint(optimize, options::EXACTLY_ONE_DASH, 'O', 0,
+	      N_("Optimize output file size"), N_("LEVEL"));
+
+  DEFINE_enum(orphan_handling, options::TWO_DASHES, '\0', "place",
+	      N_("Orphan section handling"), N_("[place,discard,warn,error]"),
+	      {"place", "discard", "warn", "error"});
+
+  // p
+
+  DEFINE_bool(p, options::ONE_DASH, 'p', false,
+	      N_("Ignored for ARM compatibility"), NULL);
 
   DEFINE_bool(pie, options::ONE_DASH, '\0', false,
-	      N_("Create a position independent executable"), NULL);
+	      N_("Create a position independent executable"),
+	      N_("Do not create a position independent executable"));
   DEFINE_bool_alias(pic_executable, pie, options::TWO_DASHES, '\0',
-		    N_("Create a position independent executable"), NULL,
+		    N_("Create a position independent executable"),
+		    N_("Do not create a position independent executable"),
 		    false);
+
+  DEFINE_bool(pic_veneer, options::TWO_DASHES, '\0', false,
+	      N_("Force PIC sequences for ARM/Thumb interworking veneers"),
+	      NULL);
 
   DEFINE_bool(pipeline_knowledge, options::ONE_DASH, '\0', false,
 	      NULL, N_("(ARM only) Ignore for backward compatibility"));
 
+  DEFINE_var(plt_align, options::TWO_DASHES, '\0', 0, "5",
+	     N_("(PowerPC only) Align PLT call stubs to fit cache lines"),
+	     N_("[=P2ALIGN]"), true, int, int, options::parse_uint, false);
+
+  DEFINE_bool(plt_localentry, options::TWO_DASHES, '\0', false,
+	      N_("(PowerPC64 only) Optimize calls to ELFv2 localentry:0 functions"),
+	      N_("(PowerPC64 only) Don't optimize ELFv2 calls"));
+
+  DEFINE_bool(plt_static_chain, options::TWO_DASHES, '\0', false,
+	      N_("(PowerPC64 only) PLT call stubs should load r11"),
+	      N_("(PowerPC64 only) PLT call stubs should not load r11"));
+
+  DEFINE_bool(plt_thread_safe, options::TWO_DASHES, '\0', false,
+	      N_("(PowerPC64 only) PLT call stubs with load-load barrier"),
+	      N_("(PowerPC64 only) PLT call stubs without barrier"));
+
 #ifdef ENABLE_PLUGINS
   DEFINE_special(plugin, options::TWO_DASHES, '\0',
-                 N_("Load a plugin library"), N_("PLUGIN"));
+		 N_("Load a plugin library"), N_("PLUGIN"));
   DEFINE_special(plugin_opt, options::TWO_DASHES, '\0',
-                 N_("Pass an option to the plugin"), N_("OPTION"));
+		 N_("Pass an option to the plugin"), N_("OPTION"));
+#else
+  DEFINE_special(plugin, options::TWO_DASHES, '\0',
+		 N_("Load a plugin library (not supported)"), N_("PLUGIN"));
+  DEFINE_special(plugin_opt, options::TWO_DASHES, '\0',
+		 N_("Pass an option to the plugin (not supported)"),
+		 N_("OPTION"));
 #endif
 
   DEFINE_bool(posix_fallocate, options::TWO_DASHES, '\0', true,
-              N_("Use posix_fallocate to reserve space in the output file"
-		 " (default)."),
-              N_("Use fallocate or ftruncate to reserve space."));
+	      N_("Use posix_fallocate to reserve space in the output file"),
+	      N_("Use fallocate or ftruncate to reserve space"));
 
   DEFINE_bool(preread_archive_symbols, options::TWO_DASHES, '\0', false,
-              N_("Preread archive symbols when multi-threaded"), NULL);
+	      N_("Preread archive symbols when multi-threaded"), NULL);
+
+  DEFINE_bool(print_gc_sections, options::TWO_DASHES, '\0', false,
+	      N_("List removed unused sections on stderr"),
+	      N_("Do not list removed unused sections"));
+
+  DEFINE_bool(print_icf_sections, options::TWO_DASHES, '\0', false,
+	      N_("List folded identical sections on stderr"),
+	      N_("Do not list folded identical sections"));
 
   DEFINE_bool(print_output_format, options::TWO_DASHES, '\0', false,
 	      N_("Print default output format"), NULL);
@@ -958,78 +1155,100 @@ class General_options
 		N_("Print symbols defined and used for each input"),
 		N_("FILENAME"));
 
+  DEFINE_special(push_state, options::TWO_DASHES, '\0',
+		 N_("Save the state of flags related to input files"), NULL);
+  DEFINE_special(pop_state, options::TWO_DASHES, '\0',
+		 N_("Restore the state of flags related to input files"), NULL);
+
+  // q
+
+  DEFINE_bool(emit_relocs, options::TWO_DASHES, 'q', false,
+	      N_("Generate relocations in output"), NULL);
+
   DEFINE_bool(Qy, options::EXACTLY_ONE_DASH, '\0', false,
 	      N_("Ignored for SVR4 compatibility"), NULL);
 
-  DEFINE_bool(emit_relocs, options::TWO_DASHES, 'q', false,
-              N_("Generate relocations in output"), NULL);
+  // r
 
   DEFINE_bool(relocatable, options::EXACTLY_ONE_DASH, 'r', false,
-              N_("Generate relocatable output"), NULL);
-  DEFINE_bool_alias(i, relocatable, options::EXACTLY_ONE_DASH, '\0',
-		    N_("Synonym for -r"), NULL, false);
+	      N_("Generate relocatable output"), NULL);
 
   DEFINE_bool(relax, options::TWO_DASHES, '\0', false,
-	      N_("Relax branches on certain targets"), NULL);
+	      N_("Relax branches on certain targets"),
+	      N_("Do not relax branches"));
 
   DEFINE_string(retain_symbols_file, options::TWO_DASHES, '\0', NULL,
-                N_("keep only symbols listed in this file"), N_("FILE"));
+		N_("keep only symbols listed in this file"), N_("FILE"));
+
+  DEFINE_bool(rosegment, options::TWO_DASHES, '\0', false,
+	      N_("Put read-only non-executable sections in their own segment"),
+	      NULL);
+
+  DEFINE_uint64(rosegment_gap, options::TWO_DASHES, '\0', -1U,
+		N_("Set offset between executable and read-only segments"),
+		N_("OFFSET"));
 
   // -R really means -rpath, but can mean --just-symbols for
   // compatibility with GNU ld.  -rpath is always -rpath, so we list
   // it separately.
   DEFINE_special(R, options::EXACTLY_ONE_DASH, 'R',
-                 N_("Add DIR to runtime search path"), N_("DIR"));
+		 N_("Add DIR to runtime search path"), N_("DIR"));
 
   DEFINE_dirlist(rpath, options::ONE_DASH, '\0',
-                 N_("Add DIR to runtime search path"), N_("DIR"));
+		 N_("Add DIR to runtime search path"), N_("DIR"));
 
   DEFINE_dirlist(rpath_link, options::TWO_DASHES, '\0',
-                 N_("Add DIR to link time shared library search path"),
-                 N_("DIR"));
+		 N_("Add DIR to link time shared library search path"),
+		 N_("DIR"));
+
+  // s
+
+  DEFINE_bool(strip_all, options::TWO_DASHES, 's', false,
+	      N_("Strip all symbols"), NULL);
+  DEFINE_bool(strip_debug, options::TWO_DASHES, 'S', false,
+	      N_("Strip debugging information"), NULL);
+  DEFINE_bool(strip_debug_non_line, options::TWO_DASHES, '\0', false,
+	      N_("Emit only debug line number information"), NULL);
+  DEFINE_bool(strip_debug_gdb, options::TWO_DASHES, '\0', false,
+	      N_("Strip debug symbols that are unused by gdb "
+		 "(at least versions <= 7.4)"), NULL);
+  DEFINE_bool(strip_lto_sections, options::TWO_DASHES, '\0', true,
+	      N_("Strip LTO intermediate code sections"), NULL);
 
   DEFINE_string(section_ordering_file, options::TWO_DASHES, '\0', NULL,
-		N_("Layout sections in the order specified."),
+		N_("Layout sections in the order specified"),
 		N_("FILENAME"));
 
   DEFINE_special(section_start, options::TWO_DASHES, '\0',
 		 N_("Set address of section"), N_("SECTION=ADDRESS"));
 
+  DEFINE_bool(secure_plt, options::TWO_DASHES , '\0', true,
+	      N_("(PowerPC only) Use new-style PLT"), NULL);
+
   DEFINE_optional_string(sort_common, options::TWO_DASHES, '\0', NULL,
 			 N_("Sort common symbols by alignment"),
 			 N_("[={ascending,descending}]"));
+
+  DEFINE_enum(sort_section, options::TWO_DASHES, '\0', "none",
+	      N_("Sort sections by name.  \'--no-text-reorder\'"
+		 " will override \'--sort-section=name\' for .text"),
+	      N_("[none,name]"),
+	      {"none", "name"});
 
   DEFINE_uint(spare_dynamic_tags, options::TWO_DASHES, '\0', 5,
 	      N_("Dynamic tag slots to reserve (default 5)"),
 	      N_("COUNT"));
 
-  DEFINE_bool(strip_all, options::TWO_DASHES, 's', false,
-              N_("Strip all symbols"), NULL);
-  DEFINE_bool(strip_debug, options::TWO_DASHES, 'S', false,
-              N_("Strip debugging information"), NULL);
-  DEFINE_bool(strip_debug_non_line, options::TWO_DASHES, '\0', false,
-              N_("Emit only debug line number information"), NULL);
-  DEFINE_bool(strip_debug_gdb, options::TWO_DASHES, '\0', false,
-              N_("Strip debug symbols that are unused by gdb "
-                 "(at least versions <= 7.4)"), NULL);
-  DEFINE_bool(strip_lto_sections, options::TWO_DASHES, '\0', true,
-              N_("Strip LTO intermediate code sections"), NULL);
-
   DEFINE_int(stub_group_size, options::TWO_DASHES , '\0', 1,
-             N_("(ARM only) The maximum distance from instructions in a group "
-		"of sections to their stubs.  Negative values mean stubs "
-		"are always after the group. 1 means using default size.\n"),
+	     N_("(ARM, PowerPC only) The maximum distance from instructions "
+		"in a group of sections to their stubs. Negative values mean "
+		"stubs are always after the group. 1 means use default size"),
 	     N_("SIZE"));
 
-  DEFINE_bool(no_keep_memory, options::TWO_DASHES, '\0', false,
-              N_("Use less memory and more disk I/O "
-                 "(included only for compatibility with GNU ld)"), NULL);
-
-  DEFINE_bool(shared, options::ONE_DASH, 'G', false,
-              N_("Generate shared library"), NULL);
-
-  DEFINE_bool(Bshareable, options::ONE_DASH, '\0', false,
-              N_("Generate shared library"), NULL);
+  DEFINE_bool(stub_group_multi, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC only) Allow a group of stubs to serve multiple "
+		 "output sections"),
+	      N_("(PowerPC only) Each output section has its own stubs"));
 
   DEFINE_uint(split_stack_adjust_size, options::TWO_DASHES, '\0', 0x4000,
 	      N_("Stack size when -fsplit-stack function calls non-split"),
@@ -1038,63 +1257,82 @@ class General_options
   // This is not actually special in any way, but I need to give it
   // a non-standard accessor-function name because 'static' is a keyword.
   DEFINE_special(static, options::ONE_DASH, '\0',
-                 N_("Do not link against shared libraries"), NULL);
+		 N_("Do not link against shared libraries"), NULL);
 
-  DEFINE_enum(icf, options::TWO_DASHES, '\0', "none",
-              N_("Identical Code Folding. "
-                 "\'--icf=safe\' Folds ctors, dtors and functions whose"
-                 " pointers are definitely not taken."),
-	      ("[none,all,safe]"),	
-              {"none", "all", "safe"});
-
-  DEFINE_uint(icf_iterations, options::TWO_DASHES , '\0', 0,
-              N_("Number of iterations of ICF (default 2)"), N_("COUNT"));
-
-  DEFINE_bool(print_icf_sections, options::TWO_DASHES, '\0', false,
-              N_("List folded identical sections on stderr"),
-              N_("Do not list folded identical sections"));
-
-  DEFINE_set(keep_unique, options::TWO_DASHES, '\0',
-	     N_("Do not fold this symbol during ICF"), N_("SYMBOL"));
-
-  DEFINE_bool(gc_sections, options::TWO_DASHES, '\0', false,
-              N_("Remove unused sections"),
-              N_("Don't remove unused sections (default)"));
-
-  DEFINE_bool(print_gc_sections, options::TWO_DASHES, '\0', false,
-              N_("List removed unused sections on stderr"),
-              N_("Do not list removed unused sections"));
+  DEFINE_special(start_lib, options::TWO_DASHES, '\0',
+		 N_("Start a library"), NULL);
+  DEFINE_special(end_lib, options::TWO_DASHES, '\0',
+		 N_("End a library "), NULL);
 
   DEFINE_bool(stats, options::TWO_DASHES, '\0', false,
-              N_("Print resource usage statistics"), NULL);
+	      N_("Print resource usage statistics"), NULL);
 
   DEFINE_string(sysroot, options::TWO_DASHES, '\0', "",
-                N_("Set target system root directory"), N_("DIR"));
+		N_("Set target system root directory"), N_("DIR"));
+
+  // t
 
   DEFINE_bool(trace, options::TWO_DASHES, 't', false,
-              N_("Print the name of each input file"), NULL);
+	      N_("Print the name of each input file"), NULL);
 
-  DEFINE_special(script, options::TWO_DASHES, 'T',
-                 N_("Read linker script"), N_("FILE"));
+  DEFINE_bool(target1_abs, options::TWO_DASHES, '\0', false,
+	      N_("(ARM only) Force R_ARM_TARGET1 type to R_ARM_ABS32"),
+	      NULL);
+  DEFINE_bool(target1_rel, options::TWO_DASHES, '\0', false,
+	      N_("(ARM only) Force R_ARM_TARGET1 type to R_ARM_REL32"),
+	      NULL);
+  DEFINE_enum(target2, options::TWO_DASHES, '\0', NULL,
+	      N_("(ARM only) Set R_ARM_TARGET2 relocation type"),
+	      N_("[rel, abs, got-rel"),
+	      {"rel", "abs", "got-rel"});
+
+  DEFINE_bool(text_reorder, options::TWO_DASHES, '\0', true,
+	      N_("Enable text section reordering for GCC section names"),
+	      N_("Disable text section reordering for GCC section names"));
 
   DEFINE_bool(threads, options::TWO_DASHES, '\0', false,
-              N_("Run the linker multi-threaded"),
-              N_("Do not run the linker multi-threaded"));
+	      N_("Run the linker multi-threaded"),
+	      N_("Do not run the linker multi-threaded"));
   DEFINE_uint(thread_count, options::TWO_DASHES, '\0', 0,
-              N_("Number of threads to use"), N_("COUNT"));
+	      N_("Number of threads to use"), N_("COUNT"));
   DEFINE_uint(thread_count_initial, options::TWO_DASHES, '\0', 0,
-              N_("Number of threads to use in initial pass"), N_("COUNT"));
+	      N_("Number of threads to use in initial pass"), N_("COUNT"));
   DEFINE_uint(thread_count_middle, options::TWO_DASHES, '\0', 0,
-              N_("Number of threads to use in middle pass"), N_("COUNT"));
+	      N_("Number of threads to use in middle pass"), N_("COUNT"));
   DEFINE_uint(thread_count_final, options::TWO_DASHES, '\0', 0,
-              N_("Number of threads to use in final pass"), N_("COUNT"));
+	      N_("Number of threads to use in final pass"), N_("COUNT"));
+
+  DEFINE_bool(tls_optimize, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC/64 only) Optimize GD/LD/IE code to IE/LE"),
+	      N_("(PowerPC/64 only) Don'\''t try to optimize TLS accesses"));
+  DEFINE_bool(tls_get_addr_optimize, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC/64 only) Use a special __tls_get_addr call"),
+	      N_("(PowerPC/64 only) Don't use a special __tls_get_addr call"));
+
+  DEFINE_bool(toc_optimize, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC64 only) Optimize TOC code sequences"),
+	      N_("(PowerPC64 only) Don't optimize TOC code sequences"));
+
+  DEFINE_bool(toc_sort, options::TWO_DASHES, '\0', true,
+	      N_("(PowerPC64 only) Sort TOC and GOT sections"),
+	      N_("(PowerPC64 only) Don't sort TOC and GOT sections"));
+
+  DEFINE_special(script, options::TWO_DASHES, 'T',
+		 N_("Read linker script"), N_("FILE"));
 
   DEFINE_uint64(Tbss, options::ONE_DASH, '\0', -1U,
-                N_("Set the address of the bss segment"), N_("ADDRESS"));
+		N_("Set the address of the bss segment"), N_("ADDRESS"));
   DEFINE_uint64(Tdata, options::ONE_DASH, '\0', -1U,
-                N_("Set the address of the data segment"), N_("ADDRESS"));
+		N_("Set the address of the data segment"), N_("ADDRESS"));
   DEFINE_uint64(Ttext, options::ONE_DASH, '\0', -1U,
-                N_("Set the address of the text segment"), N_("ADDRESS"));
+		N_("Set the address of the text segment"), N_("ADDRESS"));
+  DEFINE_uint64_alias(Ttext_segment, Ttext, options::ONE_DASH, '\0',
+		      N_("Set the address of the text segment"),
+		      N_("ADDRESS"));
+  DEFINE_uint64(Trodata_segment, options::ONE_DASH, '\0', -1U,
+		N_("Set the address of the rodata segment"), N_("ADDRESS"));
+
+  // u
 
   DEFINE_set(undefined, options::TWO_DASHES, 'u',
 	     N_("Create undefined reference to SYMBOL"), N_("SYMBOL"));
@@ -1106,22 +1344,26 @@ class General_options
 	      {"ignore-all", "report-all", "ignore-in-object-files",
 		  "ignore-in-shared-libs"});
 
+  // v
+
   DEFINE_bool(verbose, options::TWO_DASHES, '\0', false,
-              N_("Synonym for --debug=files"), NULL);
+	      N_("Alias for --debug=files"), NULL);
 
   DEFINE_special(version_script, options::TWO_DASHES, '\0',
-                 N_("Read version script"), N_("FILE"));
+		 N_("Read version script"), N_("FILE"));
+
+  // w
 
   DEFINE_bool(warn_common, options::TWO_DASHES, '\0', false,
 	      N_("Warn about duplicate common symbols"),
-	      N_("Do not warn about duplicate common symbols (default)"));
+	      N_("Do not warn about duplicate common symbols"));
 
-  DEFINE_bool(warn_constructors, options::TWO_DASHES, '\0', false,
-	      N_("Ignored"), N_("Ignored"));
+  DEFINE_bool_ignore(warn_constructors, options::TWO_DASHES, '\0',
+		     N_("Ignored"), N_("Ignored"));
 
   DEFINE_bool(warn_execstack, options::TWO_DASHES, '\0', false,
 	      N_("Warn if the stack is executable"),
-	      N_("Do not warn if the stack is executable (default)"));
+	      N_("Do not warn if the stack is executable"));
 
   DEFINE_bool(warn_mismatch, options::TWO_DASHES, '\0', true,
 	      NULL, N_("Don't warn about mismatched input files"));
@@ -1135,7 +1377,7 @@ class General_options
 
   DEFINE_bool(warn_shared_textrel, options::TWO_DASHES, '\0', false,
 	      N_("Warn if text segment is not shareable"),
-	      N_("Do not warn if text segment is not shareable (default)"));
+	      N_("Do not warn if text segment is not shareable"));
 
   DEFINE_bool(warn_unresolved_symbols, options::TWO_DASHES, '\0', false,
 	      N_("Report unresolved symbols as warnings"),
@@ -1149,47 +1391,64 @@ class General_options
 	      N_("(ARM only) Do not warn about objects with incompatible "
 		 "wchar_t sizes"));
 
+  DEFINE_bool(weak_unresolved_symbols, options::TWO_DASHES, '\0', false,
+	      N_("Convert unresolved symbols to weak references"),
+	      NULL);
+
   DEFINE_bool(whole_archive, options::TWO_DASHES, '\0', false,
-              N_("Include all archive contents"),
-              N_("Include only needed archive contents"));
+	      N_("Include all archive contents"),
+	      N_("Include only needed archive contents"));
 
   DEFINE_set(wrap, options::TWO_DASHES, '\0',
 	     N_("Use wrapper functions for SYMBOL"), N_("SYMBOL"));
 
+  // x
+
+  DEFINE_special(discard_all, options::TWO_DASHES, 'x',
+		 N_("Delete all local symbols"), NULL);
+  DEFINE_special(discard_locals, options::TWO_DASHES, 'X',
+		 N_("Delete all temporary local symbols"), NULL);
+  DEFINE_special(discard_none, options::TWO_DASHES, '\0',
+		 N_("Keep all local symbols"), NULL);
+
+  // y
+
   DEFINE_set(trace_symbol, options::TWO_DASHES, 'y',
-             N_("Trace references to symbol"), N_("SYMBOL"));
+	     N_("Trace references to symbol"), N_("SYMBOL"));
 
   DEFINE_bool(undefined_version, options::TWO_DASHES, '\0', true,
-	      N_("Allow unused version in script (default)"),
+	      N_("Allow unused version in script"),
 	      N_("Do not allow unused version in script"));
 
   DEFINE_string(Y, options::EXACTLY_ONE_DASH, 'Y', "",
 		N_("Default search path for Solaris compatibility"),
 		N_("PATH"));
 
+  // special characters
+
   DEFINE_special(start_group, options::TWO_DASHES, '(',
-                 N_("Start a library search group"), NULL);
+		 N_("Start a library search group"), NULL);
   DEFINE_special(end_group, options::TWO_DASHES, ')',
-                 N_("End a library search group"), NULL);
-
-
-  DEFINE_special(start_lib, options::TWO_DASHES, '\0',
-                 N_("Start a library"), NULL);
-  DEFINE_special(end_lib, options::TWO_DASHES, '\0',
-                 N_("End a library "), NULL);
+		 N_("End a library search group"), NULL);
 
   // The -z options.
 
+  DEFINE_bool(bndplt, options::DASH_Z, '\0', false,
+	      N_("(x86-64 only) Generate a BND PLT for Intel MPX"),
+	      N_("Generate a regular PLT"));
   DEFINE_bool(combreloc, options::DASH_Z, '\0', true,
 	      N_("Sort dynamic relocs"),
 	      N_("Do not sort dynamic relocs"));
   DEFINE_uint64(common_page_size, options::DASH_Z, '\0', 0,
-                N_("Set common page size to SIZE"), N_("SIZE"));
+		N_("Set common page size to SIZE"), N_("SIZE"));
   DEFINE_bool(defs, options::DASH_Z, '\0', false,
-              N_("Report undefined symbols (even with --shared)"),
-              NULL);
+	      N_("Report undefined symbols (even with --shared)"),
+	      NULL);
   DEFINE_bool(execstack, options::DASH_Z, '\0', false,
-              N_("Mark output as requiring executable stack"), NULL);
+	      N_("Mark output as requiring executable stack"), NULL);
+  DEFINE_bool(global, options::DASH_Z, '\0', false,
+	      N_("Make symbols in DSO available for subsequently loaded "
+		 "objects"), NULL);
   DEFINE_bool(initfirst, options::DASH_Z, '\0', false,
 	      N_("Mark DSO to be initialized first at runtime"),
 	      NULL);
@@ -1197,13 +1456,13 @@ class General_options
 	      N_("Mark object to interpose all DSOs but executable"),
 	      NULL);
   DEFINE_bool_alias(lazy, now, options::DASH_Z, '\0',
-		    N_("Mark object for lazy runtime binding (default)"),
+		    N_("Mark object for lazy runtime binding"),
 		    NULL, true);
   DEFINE_bool(loadfltr, options::DASH_Z, '\0', false,
 	      N_("Mark object requiring immediate process"),
 	      NULL);
   DEFINE_uint64(max_page_size, options::DASH_Z, '\0', 0,
-                N_("Set maximum page size to SIZE"), N_("SIZE"));
+		N_("Set maximum page size to SIZE"), N_("SIZE"));
   DEFINE_bool(muldefs, options::DASH_Z, '\0', false,
 	      N_("Allow multiple definitions of symbols"),
 	      NULL);
@@ -1225,22 +1484,33 @@ class General_options
 	      N_("Mark DSO not available to dldump"),
 	      NULL);
   DEFINE_bool(noexecstack, options::DASH_Z, '\0', false,
-              N_("Mark output as not requiring executable stack"), NULL);
+	      N_("Mark output as not requiring executable stack"), NULL);
   DEFINE_bool(now, options::DASH_Z, '\0', false,
 	      N_("Mark object for immediate function binding"),
 	      NULL);
   DEFINE_bool(origin, options::DASH_Z, '\0', false,
 	      N_("Mark DSO to indicate that needs immediate $ORIGIN "
-                 "processing at runtime"), NULL);
-  DEFINE_bool(relro, options::DASH_Z, '\0', false,
+		 "processing at runtime"), NULL);
+  DEFINE_bool(relro, options::DASH_Z, '\0', DEFAULT_LD_Z_RELRO,
 	      N_("Where possible mark variables read-only after relocation"),
 	      N_("Don't mark variables read-only after relocation"));
+  DEFINE_uint64(stack_size, options::DASH_Z, '\0', 0,
+		N_("Set PT_GNU_STACK segment p_memsz to SIZE"), N_("SIZE"));
   DEFINE_bool(text, options::DASH_Z, '\0', false,
 	      N_("Do not permit relocations in read-only segments"),
-	      N_("Permit relocations in read-only segments (default)"));
+	      N_("Permit relocations in read-only segments"));
   DEFINE_bool_alias(textoff, text, options::DASH_Z, '\0',
-		    N_("Permit relocations in read-only segments (default)"),
+		    N_("Permit relocations in read-only segments"),
 		    NULL, true);
+  DEFINE_bool(text_unlikely_segment, options::DASH_Z, '\0', false,
+	      N_("Move .text.unlikely sections to a separate segment."),
+	      N_("Do not move .text.unlikely sections to a separate "
+		 "segment."));
+  DEFINE_bool(keep_text_section_prefix, options::DASH_Z, '\0', false,
+	      N_("Keep .text.hot, .text.startup, .text.exit and .text.unlikely "
+		 "as separate sections in the final binary."),
+	      N_("Merge all .text.* prefix sections."));
+
 
  public:
   typedef options::Dir_list Dir_list;
@@ -1300,6 +1570,10 @@ class General_options
   static Object_format
   string_to_object_format(const char* arg);
 
+  // Convert an Object_format to string.
+  static const char*
+  object_format_to_string(Object_format);
+
   // Note: these functions are not very fast.
   Object_format format_enum() const;
   Object_format oformat_enum() const;
@@ -1313,7 +1587,7 @@ class General_options
   should_retain_symbol(const char* symbol_name) const
     {
       if (symbols_to_retain_.empty())    // means flag wasn't specified
-        return true;
+	return true;
       return symbols_to_retain_.find(symbol_name) != symbols_to_retain_.end();
     }
 
@@ -1357,6 +1631,11 @@ class General_options
   in_dynamic_list(const char* symbol) const
   { return this->dynamic_list_.version_script_info()->symbol_is_local(symbol); }
 
+  // True if a --dynamic-list script was provided.
+  bool
+  have_dynamic_list() const
+  { return this->have_dynamic_list_; }
+
   // Finalize the dynamic list.
   void
   finalize_dynamic_list()
@@ -1387,6 +1666,10 @@ class General_options
   Incremental_disposition
   incremental_disposition() const
   { return this->incremental_disposition_; }
+
+  void
+  set_incremental_disposition(Incremental_disposition disp)
+  { this->incremental_disposition_ = disp; }
 
   // The disposition to use for startup files (those that precede the
   // first --incremental-changed, etc. option).
@@ -1435,10 +1718,51 @@ class General_options
   endianness() const
   { return this->endianness_; }
 
+  bool
+  discard_all() const
+  { return this->discard_locals_ == DISCARD_ALL; }
+
+  bool
+  discard_locals() const
+  { return this->discard_locals_ == DISCARD_LOCALS; }
+
+  bool
+  discard_sec_merge() const
+  { return this->discard_locals_ == DISCARD_SEC_MERGE; }
+
+  enum Orphan_handling
+  {
+    // Place orphan sections normally (default).
+    ORPHAN_PLACE,
+    // Discard all orphan sections.
+    ORPHAN_DISCARD,
+    // Warn when placing orphan sections.
+    ORPHAN_WARN,
+    // Issue error for orphan sections.
+    ORPHAN_ERROR
+  };
+
+  Orphan_handling
+  orphan_handling_enum() const
+  { return this->orphan_handling_enum_; }
+
  private:
   // Don't copy this structure.
   General_options(const General_options&);
   General_options& operator=(const General_options&);
+
+  // What local symbols to discard.
+  enum Discard_locals
+  {
+    // Locals in merge sections (default).
+    DISCARD_SEC_MERGE,
+    // None (--discard-none).
+    DISCARD_NONE,
+    // Temporary locals (--discard-locals/-X).
+    DISCARD_LOCALS,
+    // All locals (--discard-all/-x).
+    DISCARD_ALL
+  };
 
   // Whether to mark the stack as executable.
   enum Execstack
@@ -1456,7 +1780,7 @@ class General_options
     // Do not fold any functions (Default or --icf=none).
     ICF_NONE,
     // All functions are candidates for folding. (--icf=all).
-    ICF_ALL,	
+    ICF_ALL,
     // Only ctors and dtors are candidates for folding. (--icf=safe).
     ICF_SAFE
   };
@@ -1477,6 +1801,10 @@ class General_options
   set_static(bool value)
   { static_ = value; }
 
+  void
+  set_orphan_handling_enum(Orphan_handling value)
+  { this->orphan_handling_enum_ = value; }
+
   // These are called by finalize() to set up the search-path correctly.
   void
   add_to_library_path_with_sysroot(const std::string& arg)
@@ -1494,6 +1822,9 @@ class General_options
   void
   add_plugin_option(const char* opt);
 
+  void
+  copy_from_posdep_options(const Position_dependent_options&);
+
   // Whether we printed version information.
   bool printed_version_;
   // Whether to mark the stack as executable.
@@ -1510,6 +1841,8 @@ class General_options
   // script.cc, we store this as a Script_options object, even though
   // we only use a single Version_tree from it.
   Script_options dynamic_list_;
+  // Whether a --dynamic-list file was provided.
+  bool have_dynamic_list_;
   // The incremental linking mode.
   Incremental_mode incremental_mode_;
   // The disposition given by the --incremental-changed,
@@ -1533,6 +1866,12 @@ class General_options
   Fix_v4bx fix_v4bx_;
   // Endianness.
   Endianness endianness_;
+  // What local symbols to discard.
+  Discard_locals discard_locals_;
+  // Stack of saved options for --push-state/--pop-state.
+  std::vector<Position_dependent_options*> options_stack_;
+  // Orphan handling option, decoded to an enum value.
+  Orphan_handling orphan_handling_enum_;
 };
 
 // The position-dependent options.  We use this to store the state of
@@ -1549,7 +1888,7 @@ class General_options
   type__                                        \
   varname__() const                             \
   { return this->varname__##_; }                \
-                                                \
+						\
   void                                          \
   set_##varname__(type__ value)                 \
   { this->varname__##_ = value; }               \
@@ -1560,10 +1899,11 @@ class Position_dependent_options
 {
  public:
   Position_dependent_options(const General_options& options
-                             = Position_dependent_options::default_options_)
+			     = Position_dependent_options::default_options_)
   { copy_from_options(options); }
 
-  void copy_from_options(const General_options& options)
+  void
+  copy_from_options(const General_options& options)
   {
     this->set_as_needed(options.as_needed());
     this->set_Bdynamic(options.Bdynamic());
@@ -1617,9 +1957,9 @@ class Input_file_argument
   { }
 
   Input_file_argument(const char* name, Input_file_type type,
-                      const char* extra_search_path,
-                      bool just_symbols,
-                      const Position_dependent_options& options)
+		      const char* extra_search_path,
+		      bool just_symbols,
+		      const Position_dependent_options& options)
     : name_(name), type_(type), extra_search_path_(extra_search_path),
       just_symbols_(just_symbols), options_(options), arg_serial_(0)
   { }
@@ -1629,9 +1969,9 @@ class Input_file_argument
   // position-independent vars from the General_options and only store
   // those.
   Input_file_argument(const char* name, Input_file_type type,
-                      const char* extra_search_path,
-                      bool just_symbols,
-                      const General_options& options)
+		      const char* extra_search_path,
+		      bool just_symbols,
+		      const General_options& options)
     : name_(name), type_(type), extra_search_path_(extra_search_path),
       just_symbols_(just_symbols), options_(options), arg_serial_(0)
   { }
@@ -1656,8 +1996,8 @@ class Input_file_argument
   extra_search_path() const
   {
     return (this->extra_search_path_.empty()
-            ? NULL
-            : this->extra_search_path_.c_str());
+	    ? NULL
+	    : this->extra_search_path_.c_str());
   }
 
   // Return whether we should only read symbols from this file.
@@ -1970,7 +2310,7 @@ class Command_line
   // is set to true if argv[i] is "--".
   int
   process_one_option(int argc, const char** argv, int i,
-                     bool* no_more_options);
+		     bool* no_more_options);
 
   // Get the general options.
   const General_options&

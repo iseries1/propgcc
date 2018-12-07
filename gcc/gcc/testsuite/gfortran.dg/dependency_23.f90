@@ -44,14 +44,11 @@ contains
     elsewhere
       tla2l = -1
     endwhere
-    if (any (tla2l%i .ne. tda2l%i)) call abort
-    if (any (tla2l%l .neqv. tda2l%l)) call abort
+    if (any (tla2l%i .ne. tda2l%i)) STOP 1
+    if (any (tla2l%l .neqv. tda2l%l)) STOP 2
   end subroutine
 end module rg0045_stuff
 
   use rg0045_stuff
   call rg0045(1, 2, 3)
 end
-! { dg-final { cleanup-modules "rg0045_stuff" } }
-
-

@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include "tree-vect.h"
 
-#define N 16 
+#define N 24
 
 typedef struct {
    unsigned char a;
@@ -89,8 +89,7 @@ int main (void)
       arr[i].f = i * 5;
       arr[i].g = i - 3;
       arr[i].h = 56;
-      if (arr[i].a == 178)
-         abort(); 
+      asm volatile ("" ::: "memory");
     } 
 
   main1 (arr);
@@ -98,6 +97,5 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target { vect_interleave && vect_extract_even_odd } } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { target vect_strided8 } } } */
   

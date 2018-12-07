@@ -1,6 +1,5 @@
 /* Definitions for Sun SPARC64 running FreeBSD using the ELF format
-   Copyright (C) 2001, 2002, 2004, 2005, 2006, 2007, 2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2018 Free Software Foundation, Inc.
    Contributed by David E. O'Brien <obrien@FreeBSD.org> and BSDi.
 
 This file is part of GCC.
@@ -39,7 +38,7 @@ along with GCC; see the file COPYING3.  If not see
   while (0)
 
 #undef ASM_SPEC
-#define ASM_SPEC "%{fpic|fPIC|fpie|fPIE:-K PIC} %(asm_cpu)"
+#define ASM_SPEC "%{" FPIE_OR_FPIC_SPEC ":-K PIC} %(asm_cpu)"
 
 #define LINK_SPEC "%(link_arch)						\
   %{!mno-relax:%{!r:-relax}}						\
@@ -72,18 +71,7 @@ along with GCC; see the file COPYING3.  If not see
 #undef  LONG_DOUBLE_TYPE_SIZE
 #define LONG_DOUBLE_TYPE_SIZE (TARGET_LONG_DOUBLE_128 ? 128 : 64)
 
-/* Define this to set long double type size to use in libgcc2.c, which can
-   not depend on target_flags.  */
-#if defined(__arch64__) || defined(__LONG_DOUBLE_128__)
-#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 128
-#else
-#define LIBGCC2_LONG_DOUBLE_TYPE_SIZE 64
-#endif
-
 /* Definitions for 64-bit SPARC running systems with ELF. */
-
-#undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (FreeBSD/sparc64 ELF)");
 
 #define TARGET_ELF		1
 
@@ -101,31 +89,7 @@ along with GCC; see the file COPYING3.  If not see
 #undef  SPARC_DEFAULT_CMODEL
 #define SPARC_DEFAULT_CMODEL	CM_MEDLOW
 
-#define ENABLE_EXECUTE_STACK						\
-  static int need_enable_exec_stack;					\
-  static void check_enabling(void) __attribute__ ((constructor));	\
-  static void check_enabling(void)					\
-  {									\
-    extern int sysctlbyname(const char *, void *, size_t *, void *, size_t);\
-    int prot = 0;							\
-    size_t len = sizeof(prot);						\
-									\
-    sysctlbyname ("kern.stackprot", &prot, &len, NULL, 0);		\
-    if (prot != 7)							\
-      need_enable_exec_stack = 1;					\
-  }									\
-  extern void __enable_execute_stack (void *);				\
-  void __enable_execute_stack (void *addr)				\
-  {									\
-    if (!need_enable_exec_stack)					\
-      return;								\
-    else {								\
-      /* 7 is PROT_READ | PROT_WRITE | PROT_EXEC */ 			\
-      if (mprotect (addr, TRAMPOLINE_SIZE, 7) < 0)			\
-        perror ("mprotect of trampoline code");				\
-    }									\
-  }
-
+#define HAVE_ENABLE_EXECUTE_STACK
 
 /************************[  Assembler stuff  ]********************************/
 
@@ -169,7 +133,7 @@ along with GCC; see the file COPYING3.  If not see
 
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC						\
-  "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} "	\
+  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} "	\
   FBSD_ENDFILE_SPEC
 
 /* We use GNU ld so undefine this so that attribute((init_priority)) works.  */

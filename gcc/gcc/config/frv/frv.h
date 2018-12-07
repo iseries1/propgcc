@@ -1,7 +1,5 @@
 /* Target macros for the FRV port of GCC.
-   Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009,
-   2010, 2011
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
    Contributed by Red Hat Inc.
 
    This file is part of GCC.
@@ -44,12 +42,12 @@
 "%{mno-pack:\
    %{!mhard-float:-msoft-float}\
    %{!mmedia:-mno-media}}\
- %{!mfdpic:%{fpic|fPIC: -multilib-library-pic}}\
+ %{!mfdpic:%{" FPIC_SPEC ": -multilib-library-pic}}\
  %{mfdpic:%{!fpic:%{!fpie:%{!fPIC:%{!fPIE:\
    	    %{!fno-pic:%{!fno-pie:%{!fno-PIC:%{!fno-PIE:-fPIE}}}}}}}} \
-	  %{!mno-inline-plt:%{O*:%{!O0:%{!Os:%{fpic|fPIC:-minline-plt} \
-                    %{!fpic:%{!fPIC:%{!O:%{!O1:%{!O2:-minline-plt}}}}}}}}} \
-	  %{!mno-gprel-ro:%{!fpic:%{!fpie:-mgprel-ro}}}} \
+	  %{!mno-inline-plt:%{O*:%{!O0:%{!Os:%{" FPIC_SPEC ":-minline-plt} \
+                    %{" NO_FPIC_SPEC ":%{!O:%{!O1:%{!O2:-minline-plt}}}}}}}} \
+	  %{!mno-gprel-ro:%{" NO_FPIE1_AND_FPIC1_SPEC ":-mgprel-ro}}} \
 "
 #ifndef SUBTARGET_DRIVER_SELF_SPECS
 # define SUBTARGET_DRIVER_SELF_SPECS
@@ -69,7 +67,7 @@
     %{mmuladd} %{mno-muladd} \
     %{mpack} %{mno-pack} \
     %{mno-fdpic:-mnopic} %{mfdpic} \
-    %{fpic|fpie: -mpic} %{fPIC|fPIE: -mPIC} %{mlibrary-pic}}"
+    %{" FPIE1_OR_FPIC1_SPEC ":-mpic} %{" FPIE2_OR_FPIC2_SPEC ":-mPIC} %{mlibrary-pic}}"
 
 #undef  STARTFILE_SPEC
 #define STARTFILE_SPEC "crt0%O%s frvbegin%O%s"
@@ -238,19 +236,6 @@
 #define HAVE_AS_TLS 0
 #endif
 
-/* This macro is a C statement to print on `stderr' a string describing the
-   particular machine description choice.  Every machine description should
-   define `TARGET_VERSION'.  For example:
-
-        #ifdef MOTOROLA
-        #define TARGET_VERSION \
-          fprintf (stderr, " (68k, Motorola syntax)");
-        #else
-        #define TARGET_VERSION \
-          fprintf (stderr, " (68k, MIT syntax)");
-        #endif  */
-#define TARGET_VERSION fprintf (stderr, _(" (frv)"))
-
 #define LABEL_ALIGN_AFTER_BARRIER(LABEL) (TARGET_ALIGN_LABELS ? 3 : 0)
 
 /* Small Data Area Support.  */
@@ -346,7 +331,7 @@
    alignment computed in the usual way is COMPUTED.  GCC uses this
    value instead of the value in `BIGGEST_ALIGNMENT' or
    `BIGGEST_FIELD_ALIGNMENT', if defined, for structure fields only.  */
-#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) 				\
+#define ADJUST_FIELD_ALIGN(FIELD, TYPE, COMPUTED) 			\
   frv_adjust_field_align (FIELD, COMPUTED)
 #endif
 
@@ -364,20 +349,6 @@
 #define DATA_ALIGNMENT(TYPE, ALIGN)		\
   (TREE_CODE (TYPE) == ARRAY_TYPE		\
    && TYPE_MODE (TREE_TYPE (TYPE)) == QImode	\
-   && (ALIGN) < BITS_PER_WORD ? BITS_PER_WORD : (ALIGN))
-
-/* If defined, a C expression to compute the alignment given to a constant that
-   is being placed in memory.  CONSTANT is the constant and ALIGN is the
-   alignment that the object would ordinarily have.  The value of this macro is
-   used instead of that alignment to align the object.
-
-   If this macro is not defined, then ALIGN is used.
-
-   The typical use of this macro is to increase alignment for string constants
-   to be word aligned so that `strcpy' calls that copy constants can be done
-   inline.  */
-#define CONSTANT_ALIGNMENT(EXP, ALIGN)  \
-  (TREE_CODE (EXP) == STRING_CST	\
    && (ALIGN) < BITS_PER_WORD ? BITS_PER_WORD : (ALIGN))
 
 /* Define this macro to be the value 1 if instructions will fail to work if
@@ -762,86 +733,6 @@
 }
 
 
-/* How Values Fit in Registers.  */
-
-/* A C expression for the number of consecutive hard registers, starting at
-   register number REGNO, required to hold a value of mode MODE.
-
-   On a machine where all registers are exactly one word, a suitable definition
-   of this macro is
-
-        #define HARD_REGNO_NREGS(REGNO, MODE)            \
-           ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1)  \
-            / UNITS_PER_WORD))  */
-
-/* On the FRV, make the CC modes take 3 words in the integer registers, so that
-   we can build the appropriate instructions to properly reload the values.  */
-#define HARD_REGNO_NREGS(REGNO, MODE) frv_hard_regno_nregs (REGNO, MODE)
-
-/* A C expression that is nonzero if it is permissible to store a value of mode
-   MODE in hard register number REGNO (or in several registers starting with
-   that one).  For a machine where all registers are equivalent, a suitable
-   definition is
-
-        #define HARD_REGNO_MODE_OK(REGNO, MODE) 1
-
-   It is not necessary for this macro to check for the numbers of fixed
-   registers, because the allocation mechanism considers them to be always
-   occupied.
-
-   On some machines, double-precision values must be kept in even/odd register
-   pairs.  The way to implement that is to define this macro to reject odd
-   register numbers for such modes.
-
-   The minimum requirement for a mode to be OK in a register is that the
-   `movMODE' instruction pattern support moves between the register and any
-   other hard register for which the mode is OK; and that moving a value into
-   the register and back out not alter it.
-
-   Since the same instruction used to move `SImode' will work for all narrower
-   integer modes, it is not necessary on any machine for `HARD_REGNO_MODE_OK'
-   to distinguish between these modes, provided you define patterns `movhi',
-   etc., to take advantage of this.  This is useful because of the interaction
-   between `HARD_REGNO_MODE_OK' and `MODES_TIEABLE_P'; it is very desirable for
-   all integer modes to be tieable.
-
-   Many machines have special registers for floating point arithmetic.  Often
-   people assume that floating point machine modes are allowed only in floating
-   point registers.  This is not true.  Any registers that can hold integers
-   can safely *hold* a floating point machine mode, whether or not floating
-   arithmetic can be done on it in those registers.  Integer move instructions
-   can be used to move the values.
-
-   On some machines, though, the converse is true: fixed-point machine modes
-   may not go in floating registers.  This is true if the floating registers
-   normalize any value stored in them, because storing a non-floating value
-   there would garble it.  In this case, `HARD_REGNO_MODE_OK' should reject
-   fixed-point machine modes in floating registers.  But if the floating
-   registers do not automatically normalize, if you can store any bit pattern
-   in one and retrieve it unchanged without a trap, then any machine mode may
-   go in a floating register, so you can define this macro to say so.
-
-   The primary significance of special floating registers is rather that they
-   are the registers acceptable in floating point arithmetic instructions.
-   However, this is of no concern to `HARD_REGNO_MODE_OK'.  You handle it by
-   writing the proper constraints for those instructions.
-
-   On some machines, the floating registers are especially slow to access, so
-   that it is better to store a value in a stack frame than in such a register
-   if floating point arithmetic is not being done.  As long as the floating
-   registers are not in class `GENERAL_REGS', they will not be used unless some
-   pattern's constraint asks for one.  */
-#define HARD_REGNO_MODE_OK(REGNO, MODE) frv_hard_regno_mode_ok (REGNO, MODE)
-
-/* A C expression that is nonzero if it is desirable to choose register
-   allocation so as to avoid move instructions between a value of mode MODE1
-   and a value of mode MODE2.
-
-   If `HARD_REGNO_MODE_OK (R, MODE1)' and `HARD_REGNO_MODE_OK (R, MODE2)' are
-   ever different for any R, then `MODES_TIEABLE_P (MODE1, MODE2)' must be
-   zero.  */
-#define MODES_TIEABLE_P(MODE1, MODE2) (MODE1 == MODE2)
-
 /* Define this macro if the compiler should avoid copies to/from CCmode
    registers.  You should only define this macro if support fo copying to/from
    CCmode is incomplete.  */
@@ -877,14 +768,9 @@ enum reg_class
   FDPIC_CALL_REGS,
   SPR_REGS,
   QUAD_ACC_REGS,
-  EVEN_ACC_REGS,
-  ACC_REGS,
   ACCG_REGS,
   QUAD_FPR_REGS,
-  FEVEN_REGS,
-  FPR_REGS,
   QUAD_REGS,
-  EVEN_REGS,
   GPR_REGS,
   ALL_REGS,
   LIM_REG_CLASSES
@@ -917,14 +803,9 @@ enum reg_class
    "FDPIC_CALL_REGS",							\
    "SPR_REGS",								\
    "QUAD_ACC_REGS",							\
-   "EVEN_ACC_REGS",							\
-   "ACC_REGS",								\
    "ACCG_REGS",								\
    "QUAD_FPR_REGS",							\
-   "FEVEN_REGS",							\
-   "FPR_REGS",								\
    "QUAD_REGS",								\
-   "EVEN_REGS",								\
    "GPR_REGS",								\
    "ALL_REGS"								\
 }
@@ -958,32 +839,18 @@ enum reg_class
   { 0x0000c000,0x00000000,0x00000000,0x00000000,0x00000000,0x0}, /* FDPIC_CALL_REGS */\
   { 0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x1e00}, /* SPR_REGS */\
   { 0x00000000,0x00000000,0x00000000,0x00000000,0x0fff0000,0x0}, /* QUAD_ACC */\
-  { 0x00000000,0x00000000,0x00000000,0x00000000,0x0fff0000,0x0}, /* EVEN_ACC */\
-  { 0x00000000,0x00000000,0x00000000,0x00000000,0x0fff0000,0x0}, /* ACC_REGS */\
   { 0x00000000,0x00000000,0x00000000,0x00000000,0xf0000000,0xff}, /* ACCG_REGS*/\
   { 0x00000000,0x00000000,0xffffffff,0xffffffff,0x00000000,0x0}, /* QUAD_FPR */\
-  { 0x00000000,0x00000000,0xffffffff,0xffffffff,0x00000000,0x0}, /* FEVEN_REG*/\
-  { 0x00000000,0x00000000,0xffffffff,0xffffffff,0x00000000,0x0}, /* FPR_REGS */\
   { 0x0ffffffc,0xffffffff,0x00000000,0x00000000,0x00000000,0x0}, /* QUAD_REGS*/\
-  { 0xfffffffc,0xffffffff,0x00000000,0x00000000,0x00000000,0x0}, /* EVEN_REGS*/\
   { 0xffffffff,0xffffffff,0x00000000,0x00000000,0x00000000,0x100}, /* GPR_REGS */\
   { 0xffffffff,0xffffffff,0xffffffff,0xffffffff,0xffffffff,0x1fff}, /* ALL_REGS */\
 }
 
-/* The following macro defines cover classes for Integrated Register
-   Allocator.  Cover classes is a set of non-intersected register
-   classes covering all hard registers used for register allocation
-   purpose.  Any move between two registers of a cover class should be
-   cheaper than load or store of the registers.  The macro value is
-   array of register classes with LIM_REG_CLASSES used as the end
-   marker.  */
-
-#define IRA_COVER_CLASSES						\
-{									\
-  GPR_REGS, FPR_REGS, ACC_REGS, ICR_REGS, FCR_REGS, ICC_REGS, FCC_REGS, \
-  ACCG_REGS, SPR_REGS,							\
-  LIM_REG_CLASSES							\
-}
+#define EVEN_ACC_REGS   QUAD_ACC_REGS
+#define ACC_REGS        QUAD_ACC_REGS
+#define FEVEN_REGS      QUAD_FPR_REGS
+#define FPR_REGS        QUAD_FPR_REGS
+#define EVEN_REGS       QUAD_REGS
 
 /* A C expression whose value is a register class containing hard register
    REGNO.  In general there is more than one such class; choose a class which
@@ -1033,17 +900,6 @@ extern enum reg_class regno_reg_class[];
 #define SECONDARY_OUTPUT_RELOAD_CLASS(CLASS, MODE, X) \
   frv_secondary_reload_class (CLASS, MODE, X)
 
-/* A C expression for the maximum number of consecutive registers of
-   class CLASS needed to hold a value of mode MODE.
-
-   This is closely related to the macro `HARD_REGNO_NREGS'.  In fact, the value
-   of the macro `CLASS_MAX_NREGS (CLASS, MODE)' should be the maximum value of
-   `HARD_REGNO_NREGS (REGNO, MODE)' for all REGNO values in the class CLASS.
-
-   This macro helps control the handling of multiple-word values in
-   the reload pass.
-
-   This declaration is required.  */
 #define CLASS_MAX_NREGS(CLASS, MODE) frv_class_max_nregs (CLASS, MODE)
 
 #define ZERO_P(x) (x == CONST0_RTX (GET_MODE (x)))
@@ -1109,14 +965,6 @@ typedef struct frv_stack {
 /* Define this macro to nonzero if the addresses of local variable slots
    are at negative offsets from the frame pointer.  */
 #define FRAME_GROWS_DOWNWARD 1
-
-/* Offset from the frame pointer to the first local variable slot to be
-   allocated.
-
-   If `FRAME_GROWS_DOWNWARD', find the next slot's offset by subtracting the
-   first slot's length from `STARTING_FRAME_OFFSET'.  Otherwise, it is found by
-   adding the length of the first slot to the value `STARTING_FRAME_OFFSET'.  */
-#define STARTING_FRAME_OFFSET 0
 
 /* Offset from the stack pointer register to the first location at which
    outgoing arguments are placed.  If not specified, the default value of zero
@@ -1236,9 +1084,8 @@ typedef struct frv_stack {
   {FRAME_POINTER_REGNUM, STACK_POINTER_REGNUM}				\
 }
 
-/* This macro is similar to `INITIAL_FRAME_POINTER_OFFSET'.  It specifies the
-   initial difference between the specified pair of registers.  This macro must
-   be defined if `ELIMINABLE_REGS' is defined.  */
+/* This macro returns the initial difference between the specified pair
+   of registers.  */
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET)			\
   (OFFSET) = frv_initial_elimination_offset (FROM, TO)
@@ -1530,12 +1377,6 @@ __asm__("\n"								\
 
 #define FIND_BASE_TERM frv_find_base_term
 
-/* A C expression that is nonzero if X is a legitimate constant for an
-   immediate operand on the target machine.  You can assume that X satisfies
-   `CONSTANT_P', so you need not check this.  In fact, `1' is a suitable
-   definition for this macro on machines where anything `CONSTANT_P' is valid.  */
-#define LEGITIMATE_CONSTANT_P(X) frv_legitimate_constant_p (X)
-
 /* The load-and-update commands allow pre-modification in addresses.
    The index has to be in a register.  */
 #define HAVE_PRE_MODIFY_REG 1
@@ -1562,9 +1403,6 @@ __asm__("\n"								\
 #define REVERSIBLE_CC_MODE(MODE) \
   ((MODE) == CCmode || (MODE) == CC_UNSmode || (MODE) == CC_NZmode)
 
-/* Frv CCR_MODE's are not reversible.  */
-#define REVERSE_CONDEXEC_PREDICATES_P(x,y)      0
-
 
 /* Describing Relative Costs of Operations.  */
 
@@ -1587,7 +1425,7 @@ __asm__("\n"								\
 
 /* Define this macro if it is as good or better to call a constant function
    address than to call an address kept in a register.  */
-#define NO_FUNCTION_CSE
+#define NO_FUNCTION_CSE 1
 
 
 /* Dividing the output into sections.  */
@@ -1602,13 +1440,6 @@ __asm__("\n"								\
    `".data"' is right.  */
 #define DATA_SECTION_ASM_OP "\t.data"
 
-/* If defined, a C expression whose value is a string containing the
-   assembler operation to identify the following data as
-   uninitialized global data.  If not defined, and neither
-   `ASM_OUTPUT_BSS' nor `ASM_OUTPUT_ALIGNED_BSS' are defined,
-   uninitialized global data will be output in the data section if
-   `-fno-common' is passed, otherwise `ASM_OUTPUT_COMMON' will be
-   used.  */
 #define BSS_SECTION_ASM_OP "\t.section .bss,\"aw\""
 
 /* Short Data Support */
@@ -1875,8 +1706,8 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
 /* Define this macro to 0 if your target supports DWARF 2 frame unwind
    information, but it does not yet work with exception handling.  Otherwise,
    if your target supports this information (if it defines
-   `INCOMING_RETURN_ADDR_RTX' and either `UNALIGNED_INT_ASM_OP' or
-   `OBJECT_FORMAT_ELF'), GCC will provide a default definition of 1.
+   `INCOMING_RETURN_ADDR_RTX' and `OBJECT_FORMAT_ELF'), GCC will provide
+   a default definition of 1.
 
    If this macro is defined to 1, the DWARF 2 unwinder will be the default
    exception handling mechanism; otherwise, setjmp/longjmp will be used by
@@ -1937,7 +1768,7 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
 /* Define this macro if operations between registers with integral mode smaller
    than a word are always performed on the entire register.  Most RISC machines
    have this property and most CISC machines do not.  */
-#define WORD_REGISTER_OPERATIONS
+#define WORD_REGISTER_OPERATIONS 1
 
 /* Define this macro to be a C expression indicating when insns that read
    memory in MODE, an integral mode narrower than a word, set the bits outside
@@ -1954,23 +1785,11 @@ fprintf (STREAM, "\t.word .L%d\n", VALUE)
 #define LOAD_EXTEND_OP(MODE) SIGN_EXTEND
 
 /* Define if loading short immediate values into registers sign extends.  */
-#define SHORT_IMMEDIATES_SIGN_EXTEND
+#define SHORT_IMMEDIATES_SIGN_EXTEND 1
 
 /* The maximum number of bytes that a single instruction can move quickly from
    memory to memory.  */
 #define MOVE_MAX 8
-
-/* A C expression which is nonzero if on this machine it is safe to "convert"
-   an integer of INPREC bits to one of OUTPREC bits (where OUTPREC is smaller
-   than INPREC) by merely operating on it as if it had only OUTPREC bits.
-
-   On many machines, this expression can be 1.
-
-   When `TRULY_NOOP_TRUNCATION' returns 1 for a pair of sizes for modes for
-   which `MODES_TIEABLE_P' is 0, suboptimal code can result.  If this is the
-   case, making `TRULY_NOOP_TRUNCATION' return 0 in such cases may improve
-   things.  */
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
 
 /* An alias for the machine mode for pointers.  On most machines, define this
    to be the integer mode corresponding to the width of a hardware pointer;
@@ -2028,8 +1847,8 @@ frv_ifcvt_modify_multiple_tests (CE_INFO, BB, &TRUE_EXPR, &FALSE_EXPR)
    information CE_INFO.  */
 #define IFCVT_MODIFY_CANCEL(CE_INFO) frv_ifcvt_modify_cancel (CE_INFO)
 
-/* Initialize the extra fields provided by IFCVT_EXTRA_FIELDS.  */
-#define IFCVT_INIT_EXTRA_FIELDS(CE_INFO) frv_ifcvt_init_extra_fields (CE_INFO)
+/* Initialize the machine-specific static data for if-conversion.  */
+#define IFCVT_MACHDEP_INIT(CE_INFO) frv_ifcvt_machdep_init (CE_INFO)
 
 /* The definition of the following macro results in that the 2nd jump
    optimization (after the 2nd insn scheduling) is minimal.  It is
@@ -2179,10 +1998,5 @@ enum frv_builtins
 #define MD_CALL_PROTOTYPES 1
 
 #define CPU_UNITS_QUERY 1
-
-#ifdef __FRV_FDPIC__
-#define CRT_GET_RFIB_DATA(dbase) \
-  ({ extern void *_GLOBAL_OFFSET_TABLE_; (dbase) = &_GLOBAL_OFFSET_TABLE_; })
-#endif
 
 #endif /* __FRV_H__ */

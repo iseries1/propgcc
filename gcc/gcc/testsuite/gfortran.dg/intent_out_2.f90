@@ -26,14 +26,14 @@ contains
     do i=1,2
        allocate (temp (2))
        call construct_temp (temp)
-       if (any (temp % p% mn .ne. 'ijklmnop')) call abort ()
+       if (any (temp % p% mn .ne. 'ijklmnop')) STOP 1
        deallocate (temp)
     end do
   end subroutine setup
   !--
   subroutine construct_temp (temp)
     type (t_temp), intent(out) :: temp (:)
-    if (any (temp % p% mn .ne. 'abcdefgh')) call abort ()
+    if (any (temp % p% mn .ne. 'abcdefgh')) STOP 2
     temp(:)% p% mn = 'ijklmnop'
   end subroutine construct_temp
 end module gfcbug72
@@ -43,5 +43,3 @@ program test
   implicit none
   call setup ()
 end program test
-! { dg-final { cleanup-modules "gfcbug72" } }
-

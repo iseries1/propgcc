@@ -1,6 +1,7 @@
 // PR libstdc++/10606
 // { dg-do run }
-// { dg-options "-fuse-cxa-get-exception-ptr" { target powerpc*-*-darwin* } }
+// { dg-options "-Wno-deprecated" }
+// { dg-options "-fuse-cxa-get-exception-ptr -Wno-deprecated" { target powerpc*-*-darwin* } }
 
 #include <exception>
 #include <cstdlib>
@@ -13,7 +14,7 @@ struct Check {
 
 static Check const data[] = {
   { 0, 0, false },	// construct [0]
-  { 1, 0, true  },	// [1] = [0]
+  { 1, 0, false  },	// [1] = [0]
   { 0, 0, true  },	// destruct [0]
   { 2, 1, true  },	// [2] = [1]
   { 2, 2, true  },      // destruct [2]

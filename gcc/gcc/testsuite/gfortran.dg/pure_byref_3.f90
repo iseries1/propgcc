@@ -26,10 +26,8 @@ program pure_byref_3
     integer :: a(3)
 
     a = huj()
-    if (.not. all(a == (/1, 2, 3/))) call abort()
+    if (.not. all(a == (/1, 2, 3/))) STOP 1
 
     a = hoj()
-    if (.not. all(a == (/1, 2, 3/))) call abort()
+    if (.not. all(a == (/1, 2, 3/))) STOP 2
 end program pure_byref_3
-
-! { dg-final { cleanup-modules "huj_mod" } }

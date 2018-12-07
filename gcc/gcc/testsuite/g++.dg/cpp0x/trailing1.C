@@ -1,5 +1,6 @@
 // Tests for late-specified return type.
-// { dg-options "-std=c++0x -fabi-version=5" }
+// { dg-do compile { target c++11 } }
+// { dg-options "-fabi-version=5" }
 
 auto f() -> int
 {
@@ -39,9 +40,9 @@ decltype(*(T*)0+*(U*)0) add4(T t, U u)
 template <class T>
 struct A
 {
-  T f() {}
+  T f() { return T(); }
   template <class U>
-  T g() {}
+  T g() { return T(); }
   template <class V>
   struct B
   {

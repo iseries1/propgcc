@@ -1,8 +1,9 @@
 /* PR tree-optimization/47443 */
 /* { dg-do compile } */
+/* { dg-require-stack-check "generic" } */
 /* { dg-options "-O -fstack-check=generic" } */
 
-static inline bar (char *c, int i)
+static inline int bar (char *c, int i)
 {
   return c + i > c;
 }

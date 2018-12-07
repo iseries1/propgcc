@@ -61,8 +61,7 @@ int main (void)
       buffer1[i].b = i + 8;
       buffer2[i].a = i * 3;
       buffer2[i].b = i * 2;
-      if (buffer1[i].a == 500)
-         abort();
+      asm volatile ("" ::: "memory");
     }
 
   check_vect ();
@@ -72,5 +71,4 @@ int main (void)
   return 0;
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  { target { vect_interleave && vect_extract_even_odd } } } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect"  { target vect_strided2 } } } */

@@ -42,7 +42,7 @@
  *
  */
 
-/* Copyright 2001 by Stephen L. Moshier <moshier@na-net.ornl.gov> 
+/* Copyright 2001 by Stephen L. Moshier <moshier@na-net.ornl.gov>
 
     This library is free software; you can redistribute it and/or
     modify it under the terms of the GNU Lesser General Public
@@ -167,6 +167,7 @@ static const __float128
   q4 = 2.173623741810414221251136181221172551416E1Q;
   /* q5 = 1.000000000000000000000000000000000000000E0 */
 
+static const __float128 huge = 1.0e4930Q;
 
 __float128
 atanq (__float128 x)
@@ -191,6 +192,23 @@ atanq (__float128 x)
 	return (x + x);
 
       /* Infinity. */
+      if (sign)
+	return -atantbl[83];
+      else
+	return atantbl[83];
+    }
+
+  if (k <= 0x3fc50000) /* |x| < 2**-58 */
+    {
+      math_check_force_underflow (x);
+      /* Raise inexact. */
+      if (huge + x > 0.0)
+	return x;
+    }
+
+  if (k >= 0x40720000) /* |x| > 2**115 */
+    {
+      /* Saturate result to {-,+}pi/2 */
       if (sign)
 	return -atantbl[83];
       else

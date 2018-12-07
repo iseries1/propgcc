@@ -1,7 +1,5 @@
 /* ld-emul.h - Linker emulation header file
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001,
-   2002, 2003, 2004, 2005, 2007, 2008
-   Free Software Foundation, Inc.
+   Copyright (C) 1991-2018 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -35,6 +33,8 @@ extern void ldemul_after_parse
 extern void ldemul_before_parse
   (void);
 extern void ldemul_after_open
+  (void);
+extern void ldemul_after_check_relocs
   (void);
 extern void ldemul_after_allocation
   (void);
@@ -78,6 +78,8 @@ extern void after_parse_default
   (void);
 extern void after_open_default
   (void);
+extern void after_check_relocs_default
+  (void);
 extern void after_allocation_default
   (void);
 extern void before_allocation_default
@@ -96,6 +98,8 @@ extern int  ldemul_find_potential_libraries
   (char *, struct lang_input_statement_struct *);
 extern struct bfd_elf_version_expr *ldemul_new_vers_pattern
   (struct bfd_elf_version_expr *);
+extern void ldemul_extra_map_file_text
+  (bfd *, struct bfd_link_info *, FILE *);
 
 typedef struct ld_emulation_xfer_struct {
   /* Run before parsing the command line and script file.
@@ -113,6 +117,9 @@ typedef struct ld_emulation_xfer_struct {
 
   /* Run after opening all input files, and loading the symbols.  */
   void   (*after_open) (void);
+
+  /* Run after checking relocations.  */
+  void   (*after_check_relocs)  (void);
 
   /* Run after allocating output sections.  */
   void   (*after_allocation)  (void);
@@ -195,6 +202,11 @@ typedef struct ld_emulation_xfer_struct {
      this hook to add a pattern matching ".foo" for every "foo".  */
   struct bfd_elf_version_expr * (*new_vers_pattern)
     (struct bfd_elf_version_expr *);
+
+  /* Called when printing the map file, in case there are
+     emulation-specific sections for it.  */
+  void (*extra_map_file_text)
+    (bfd *, struct bfd_link_info *, FILE *);
 
 } ld_emulation_xfer_type;
 

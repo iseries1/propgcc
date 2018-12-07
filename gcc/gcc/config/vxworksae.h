@@ -1,5 +1,5 @@
 /* Common VxWorks AE target definitions for GNU compiler.
-   Copyright (C) 2004, 2005, 2007, 2010 Free Software Foundation, Inc.
+   Copyright (C) 2004-2018 Free Software Foundation, Inc.
    Contributed by CodeSourcery, LLC.
 
 This file is part of GCC.
@@ -23,9 +23,8 @@ along with GCC; see the file COPYING3.  If not see
 /* Most of the definitions below this point are versions of the
    vxworks.h definitions, without the -mrtp bits.  */
 
-/* The directory containing the VxWorks AE target headers.  */
-#define VXWORKSAE_TARGET_DIR \
-  "/home/tornado/vxworks-ae/latest/target"
+/* Resolve subdirectory of VxWorks AE target headers.  */
+#define VXWORKSAE_TARGET_DIR(SUBDIR) "%:getenv(WIND_BASE /target" SUBDIR ")"
 
 /* Include target/vThreads/h or target/h (depending on the compilation
    mode), and then target/val/h (in either mode).  The macros defined
@@ -35,10 +34,10 @@ along with GCC; see the file COPYING3.  If not see
 #define VXWORKS_ADDITIONAL_CPP_SPEC "					\
  %{!nostdinc:%{isystem*}}						\
  %{mvthreads:-DVTHREADS=1						\
-	 %{!nostdinc:-isystem " VXWORKSAE_TARGET_DIR "/vThreads/h}}	\
+	 %{!nostdinc:-isystem " VXWORKSAE_TARGET_DIR("/vThreads/h") "}}	\
  %{!mvthreads:-DAE653_BUILD=1						\
-	 %{!nostdinc:-isystem " VXWORKSAE_TARGET_DIR "/h}}		\
- %{!nostdinc:-isystem " VXWORKSAE_TARGET_DIR "/val/h}"
+	 %{!nostdinc:-isystem " VXWORKSAE_TARGET_DIR("/h") "}}		\
+ %{!nostdinc:-isystem " VXWORKSAE_TARGET_DIR("/val/h") "}"
 
 #undef VXWORKS_LIB_SPEC
 #define VXWORKS_LIB_SPEC ""
@@ -68,3 +67,20 @@ along with GCC; see the file COPYING3.  If not see
     }                                                                   \
   while (0)
 
+/* Do VxWorks-specific parts of TARGET_OPTION_OVERRIDE.  */
+
+/* None of the VxWorks AE/653/MILS ports to date has native TLS support.  */
+#define VXWORKS_HAVE_TLS 0
+
+#undef VXWORKS_OVERRIDE_OPTIONS
+#define VXWORKS_OVERRIDE_OPTIONS vxworks_override_options ()
+extern void vxworks_override_options (void);
+
+/* Default dwarf control values, for non-gdb debuggers that come with
+   VxWorks.  */
+
+#undef VXWORKS_DWARF_VERSION_DEFAULT
+#define VXWORKS_DWARF_VERSION_DEFAULT 2
+
+#undef DWARF_GNAT_ENCODINGS_DEFAULT
+#define DWARF_GNAT_ENCODINGS_DEFAULT DWARF_GNAT_ENCODINGS_ALL

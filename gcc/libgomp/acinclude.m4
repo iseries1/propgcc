@@ -56,6 +56,7 @@ extern void bar(void) __attribute__((alias("foo")));],
   fi])
 
 sinclude(../libtool.m4)
+sinclude(../config/cet.m4)
 dnl The lines below arrange for aclocal not to bring an installed
 dnl libtool.m4 into aclocal.m4, while still arranging for automake to
 dnl add a definition of LIBTOOL to Makefile.in.
@@ -355,15 +356,12 @@ if test $enable_symvers != no ; then
      # The Solaris 2 runtime linker doesn't support the GNU extension of
      # binding the same symbol to different versions
      solaris2*)
-       symvers_renaming=no ;;
+       ;;
      # Other platforms with GNU symbol versioning (GNU/Linux, more?) do.
      *)
        AC_DEFINE(HAVE_SYMVER_SYMBOL_RENAMING_RUNTIME_SUPPORT, 1,
          [Define to 1 if the target runtime linker supports binding the same symbol to different versions.])
-       symvers_renaming=yes ;;
+       ;;
     esac
-else
-    symvers_renaming=no
 fi
-AM_CONDITIONAL(LIBGOMP_BUILD_VERSIONED_SHLIB_SOL2, test $symvers_renaming = no)
 ])

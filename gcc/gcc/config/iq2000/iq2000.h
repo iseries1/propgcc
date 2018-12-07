@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler.  
    Vitesse IQ2000 processors
-   Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2003-2018 Free Software Foundation, Inc.
 
    This file is part of GCC.
 
@@ -57,21 +56,6 @@
 #ifndef IQ2000_ISA_DEFAULT
 #define IQ2000_ISA_DEFAULT 1
 #endif
-
-#define IQ2000_VERSION "[1.0]"
-
-#ifndef MACHINE_TYPE
-#define MACHINE_TYPE "IQ2000"
-#endif
-
-#ifndef TARGET_VERSION_INTERNAL
-#define TARGET_VERSION_INTERNAL(STREAM)					\
-  fprintf (STREAM, " %s %s", IQ2000_VERSION, MACHINE_TYPE)
-#endif
-
-#ifndef TARGET_VERSION
-#define TARGET_VERSION TARGET_VERSION_INTERNAL (stderr)
-#endif
 
 /* Storage Layout.  */
 
@@ -111,10 +95,6 @@
     && (TREE_CODE (TYPE) == ARRAY_TYPE					\
 	|| TREE_CODE (TYPE) == UNION_TYPE				\
 	|| TREE_CODE (TYPE) == RECORD_TYPE)) ? BITS_PER_WORD : (ALIGN))
-
-#define CONSTANT_ALIGNMENT(EXP, ALIGN)					\
-  ((TREE_CODE (EXP) == STRING_CST  || TREE_CODE (EXP) == CONSTRUCTOR)	\
-   && (ALIGN) < BITS_PER_WORD ? BITS_PER_WORD : (ALIGN))
 
 #define EMPTY_FIELD_BOUNDARY 32
 
@@ -176,21 +156,6 @@
 }
 
 
-/* How Values Fit in Registers.  */
-
-#define HARD_REGNO_NREGS(REGNO, MODE)   \
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
-#define HARD_REGNO_MODE_OK(REGNO, MODE) 			\
- ((REGNO_REG_CLASS (REGNO) == GR_REGS)				\
-  ? ((REGNO) & 1) == 0 || GET_MODE_SIZE (MODE) <= 4     	\
-  : ((REGNO) & 1) == 0 || GET_MODE_SIZE (MODE) == 4)
-
-#define MODES_TIEABLE_P(MODE1, MODE2)				\
-  ((GET_MODE_CLASS (MODE1) == MODE_FLOAT ||			\
-    GET_MODE_CLASS (MODE1) == MODE_COMPLEX_FLOAT)		\
-   == (GET_MODE_CLASS (MODE2) == MODE_FLOAT ||			\
-       GET_MODE_CLASS (MODE2) == MODE_COMPLEX_FLOAT))
 
 #define AVOID_CCMODE_COPIES
 
@@ -208,11 +173,6 @@ enum reg_class
 #define GENERAL_REGS GR_REGS
 
 #define N_REG_CLASSES (int) LIM_REG_CLASSES
-
-#define IRA_COVER_CLASSES	\
-{				\
-  GR_REGS, LIM_REG_CLASSES	\
-}
 
 #define REG_CLASS_NAMES						\
 {								\
@@ -248,18 +208,12 @@ enum reg_class
 	 ? (GR_REGS)						\
 	 : (CLASS))))
 
-#define CLASS_MAX_NREGS(CLASS, MODE)    \
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
 
 /* Basic Stack Layout.  */
 
-#define STACK_GROWS_DOWNWARD
+#define STACK_GROWS_DOWNWARD 1
 
 #define FRAME_GROWS_DOWNWARD 0
-
-#define STARTING_FRAME_OFFSET						\
-  (crtl->outgoing_args_size)
 
 /* Use the default value zero.  */
 /* #define STACK_POINTER_OFFSET 0 */
@@ -282,7 +236,7 @@ enum reg_class
     : (rtx) 0)
 
 /* Before the prologue, RA lives in r31.  */
-#define INCOMING_RETURN_ADDR_RTX  gen_rtx_REG (VOIDmode, GP_REG_FIRST + 31)
+#define INCOMING_RETURN_ADDR_RTX  gen_rtx_REG (Pmode, GP_REG_FIRST + 31)
 
 
 /* Register That Address the Stack Frame.  */
@@ -334,7 +288,7 @@ typedef struct iq2000_args
   int fp_code;			/* Mode of FP arguments.  */
   unsigned int num_adjusts;	/* Number of adjustments made.  */
 				/* Adjustments made to args pass in regs.  */
-  struct rtx_def * adjust[MAX_ARGS_IN_REGISTERS * 2];
+  rtx adjust[MAX_ARGS_IN_REGISTERS * 2];
 } CUMULATIVE_ARGS;
 
 /* Initialize a variable CUM of type CUMULATIVE_ARGS
@@ -342,16 +296,6 @@ typedef struct iq2000_args
    For a library call, FNTYPE is 0.  */
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
   init_cumulative_args (& CUM, FNTYPE, LIBNAME)				\
-
-#define FUNCTION_ARG_PADDING(MODE, TYPE)				\
-  (! BYTES_BIG_ENDIAN							\
-   ? upward								\
-   : (((MODE) == BLKmode						\
-       ? ((TYPE) && TREE_CODE (TYPE_SIZE (TYPE)) == INTEGER_CST		\
-	  && int_size_in_bytes (TYPE) < (PARM_BOUNDARY / BITS_PER_UNIT))\
-       : (GET_MODE_BITSIZE (MODE) < PARM_BOUNDARY			\
-	  && (GET_MODE_CLASS (MODE) == MODE_INT)))			\
-      ? downward : upward))
 
 #define FUNCTION_ARG_REGNO_P(N)						\
   (((N) >= GP_ARG_FIRST && (N) <= GP_ARG_LAST))			
@@ -408,8 +352,6 @@ typedef struct iq2000_args
 #define MAX_REGS_PER_ADDRESS 1
 
 #define REG_OK_FOR_INDEX_P(X) 0
-
-#define LEGITIMATE_CONSTANT_P(X) (1)
 
 
 /* Describing Relative Costs of Operations.  */
@@ -567,7 +509,7 @@ while (0)
 
 #define CASE_VECTOR_MODE SImode
 
-#define WORD_REGISTER_OPERATIONS
+#define WORD_REGISTER_OPERATIONS 1
 
 #define LOAD_EXTEND_OP(MODE) ZERO_EXTEND
 
@@ -577,17 +519,11 @@ while (0)
 
 #define SHIFT_COUNT_TRUNCATED 1
 
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
-
 #define STORE_FLAG_VALUE 1
 
 #define Pmode SImode
 
 #define FUNCTION_MODE SImode
-
-/* Standard GCC variables that we reference.  */
-
-extern char	call_used_regs[];
 
 /* IQ2000 external variables defined in iq2000.c.  */
 
@@ -607,15 +543,6 @@ enum delay_type
   DELAY_NONE,				/* No delay slot.  */
   DELAY_LOAD,				/* Load from memory delay.  */
   DELAY_FCMP				/* Delay after doing c.<xx>.{d,s}.  */
-};
-
-/* Which processor to schedule for.  */
-
-enum processor_type
-{
-  PROCESSOR_DEFAULT,
-  PROCESSOR_IQ2000,
-  PROCESSOR_IQ10
 };
 
 /* Recast the cpu class to be the cpu attribute.  */
@@ -850,9 +777,6 @@ enum processor_type
 #define SDATA_SECTION_ASM_OP	"\t.sdata"	/* Small data.  */
 
 
-/* The target cpu for optimization and scheduling.  */
-extern enum processor_type iq2000_tune;
-
 /* Which instruction set architecture to use.  */
 extern int iq2000_isa;
 

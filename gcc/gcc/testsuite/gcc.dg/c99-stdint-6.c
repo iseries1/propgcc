@@ -2,8 +2,7 @@
    with any system <inttypes.h> header.  */
 /* { dg-do compile { target inttypes_types } } */
 /* { dg-options "-std=iso9899:1999 -pedantic-errors" } */
-/* { dg-options "-std=gnu99 -pedantic-errors -DNO_FAST_TYPES" { target *-*-solaris2.[89]* } } */
-/* { dg-options "-std=gnu99 -pedantic-errors -DNO_LEAST_TYPES -DNO_FAST_TYPES -DNO_MAX_TYPES" { target alpha*-dec-osf5* } } */
+/* { dg-additional-options "-DSIGNAL_SUPPRESS" { target { ! signal } } } */
 
 #include <inttypes.h>
 #ifndef SIGNAL_SUPPRESS

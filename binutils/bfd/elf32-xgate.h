@@ -1,5 +1,5 @@
 /* Freescale XGATE-specific support for 32-bit ELF
-   Copyright 2012 Free Software Foundation, Inc.
+   Copyright (C) 2012-2018 Free Software Foundation, Inc.
 
    Contributed by Sean Keys (skeys@ipdatasys.com)
    (Heavily copied from the HC11 port by Stephane Carrez (stcarrez@nerim.fr))
@@ -29,7 +29,6 @@
 #include "elf/xgate.h"
 
 /* Set and control ELF flags in ELF header.  */
-extern bfd_boolean _bfd_xgate_elf_merge_private_bfd_data (bfd*,bfd*);
 extern bfd_boolean _bfd_xgate_elf_set_private_flags (bfd*,flagword);
 extern bfd_boolean _bfd_xgate_elf_print_private_bfd_data (bfd*, void*);
 
@@ -81,7 +80,7 @@ struct xgate_elf_link_hash_table
 
   /* Assorted information used by elf32_hppa_size_stubs.  */
   unsigned int bfd_count;
-  int          top_index;
+  int	       top_index;
   asection **  input_list;
 
   /* Small local sym cache.  */
@@ -100,7 +99,6 @@ struct xgate_elf_link_hash_table
 
 extern struct xgate_elf_link_hash_table* xgate_elf_hash_table_create
   (bfd *);
-extern void xgate_elf_bfd_link_hash_table_free (struct bfd_link_hash_table *);
 
 extern void xgate_elf_get_bank_parameters (struct bfd_link_info *);
 

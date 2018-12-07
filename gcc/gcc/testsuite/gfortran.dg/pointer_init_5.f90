@@ -34,9 +34,7 @@ implicit none
 
 type (t) :: u
 
-if (pp()/=42) call abort()
-if (u%ppc()/=43) call abort()
+if (pp()/=42) STOP 1
+if (u%ppc()/=43) STOP 2
 
 end
-
-! { dg-final { cleanup-modules "m" } }

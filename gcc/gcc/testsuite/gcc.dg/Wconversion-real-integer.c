@@ -1,8 +1,8 @@
 /* Test for diagnostics for Wconversion between floating-point and
    integers.  */
 
-/* { dg-do compile }
-/* { dg-skip-if "doubles are floats,ints are 16bits" { "avr-*-*" } { "*" } { "" } } */
+/* { dg-do compile } */
+/* { dg-skip-if "doubles are floats,ints are 16bits" { "avr-*-*" } } */
 /* { dg-options "-std=c99 -Wconversion" } */
 /* { dg-require-effective-target int32plus } */
 /* { dg-require-effective-target double64plus } */

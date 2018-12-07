@@ -1,4 +1,5 @@
 	.text
+	.allow_index_reg
 # All the following should be illegal for x86-64
         aaa		# illegal
         aad		# illegal
@@ -66,6 +67,19 @@ movntiw %ax, (%rax)
 mov 0x80000000(%rax),%ebx
 mov 0x80000000,%ebx
 
+	add (%rip,%rsi), %eax
+	add (%rsi,%rip), %eax
+	add (,%rip), %eax
+	add (%eip,%esi), %eax
+	add (%esi,%eip), %eax
+	add (,%eip), %eax
+	add (%rsi,%esi), %eax
+	add (%esi,%rsi), %eax
+	add (%eiz), %eax
+	add (%riz), %eax
+	add (%rax), %riz
+	add (%rax), %eiz
+
 	.intel_syntax noprefix
 	cmpxchg16b dword ptr [rax] # Must be oword
 	movq xmm1, XMMWORD PTR [rsp]
@@ -101,3 +115,4 @@ movnti word ptr [rax], ax
 	jmpd [r8]	# 32-bit data size not allowed
 	jmpd [rax]	# 32-bit data size not allowed
 	jmpq [ax]	# no 16-bit addressing
+	mov eax,[rax+0x876543210] # out of range displacement

@@ -1,6 +1,21 @@
 dnl Process this file with autoconf to produce a configure script.
-
-AC_PREREQ(2.59)
+dnl
+dnl   Copyright (C) 2006-2018 Free Software Foundation, Inc.
+dnl
+dnl This file is free software; you can redistribute it and/or modify
+dnl it under the terms of the GNU General Public License as published by
+dnl the Free Software Foundation; either version 3 of the License, or
+dnl (at your option) any later version.
+dnl
+dnl This program is distributed in the hope that it will be useful,
+dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+dnl GNU General Public License for more details.
+dnl
+dnl You should have received a copy of the GNU General Public License
+dnl along with this program; see the file COPYING3.  If not see
+dnl <http://www.gnu.org/licenses/>.
+dnl
 
 AC_INIT(gold, 0.1)
 AC_CONFIG_SRCDIR(gold.cc)
@@ -10,6 +25,8 @@ AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([no-dist parallel-tests])
 
 AM_CONFIG_HEADER(config.h:config.in)
+
+AC_USE_SYSTEM_EXTENSIONS
 
 # PR 14072
 AH_VERBATIM([00_CONFIG_H_CHECK],
@@ -32,7 +49,7 @@ fi
 
 sysroot_relocatable=0
 if test -n "$sysroot"; then
-  case "sysroot" in
+  case "$sysroot" in
     "${prefix}" | "${prefix}/"* | \
     "${exec_prefix}" | "${exec_prefix}/"* | \
     '${prefix}' | '${prefix}/'*| \
@@ -51,63 +68,46 @@ dnl "install_as_default" is true if the linker to be installed as the
 dnl default linker, ld.
 dnl "installed_linker" is the installed gold linker name.
 
-default_ld=
-AC_ARG_ENABLE(ld,
-[[  --enable-ld[=ARG]     build ld [ARG={default,yes,no}]]],
-[case "${enableval}" in
-  default)
-    default_ld=ld.bfd
-    ;;
-esac])
-
+installed_linker=ld.gold
 AC_ARG_ENABLE(gold,
 [[  --enable-gold[=ARG]     build gold [ARG={default,yes,no}]]],
 [case "${enableval}" in
- yes|default)
-   if test x${default_ld} = x; then
+ default)
+   install_as_default=yes
+   ;;
+ yes)
+   if test x${enable_ld} = xno; then
      install_as_default=yes
    fi
-   installed_linker=ld.gold
-   ;;
- no)
-   ;;
- *)
-   AC_MSG_ERROR([invalid --enable-gold argument])
    ;;
  esac],
-[install_as_default=no
- installed_linker=ld.gold])
+[install_as_default=no])
 AC_SUBST(install_as_default)
 AC_SUBST(installed_linker)
 
-dnl For now threads are a configure time option.
-AC_ARG_ENABLE([threads],
-[  --enable-threads        multi-threaded linking],
-[case "${enableval}" in
-  yes | "") threads=yes ;;
-  no) threads=no ;;
-  *) threads=yes ;;
- esac],
-[threads=no])
-if test "$threads" = "yes"; then
-  AC_DEFINE(ENABLE_THREADS, 1,
-	    [Define to do multi-threaded linking])
-fi
-AM_CONDITIONAL(THREADS, test "$threads" = "yes")
-
-AC_ARG_ENABLE([plugins],
-[  --enable-plugins        linker plugins],
-[case "${enableval}" in
-  yes | "") plugins=yes ;;
-  no) plugins=no ;;
-  *) plugins=yes ;;
- esac],
-[plugins=no])
+AC_PLUGINS
 if test "$plugins" = "yes"; then
   AC_DEFINE(ENABLE_PLUGINS, 1,
 	    [Define to enable linker plugins])
 fi
 AM_CONDITIONAL(PLUGINS, test "$plugins" = "yes")
+
+# Decide if -z relro should be enabled in ELF linker by default.
+ac_default_ld_z_relro=unset
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE(relro,
+	      AS_HELP_STRING([--enable-relro],
+	      [enable -z relro in ELF linker by default]),
+[case "${enableval}" in
+  yes)  ac_default_ld_z_relro=1 ;;
+  no)  ac_default_ld_z_relro=0 ;;
+esac])dnl
+if test "${ac_default_ld_z_relro}" = unset; then
+  ac_default_ld_z_relro=1
+fi
+AC_DEFINE_UNQUOTED(DEFAULT_LD_Z_RELRO,
+  $ac_default_ld_z_relro,
+  [Define to 1 if you want to enable -z relro in ELF linker by default.])
 
 AC_ARG_ENABLE([targets],
 [  --enable-targets        alternative target configurations],
@@ -138,6 +138,26 @@ if test -n "$enable_targets"; then
     fi
   done
 fi
+
+# Decide which "--hash-style" to use by default
+# Provide a configure time option to override our default.
+AC_ARG_ENABLE([default-hash-style],
+AS_HELP_STRING([--enable-default-hash-style={sysv,gnu,both}],
+	       [use this default hash style]),
+[case "${enable_default_hash_style}" in
+  sysv | gnu | both) ;;
+  *) AC_MSG_ERROR([bad value ${enable_default_hash_style} for enable-default-hash-style option]) ;;
+esac],
+[case "${target}" in
+  # Enable gnu hash only on GNU targets, but not mips
+  mips*-*-*) enable_default_hash_style=sysv ;;
+  *-*-gnu* | *-*-linux* | *-*-nacl*) enable_default_hash_style=both ;;
+  *) enable_default_hash_style=sysv ;;
+esac])
+
+AC_DEFINE_UNQUOTED([DEFAULT_HASH_STYLE],
+  ["${enable_default_hash_style}"],
+  [Set the default --hash-style value])
 
 # See which specific instantiations we need.
 targetobjs=
@@ -194,11 +214,33 @@ for targ in $target $canon_targets; do
 	default_big_endian=$targ_big_endian
 	default_osabi=$targ_osabi
 
+	AM_CONDITIONAL(DEFAULT_TARGET_AARCH64, test "$targ_obj" = "aarch64")
 	AM_CONDITIONAL(DEFAULT_TARGET_ARM, test "$targ_obj" = "arm")
 	AM_CONDITIONAL(DEFAULT_TARGET_I386, test "$targ_obj" = "i386")
 	AM_CONDITIONAL(DEFAULT_TARGET_POWERPC, test "$targ_obj" = "powerpc")
 	AM_CONDITIONAL(DEFAULT_TARGET_SPARC, test "$targ_obj" = "sparc")
-	AM_CONDITIONAL(DEFAULT_TARGET_X86_64, test "$targ_obj" = "x86_64")
+	AM_CONDITIONAL(DEFAULT_TARGET_S390, test "$targ_obj" = "s390")
+	target_x86_64=no
+	target_x32=no
+	if test "$targ_obj" = "x86_64"; then
+	  case "$target" in
+	  x86_64*-linux-gnux32)
+	    target_x32=yes
+	    default_size=32
+	    ;;
+	  *)
+	    target_x86_64=yes
+	    ;;
+	  esac
+	fi
+	AM_CONDITIONAL(DEFAULT_TARGET_X86_64, test "$target_x86_64" = "yes")
+	AM_CONDITIONAL(DEFAULT_TARGET_X32, test "$target_x32" = "yes")
+	AM_CONDITIONAL(DEFAULT_TARGET_X86_64_OR_X32,
+		       test "$target_x86_64" = "yes" -o "$target_x32" = "yes")
+	AM_CONDITIONAL(DEFAULT_TARGET_TILEGX, test "$targ_obj" = "tilegx")
+        AM_CONDITIONAL(DEFAULT_TARGET_MIPS, test "$targ_obj" = "mips")
+	DEFAULT_TARGET=${targ_obj}
+	AC_SUBST(DEFAULT_TARGET)
       fi
     fi
   fi
@@ -304,34 +346,48 @@ dnl tell the unittest framework if we're compiling for one of those
 dnl targets, so it doesn't try to run the tests that do that.
 AM_CONDITIONAL(FN_PTRS_IN_SO_WITHOUT_PIC, [
   case $target_cpu in
-    i?86) true;;
+    powerpc*) false;;
     x86_64) false;;
     sparc64) false;;
+    s390x) false;;
     *) true;;
   esac])
 
 dnl Test for gcc 4.1 or later.  Full support for -mcmodel=medium is
 dnl only available in gcc 4.1.
 AC_CACHE_CHECK([for gcc >= 4.1], [gold_cv_prog_gcc41],
-[AC_COMPILE_IFELSE([
+[AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 #if !defined __GNUC__
 error
 #elif __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 1)
 error
 #endif
-], [gold_cv_prog_gcc41=yes], [gold_cv_prog_gcc41=no])])
+])], [gold_cv_prog_gcc41=yes], [gold_cv_prog_gcc41=no])])
 
 save_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -mcmodel=medium"
-AC_COMPILE_IFELSE([int i;], [have_mcmodel_medium=yes], [have_mcmodel_medium=no])
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([int i;])], [have_mcmodel_medium=yes], [have_mcmodel_medium=no])
 CFLAGS="$save_CFLAGS"
 dnl Whether we can test -mcmodel=medium.
 AM_CONDITIONAL(MCMODEL_MEDIUM,
 [test "$target_cpu" = "x86_64" -a "$have_mcmodel_medium" = "yes" -a "$gold_cv_prog_gcc41" = "yes"])
 
+AC_CACHE_CHECK([whether $CC supports -fmerge-constants],
+	       [gold_cv_merge_constants], [
+save_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fmerge-constants"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([const char *s = "foo";])],
+		  [gold_cv_merge_constants=yes],
+		  [gold_cv_merge_constants=no])
+CFLAGS="$save_CFLAGS"])
+AC_SUBST([MERGE_CONSTANTS_FLAG])
+AS_IF([test "$gold_cv_merge_constants" = yes],
+      [MERGE_CONSTANTS_FLAG=-fmerge-constants],
+      [MERGE_CONSTANTS_FLAG=])
+
 dnl Test for __thread support.
 AC_CACHE_CHECK([for thread support], [gold_cv_c_thread],
-[AC_COMPILE_IFELSE([__thread int i = 1;],
+[AC_COMPILE_IFELSE([AC_LANG_SOURCE([__thread int i = 1;])],
 [gold_cv_c_thread=yes], [gold_cv_c_thread=no])])
 
 AM_CONDITIONAL(TLS, test "$gold_cv_c_thread" = "yes")
@@ -339,14 +395,14 @@ AM_CONDITIONAL(TLS, test "$gold_cv_c_thread" = "yes")
 dnl On GNU/Linux TLS in static programs only works when using glibc
 dnl 2.4 or later.
 AC_CACHE_CHECK([for glibc >= 2.4], [gold_cv_lib_glibc24],
-[AC_COMPILE_IFELSE([
+[AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 #include <features.h>
 #if !defined __GLIBC__
 error
 #elif __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 4)
 error
 #endif
-], [gold_cv_lib_glibc24=yes], [gold_cv_lib_glibc24=no])])
+])], [gold_cv_lib_glibc24=yes], [gold_cv_lib_glibc24=no])])
 
 AM_CONDITIONAL(STATIC_TLS, test "$gold_cv_lib_glibc24" = "yes")
 
@@ -354,11 +410,11 @@ dnl Test for #pragma omp threadprivate
 AC_CACHE_CHECK([for omp support], [gold_cv_c_threadprivate],
 [save_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -fopenmp"
-AC_COMPILE_IFELSE([
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 #include <omp.h>
 int i;
 #pragma omp threadprivate (i)
-], [gold_cv_c_threadprivate=yes], [gold_cv_c_threadprivate=no])
+])], [gold_cv_c_threadprivate=yes], [gold_cv_c_threadprivate=no])
 CFLAGS="$save_CFLAGS"])
 if test "$gold_cv_c_threadprivate" = "yes"; then
   AC_DEFINE(HAVE_OMP_SUPPORT, 1,
@@ -367,29 +423,34 @@ fi
 AM_CONDITIONAL(OMP_SUPPORT, test "$gold_cv_c_threadprivate" = "yes")
 
 dnl Test for the -ftls-dialect=gnu2 option.
+dnl Use -Werror in case of compilers that make unknown -m options warnings.
+dnl They would pass the test here, but fail in actual use when $WARN_CFLAGS
+dnl gets set later by default Autoconf magic to include -Werror.  (We are
+dnl assuming here that there is no compiler that groks -mtls-dialect=gnu2
+dnl but does not grok -Werror.)
 save_CFLAGS="$CFLAGS"
-CFLAGS="$CFLAGS -fpic -mtls-dialect=gnu2"
-AC_COMPILE_IFELSE([
+CFLAGS="$CFLAGS -Werror -fpic -mtls-dialect=gnu2"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 __thread int i;
 void foo (void)
 {
   i = 10;
 }
-], [have_tls_gnu2=yes], [have_tls_gnu2=no])
+])], [have_tls_gnu2=yes], [have_tls_gnu2=no])
 CFLAGS="$save_CFLAGS"
 AM_CONDITIONAL(TLS_GNU2_DIALECT, test "$have_tls_gnu2" = "yes")
 
 dnl On GNU/Linux TLS descriptors are supported by the dynamic loader
 dnl only with glibc 2.9 or later.
 AC_CACHE_CHECK([for glibc >= 2.9], [gold_cv_lib_glibc29],
-[AC_COMPILE_IFELSE([
+[AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 #include <features.h>
 #if !defined __GLIBC__
 error
 #elif __GLIBC__ < 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 9)
 error
 #endif
-], [gold_cv_lib_glibc29=yes], [gold_cv_lib_glibc29=no])])
+])], [gold_cv_lib_glibc29=yes], [gold_cv_lib_glibc29=no])])
 
 AM_CONDITIONAL(TLS_DESCRIPTORS, test "$gold_cv_lib_glibc29" = "yes")
 
@@ -397,7 +458,7 @@ dnl Test for the -frandom-seed option.
 AC_CACHE_CHECK([for -frandom-seed support], [gold_cv_c_random_seed],
 [save_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -frandom-seed=foo"
-AC_COMPILE_IFELSE([int i;], [gold_cv_c_random_seed=yes],
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([int i;])], [gold_cv_c_random_seed=yes],
 [gold_cv_c_random_seed=no])
 CFLAGS="$save_CFLAGS"])
 if test "$gold_cv_c_random_seed" = "yes"; then
@@ -485,8 +546,29 @@ else
 fi
 
 # Link in zlib if we can.  This allows us to write compressed sections.
-AC_SEARCH_LIBS(zlibVersion, z, [AC_CHECK_HEADERS(zlib.h)])
-AM_CONDITIONAL(HAVE_ZLIB, test "$ac_cv_search_zlibVersion" != "no")
+AM_ZLIB
+
+AC_ARG_ENABLE([threads],
+[[  --enable-threads[=ARG]  multi-threaded linking [ARG={auto,yes,no}]]],
+[case "${enableval}" in
+  yes | "") threads=yes ;;
+  no) threads=no ;;
+  auto) threads=auto ;;
+  *) threads=yes ;;
+ esac],
+[threads=auto])
+
+if test "$threads" = "yes"; then
+  AX_PTHREAD([threads=yes], AC_MSG_ERROR([pthread not found]))
+elif test "$threads" = "auto"; then
+  AX_PTHREAD([threads=yes], [threads=no])
+fi
+
+if test "$threads" = "yes"; then
+  AC_DEFINE(ENABLE_THREADS, 1,
+	    [Define to do multi-threaded linking])
+fi
+AM_CONDITIONAL(THREADS, test "$threads" = "yes")
 
 dnl We have to check these in C, not C++, because autoconf generates
 dnl tests which have no type information, and current glibc provides
@@ -494,11 +576,43 @@ dnl multiple declarations of functions like basename when compiling
 dnl with C++.
 AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf, strverscmp])
 
+dnl Check if gcc supports the -gpubnames option.
+dnl Use -Werror in case of compilers that make unknown -g options warnings.
+dnl They would pass the test here, but fail in actual use when $WARN_CFLAGS
+dnl gets set later by default Autoconf magic to include -Werror.  (We are
+dnl assuming here that there is no compiler that groks -gpubnames
+dnl but does not grok -Werror.)
+save_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror -gpubnames"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([int i;])], [have_pubnames=yes], [have_pubnames=no])
+CFLAGS="$save_CFLAGS"
+AM_CONDITIONAL(HAVE_PUBNAMES, test "$have_pubnames" = "yes")
+
+dnl Check if gcc supports the -fno-use-linker-plugin option.
+save_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -Werror -fno-use-linker-plugin"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([int i;])], [have_no_use_linker_plugin=yes], [have_no_use_linker_plugin=no])
+CFLAGS="$save_CFLAGS"
+AM_CONDITIONAL(HAVE_NO_USE_LINKER_PLUGIN, test "$have_no_use_linker_plugin" = "yes")
+
 AC_LANG_PUSH(C++)
 
+AC_CHECK_HEADERS(unordered_set unordered_map)
 AC_CHECK_HEADERS(tr1/unordered_set tr1/unordered_map)
 AC_CHECK_HEADERS(ext/hash_map ext/hash_set)
 AC_CHECK_HEADERS(byteswap.h)
+
+dnl When plugins enabled dynamic loader interface is required. Check headers
+dnl which may provide this interface. Add the necessary library to link.
+AC_CHECK_HEADERS(windows.h)
+AC_CHECK_HEADERS(dlfcn.h)
+AC_SEARCH_LIBS(dlopen, [dl dld])
+case "$ac_cv_search_dlopen" in
+  no*) DLOPEN_LIBS="";;
+  *)   DLOPEN_LIBS="$ac_cv_search_dlopen";;
+esac
+AC_SUBST(DLOPEN_LIBS)
+
 AC_CHECK_FUNCS(mallinfo posix_fallocate fallocate readv sysconf times)
 AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf, strverscmp, strndup, memmem])
 
@@ -521,14 +635,14 @@ AC_CACHE_CHECK([whether std::tr1::hash<off_t> is defined],
 [gold_cv_hash_off_t],
 [CXXFLAGS_hold=$CXXFLAGS
 CXXFLAGS="$CXXFLAGS $LFS_CFLAGS"
-AC_COMPILE_IFELSE([
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 #include <sys/types.h>
 #include <tr1/unordered_map>
 std::tr1::hash<off_t> h;
-],
+])],
 [gold_cv_hash_off_t=yes],
 [gold_cv_hash_off_t=no])
-CXXFLAGS=$CFLAGS_hold])
+CXXFLAGS=$CXXFLAGS_hold])
 if test "$gold_cv_hash_off_t" = "yes"; then
    AC_DEFINE(HAVE_TR1_HASH_OFF_T, 1,
 	     [Define if std::tr1::hash<off_t> is usable])
@@ -539,12 +653,12 @@ fi
 # probably be removed after the bug has been fixed for a while.
 AC_CACHE_CHECK([whether we can use attributes with template functions],
 [gold_cv_template_attribute],
-[AC_COMPILE_IFELSE([
+[AC_COMPILE_IFELSE([AC_LANG_SOURCE([
 template<typename T> extern void foo(const char*, ...)
   __attribute__ ((__format__ (__printf__, 1, 2)));
 template<typename T> void foo(const char* format, ...) {}
 void bar() { foo<int>("%s\n", "foo"); }
-], [gold_cv_template_attribute=yes], [gold_cv_template_attribute=no])])
+])], [gold_cv_template_attribute=yes], [gold_cv_template_attribute=no])])
 if test "$gold_cv_template_attribute" = "yes"; then
   AC_DEFINE(HAVE_TEMPLATE_ATTRIBUTES, 1,
 	    [Define if attributes work on C++ templates])
@@ -561,13 +675,6 @@ if test "$gold_cv_stat_st_mtim" = "yes"; then
   AC_DEFINE(HAVE_STAT_ST_MTIM, 1,
 	    [Define if struct stat has a field st_mtim with timespec for mtime])
 fi
-
-dnl Check if gcc supports the -gpubnames option.
-save_CXXFLAGS="$CXXFLAGS"
-CXXFLAGS="$CXXFLAGS -gpubnames"
-AC_COMPILE_IFELSE([int i;], [have_pubnames=yes], [have_pubnames=no])
-CXXFLAGS="$save_CXXFLAGS"
-AM_CONDITIONAL(HAVE_PUBNAMES, test "$have_pubnames" = "yes")
 
 AC_LANG_POP(C++)
 

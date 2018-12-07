@@ -1,7 +1,9 @@
 /* Verify that hardware multiply is preferred on XScale. */
 /* { dg-do compile } */
-/* { dg-options "-mcpu=xscale -O2" } */
+/* { dg-options "-mcpu=xscale -O2 -marm" } */
 /* { dg-skip-if "Test is specific to the Xscale" { arm*-*-* } { "-march=*" } { "-march=xscale" } } */
+/* { dg-skip-if "Test is specific to the Xscale" { arm*-*-* } { "-mcpu=*" } { "-mcpu=xscale" } } */
+/* { dg-skip-if "Test is specific to ARM mode" { arm*-*-* } { "-mthumb" } { "" } } */
 /* { dg-require-effective-target arm32 } */
 
 /* Brett Gaines' test case. */

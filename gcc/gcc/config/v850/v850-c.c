@@ -1,6 +1,5 @@
 /* v850 specific, C compiler specific functions.
-   Copyright (C) 2000, 2001, 2002, 2003, 2005, 2007, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2000-2018 Free Software Foundation, Inc.
    Contributed by Jeff Law (law@cygnus.com).
 
 This file is part of GCC.
@@ -19,16 +18,17 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
+#define IN_TARGET_CODE 1
+
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tm.h"
-#include "cpplib.h"
 #include "tree.h"
-#include "c-family/c-pragma.h"
+#include "stringpool.h"
 #include "diagnostic-core.h"
-#include "ggc.h"
-#include "tm_p.h"
+#include "attribs.h"
+#include "c-family/c-pragma.h"
 
 #ifndef streq
 #define streq(a,b) (strcmp (a, b) == 0)
@@ -174,8 +174,7 @@ ghs_pragma_section (cpp_reader * pfile ATTRIBUTE_UNUSED)
       if (streq (alias, "default"))
 	GHS_current_section_names [kind] = NULL;
       else
-	GHS_current_section_names [kind] =
-	  build_string (strlen (alias) + 1, alias);
+	GHS_current_section_names [kind] = alias;
     }
   while (repeat);
 

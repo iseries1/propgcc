@@ -1,6 +1,6 @@
 ! { dg-do compile }
 ! { dg-shouldfail "Invalid Fortran 2003 code" }
-! { dg-options "-std=f2003 -fall-intrinsics" }
+! { dg-options "-std=f2003" }
 ! PR fortran/23994
 !
 ! Test PROTECTED attribute. Within the module everything is allowed.
@@ -54,5 +54,3 @@ module test
   real :: a
   protected :: test ! { dg-error "MODULE attribute conflicts with PROTECTED" }
 end module test
-
-! { dg-final { cleanup-modules "protmod test" } }

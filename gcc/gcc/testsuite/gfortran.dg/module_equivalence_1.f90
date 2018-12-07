@@ -12,7 +12,7 @@ end module test_equiv
 
 subroutine foo ()
   use test_equiv, z=>b
-  if (any (d(5:8)/=z)) call abort ()
+  if (any (d(5:8)/=z)) STOP 1
 end subroutine foo
 
 program module_equiv
@@ -22,5 +22,3 @@ program module_equiv
   c = (/99.0_4, 999.0_4, 999.0_4, 99.0_4/)
   call foo ()
 end program module_equiv
-
-! { dg-final { cleanup-modules "test_equiv" } }

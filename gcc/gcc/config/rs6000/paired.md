@@ -1,6 +1,5 @@
 ;; PowerPC paired single and double hummer description
-;; Copyright (C) 2007, 2009, 2010
-;; Free Software Foundation, Inc.
+;; Copyright (C) 2007-2018 Free Software Foundation, Inc.
 ;; Contributed by David Edelsohn <edelsohn@gnu.org> and Revital Eres
 ;; <eres@il.ibm.com>
 
@@ -20,14 +19,14 @@
 ;; along with this program; see the file COPYING3.  If not see
 ;; <http://www.gnu.org/licenses/>.
 
-(define_constants
-[(UNSPEC_INTERHI_V2SF     330)
- (UNSPEC_INTERLO_V2SF     331)
- (UNSPEC_EXTEVEN_V2SF     332)
- (UNSPEC_EXTODD_V2SF      333)
-])
+(define_c_enum "unspec"
+  [UNSPEC_INTERHI_V2SF
+   UNSPEC_INTERLO_V2SF
+   UNSPEC_EXTEVEN_V2SF
+   UNSPEC_EXTODD_V2SF
+  ])
 
-(define_insn "paired_negv2sf2"
+(define_insn "negv2sf2"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
 	(neg:V2SF (match_operand:V2SF 1 "gpc_reg_operand" "f")))]
   "TARGET_PAIRED_FLOAT"
@@ -41,7 +40,7 @@
   "ps_rsqrte %0,%1"
   [(set_attr "type" "fp")])
 
-(define_insn "paired_absv2sf2"
+(define_insn "absv2sf2"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
 	(abs:V2SF (match_operand:V2SF 1 "gpc_reg_operand" "f")))]
   "TARGET_PAIRED_FLOAT"
@@ -55,7 +54,7 @@
   "ps_nabs %0,%1"
   [(set_attr "type" "fp")])
 
-(define_insn "paired_addv2sf3"
+(define_insn "addv2sf3"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
 	(plus:V2SF (match_operand:V2SF 1 "gpc_reg_operand" "%f")
 		   (match_operand:V2SF 2 "gpc_reg_operand" "f")))]
@@ -63,7 +62,7 @@
   "ps_add %0,%1,%2"
   [(set_attr "type" "fp")])
 
-(define_insn "paired_subv2sf3"
+(define_insn "subv2sf3"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
         (minus:V2SF (match_operand:V2SF 1 "gpc_reg_operand" "f")
                     (match_operand:V2SF 2 "gpc_reg_operand" "f")))]
@@ -71,7 +70,7 @@
   "ps_sub %0,%1,%2"
   [(set_attr "type" "fp")])
 
-(define_insn "paired_mulv2sf3"
+(define_insn "mulv2sf3"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
 	(mult:V2SF (match_operand:V2SF 1 "gpc_reg_operand" "%f")
 		   (match_operand:V2SF 2 "gpc_reg_operand" "f")))]
@@ -86,7 +85,7 @@
   "ps_res %0,%1"
   [(set_attr "type" "fp")])
 
-(define_insn "paired_divv2sf3"
+(define_insn "divv2sf3"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
 	(div:V2SF (match_operand:V2SF 1 "gpc_reg_operand" "f")
 		  (match_operand:V2SF 2 "gpc_reg_operand" "f")))]
@@ -201,8 +200,8 @@
   [(set_attr "type" "fp")])
 
 (define_insn "*movv2sf_paired"
-  [(set (match_operand:V2SF 0 "nonimmediate_operand" "=Z,f,f,o,r,r,f")
-		 (match_operand:V2SF 1 "input_operand" "f,Z,f,r,o,r,W"))]
+  [(set (match_operand:V2SF 0 "nonimmediate_operand" "=Z,f,f,Y,r,r,f")
+		 (match_operand:V2SF 1 "input_operand" "f,Z,f,r,Y,r,W"))]
   "TARGET_PAIRED_FLOAT
    && (register_operand (operands[0], V2SFmode) 
        || register_operand (operands[1], V2SFmode))"
@@ -272,44 +271,44 @@
 
 (define_insn "paired_merge00"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-	(vec_concat:V2SF
-	 (vec_select:SF (match_operand:V2SF 1 "gpc_reg_operand" "f")
-			(parallel [(const_int 0)]))
-	 (vec_select:SF (match_operand:V2SF 2 "gpc_reg_operand" "f")
-			(parallel [(const_int 0)]))))]
+	(vec_select:V2SF
+	  (vec_concat:V4SF
+	    (match_operand:V2SF 1 "gpc_reg_operand" "f")
+	    (match_operand:V2SF 2 "gpc_reg_operand" "f"))
+	  (parallel [(const_int 0) (const_int 2)])))]
   "TARGET_PAIRED_FLOAT"
   "ps_merge00 %0, %1, %2"
   [(set_attr "type" "fp")])
 
 (define_insn "paired_merge01"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-	(vec_concat:V2SF
-	 (vec_select:SF (match_operand:V2SF 1 "gpc_reg_operand" "f")
-			(parallel [(const_int 0)]))
-	 (vec_select:SF (match_operand:V2SF 2 "gpc_reg_operand" "f")
-			(parallel [(const_int 1)]))))]
+	(vec_select:V2SF
+	  (vec_concat:V4SF
+	    (match_operand:V2SF 1 "gpc_reg_operand" "f")
+	    (match_operand:V2SF 2 "gpc_reg_operand" "f"))
+	  (parallel [(const_int 0) (const_int 3)])))]
   "TARGET_PAIRED_FLOAT"
   "ps_merge01 %0, %1, %2"
   [(set_attr "type" "fp")])
 
 (define_insn "paired_merge10"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-	(vec_concat:V2SF
-	 (vec_select:SF (match_operand:V2SF 1 "gpc_reg_operand" "f")
-			(parallel [(const_int 1)]))
-	 (vec_select:SF (match_operand:V2SF 2 "gpc_reg_operand" "f")
-			(parallel [(const_int 0)]))))]
+	(vec_select:V2SF
+	  (vec_concat:V4SF
+	    (match_operand:V2SF 1 "gpc_reg_operand" "f")
+	    (match_operand:V2SF 2 "gpc_reg_operand" "f"))
+	  (parallel [(const_int 1) (const_int 2)])))]
   "TARGET_PAIRED_FLOAT"
   "ps_merge10 %0, %1, %2"
   [(set_attr "type" "fp")])
 
 (define_insn "paired_merge11"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-	(vec_concat:V2SF
-	 (vec_select:SF (match_operand:V2SF 1 "gpc_reg_operand" "f")
-			(parallel [(const_int 1)]))
-	 (vec_select:SF (match_operand:V2SF 2 "gpc_reg_operand" "f")
-			(parallel [(const_int 1)]))))]
+	(vec_select:V2SF
+	  (vec_concat:V4SF
+	    (match_operand:V2SF 1 "gpc_reg_operand" "f")
+	    (match_operand:V2SF 2 "gpc_reg_operand" "f"))
+	  (parallel [(const_int 1) (const_int 3)])))]
   "TARGET_PAIRED_FLOAT"
   "ps_merge11 %0, %1, %2"
   [(set_attr "type" "fp")])
@@ -365,7 +364,7 @@
   "ps_muls1 %0, %1, %2"
   [(set_attr "type" "fp")])
 
-(define_expand "vec_initv2sf"
+(define_expand "vec_initv2sfsf"
   [(match_operand:V2SF 0 "gpc_reg_operand" "=f")
    (match_operand 1 "" "")]
   "TARGET_PAIRED_FLOAT"
@@ -409,105 +408,73 @@
   DONE;
 })
 
-(define_expand "reduc_smax_v2sf"
-  [(match_operand:V2SF 0 "gpc_reg_operand" "=f")
+(define_expand "reduc_smax_scal_v2sf"
+  [(match_operand:SF 0 "gpc_reg_operand" "=f")
    (match_operand:V2SF 1 "gpc_reg_operand" "f")]
   "TARGET_PAIRED_FLOAT"
 {
   rtx tmp_swap = gen_reg_rtx (V2SFmode);
   rtx tmp = gen_reg_rtx (V2SFmode);
+  rtx vec_res = gen_reg_rtx (V2SFmode);
+  rtx di_res = gen_reg_rtx (DImode);
 
   emit_insn (gen_paired_merge10 (tmp_swap, operands[1], operands[1]));
   emit_insn (gen_subv2sf3 (tmp, operands[1], tmp_swap));
-  emit_insn (gen_selv2sf4 (operands[0], tmp, operands[1], tmp_swap, CONST0_RTX (SFmode)));
+  emit_insn (gen_selv2sf4 (vec_res, tmp, operands[1], tmp_swap,
+			   CONST0_RTX (SFmode)));
+  emit_move_insn (di_res, simplify_gen_subreg (DImode, vec_res, V2SFmode, 0));
+  emit_move_insn (operands[0], simplify_gen_subreg (SFmode, di_res, DImode,
+						    BYTES_BIG_ENDIAN ? 4 : 0));
 
   DONE;
 })
 
-(define_expand "reduc_smin_v2sf"
-  [(match_operand:V2SF 0 "gpc_reg_operand" "=f")
+(define_expand "reduc_smin_scal_v2sf"
+  [(match_operand:SF 0 "gpc_reg_operand" "=f")
    (match_operand:V2SF 1 "gpc_reg_operand" "f")]
   "TARGET_PAIRED_FLOAT"
 {
   rtx tmp_swap = gen_reg_rtx (V2SFmode);
   rtx tmp = gen_reg_rtx (V2SFmode);
+  rtx vec_res = gen_reg_rtx (V2SFmode);
+  rtx di_res = gen_reg_rtx (DImode);
 
   emit_insn (gen_paired_merge10 (tmp_swap, operands[1], operands[1]));
   emit_insn (gen_subv2sf3 (tmp, operands[1], tmp_swap));
-  emit_insn (gen_selv2sf4 (operands[0], tmp, tmp_swap, operands[1], CONST0_RTX (SFmode)));
+  emit_insn (gen_selv2sf4 (vec_res, tmp, tmp_swap, operands[1],
+			   CONST0_RTX (SFmode)));
+  emit_move_insn (di_res, simplify_gen_subreg (DImode, vec_res, V2SFmode, 0));
+  emit_move_insn (operands[0], simplify_gen_subreg (SFmode, di_res, DImode,
+						    BYTES_BIG_ENDIAN ? 4 : 0));
 
   DONE;
 })
 
-(define_expand "vec_interleave_highv2sf"
- [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-        (unspec:V2SF [(match_operand:V2SF 1 "gpc_reg_operand" "f")
-                      (match_operand:V2SF 2 "gpc_reg_operand" "f")]
-                      UNSPEC_INTERHI_V2SF))]
-  "TARGET_PAIRED_FLOAT"
-  "
-{
-  emit_insn (gen_paired_merge00 (operands[0], operands[1], operands[2]));
-  DONE;
-}")
-
-(define_expand "vec_interleave_lowv2sf"
- [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-        (unspec:V2SF [(match_operand:V2SF 1 "gpc_reg_operand" "f")
-                      (match_operand:V2SF 2 "gpc_reg_operand" "f")]
-                      UNSPEC_INTERLO_V2SF))]
-  "TARGET_PAIRED_FLOAT"
-  "
-{
-  emit_insn (gen_paired_merge11 (operands[0], operands[1], operands[2]));
-  DONE;
-}")
-
-(define_expand "vec_extract_evenv2sf"
- [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-        (unspec:V2SF [(match_operand:V2SF 1 "gpc_reg_operand" "f")
-                      (match_operand:V2SF 2 "gpc_reg_operand" "f")]
-                      UNSPEC_EXTEVEN_V2SF))]
-  "TARGET_PAIRED_FLOAT"
-  "
-{
-  emit_insn (gen_paired_merge00 (operands[0], operands[1], operands[2]));
-  DONE;
-}")
-
-(define_expand "vec_extract_oddv2sf"
- [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-        (unspec:V2SF [(match_operand:V2SF 1 "gpc_reg_operand" "f")
-                      (match_operand:V2SF 2 "gpc_reg_operand" "f")]
-                      UNSPEC_EXTODD_V2SF))]
-  "TARGET_PAIRED_FLOAT"
-  "
-{
-  emit_insn (gen_paired_merge11 (operands[0], operands[1], operands[2]));
-  DONE;
-}")
-
-
-(define_expand "reduc_splus_v2sf"
-  [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
+(define_expand "reduc_plus_scal_v2sf"
+  [(set (match_operand:SF 0 "gpc_reg_operand" "=f")
         (match_operand:V2SF 1 "gpc_reg_operand" "f"))]
   "TARGET_PAIRED_FLOAT"
-  "
 {
-  emit_insn (gen_paired_sum1 (operands[0], operands[1], operands[1], operands[1]));
+  rtx vec_res = gen_reg_rtx (V2SFmode);
+  rtx di_res = gen_reg_rtx (DImode);
+
+  emit_insn (gen_paired_sum1 (vec_res, operands[1], operands[1], operands[1]));
+  emit_move_insn (di_res, simplify_gen_subreg (DImode, vec_res, V2SFmode, 0));
+  emit_move_insn (operands[0], simplify_gen_subreg (SFmode, di_res, DImode,
+						    BYTES_BIG_ENDIAN ? 4 : 0));
   DONE;
-}")
+})
 
 (define_expand "movmisalignv2sf"
-  [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
-        (match_operand:V2SF 1 "gpc_reg_operand" "f"))]
+  [(set (match_operand:V2SF 0 "nonimmediate_operand" "")
+        (match_operand:V2SF 1 "any_operand" ""))]
   "TARGET_PAIRED_FLOAT"
 {
   paired_expand_vector_move (operands);
   DONE;
 })
 
-(define_expand "vcondv2sf"
+(define_expand "vcondv2sfv2sf"
   [(set (match_operand:V2SF 0 "gpc_reg_operand" "=f")
         (if_then_else:V2SF
          (match_operator 3 "gpc_reg_operand"
@@ -516,12 +483,10 @@
          (match_operand:V2SF 1 "gpc_reg_operand" "f")
          (match_operand:V2SF 2 "gpc_reg_operand" "f")))]
   "TARGET_PAIRED_FLOAT && flag_unsafe_math_optimizations"
-  "
 {
-        if (paired_emit_vector_cond_expr (operands[0], operands[1], operands[2],
-                                          operands[3], operands[4], operands[5]))
-        DONE;
-        else
-        FAIL;
-}")
-
+  if (paired_emit_vector_cond_expr (operands[0], operands[1], operands[2],
+                                    operands[3], operands[4], operands[5]))
+    DONE;
+  else
+    FAIL;
+})

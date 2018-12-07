@@ -1,4 +1,10 @@
 # Linker Script for National Semiconductor's CR16-ELF32.
+#
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
 
 # The next line should be uncommented if it is desired to link
 # without libstart.o and directly enter main.
@@ -8,7 +14,12 @@
 test -z "$ENTRY" && ENTRY=_start
 cat <<EOF
 
-/* Example Linker Script for linking NS CR16 elf32 files. */
+/* Example Linker Script for linking NS CR16 elf32 files.
+   Copyright (C) 2014-2018 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
 
 OUTPUT_FORMAT("${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
@@ -17,8 +28,8 @@ ${RELOCATING+ENTRY(${ENTRY})}
 /* Define memory regions.  */
 MEMORY
 {
-        rom         : ORIGIN = 0x2,         LENGTH = 3M
-        ram         : ORIGIN = 4M,          LENGTH = 10M
+	rom	    : ORIGIN = 0x2,	    LENGTH = 3M
+	ram	    : ORIGIN = 4M,	    LENGTH = 10M
 }
 
 /*  Many sections come in three flavours.  There is the 'real' section,
@@ -39,25 +50,25 @@ MEMORY
 SECTIONS
 {
   .init :
-  { 
-    __INIT_START = .; 
+  {
+    __INIT_START = .;
     KEEP (*(.init))
-    __INIT_END = .; 
+    __INIT_END = .;
   } > rom
 
   .fini :
-  { 
-    __FINI_START = .; 
+  {
+    __FINI_START = .;
     KEEP (*(.fini))
-    __FINI_END = .; 
+    __FINI_END = .;
   } > rom
 
   .jcr :
-  { 
+  {
     KEEP (*(.jcr))
   } > rom
 
-  .text : 
+  .text :
   {
     __TEXT_START = .;
     *(.text) *(.text.*) *(.gnu.linkonce.t.*)
@@ -71,9 +82,9 @@ SECTIONS
     __RDATA_END = .;
   } > rom
 
-  .ctor ALIGN(4) : 
-  { 
-    __CTOR_START = .; 
+  .ctor ALIGN(4) :
+  {
+    __CTOR_START = .;
     /* The compiler uses crtbegin.o to find the start
        of the constructors, so we make sure it is
        first.  Because this is a wildcard, it
@@ -94,17 +105,17 @@ SECTIONS
     KEEP (*(EXCLUDE_FILE (*crtend*.o) .ctors))
     KEEP (*(SORT(.ctors.*)))
     KEEP (*(.ctors))
-    __CTOR_END = .; 
+    __CTOR_END = .;
   } > rom
 
-  .dtor ALIGN(4) : 
-  { 
-    __DTOR_START = .; 
+  .dtor ALIGN(4) :
+  {
+    __DTOR_START = .;
     KEEP (*crtbegin*.o(.dtors))
     KEEP (*(EXCLUDE_FILE (*crtend*.o) .dtors))
     KEEP (*(SORT(.dtors.*)))
     KEEP (*(.dtors))
-    __DTOR_END = .; 
+    __DTOR_END = .;
   } > rom
 
   .data :
@@ -150,26 +161,11 @@ SECTIONS
 
   .comment        0 : { *(.comment) }
 
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging sections are relative to the beginning
-     of the section so we begin them at 0.  */
+EOF
 
-  .debug_aranges  0 : { *(.debug_aranges) }
-  .debug_pubnames 0 : { *(.debug_pubnames) }
-  .debug_info     0 : { *(.debug_info .gnu.linkonce.wi.*) }
-  .debug_abbrev   0 : { *(.debug_abbrev) }
-  .debug_line     0 : { *(.debug_line) }
-  .debug_frame    0 : { *(.debug_frame) }
-  .debug_str      0 : { *(.debug_str) }
-  .debug_loc      0 : { *(.debug_loc) }
-  .debug_macinfo  0 : { *(.debug_macinfo) }
+. $srcdir/scripttempl/DWARF.sc
 
-  /* DWARF 3 */
-  .debug_pubtypes 0 : { *(.debug_pubtypes) }
-  .debug_ranges   0 : { *(.debug_ranges) }
-
-  /* DWARF Extension.  */
-  .debug_macro    0 : { *(.debug_macro) } 
+cat <<EOF
 }
 
 __DATA_IMAGE_START = LOADADDR(.data);

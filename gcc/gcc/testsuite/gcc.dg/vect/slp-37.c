@@ -1,7 +1,6 @@
 /* { dg-require-effective-target vect_int } */
 
 #include <stdarg.h>
-#include <stdlib.h>
 #include "tree-vect.h"
 
 #define N 128 
@@ -24,7 +23,7 @@ foo1 (s1 *arr)
     {
       ptr->a = 6;
       ptr->b = 7;
-      ptr->c = NULL;
+      ptr->c = 0;
       ptr++; 
     } 
    
@@ -33,7 +32,7 @@ foo1 (s1 *arr)
     { 
        if (arr[i].a != 6 
            || arr[i].b != 7
-           || arr[i].c != NULL)
+           || arr[i].c != 0)
          abort();
     }
 }
@@ -50,9 +49,7 @@ int main (void)
       arr1[i].a = i;
       arr1[i].b = i * 2;
       arr1[i].c = (void *)arr1;
-
-      if (arr1[i].a == 178)
-         abort(); 
+      asm volatile ("" ::: "memory");
     } 
 
 
@@ -63,5 +60,4 @@ int main (void)
 
 /* { dg-final { scan-tree-dump-times "vectorized 1 loops" 0 "vect"  } } */
 /* { dg-final { scan-tree-dump-times "vectorizing stmts using SLP" 0 "vect"  } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
   

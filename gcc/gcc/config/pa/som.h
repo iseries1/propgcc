@@ -1,6 +1,5 @@
 /* Definitions for SOM assembler support.
-   Copyright (C) 1999, 2001, 2002, 2003, 2004, 2005, 2007, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2018 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -120,11 +119,11 @@ do {								\
 	     for (parm = DECL_ARGUMENTS (DECL), i = 0; parm && i < 4;	\
 		  parm = DECL_CHAIN (parm))				\
 	       {							\
-		 if (TYPE_MODE (DECL_ARG_TYPE (parm)) == SFmode		\
-		     && ! TARGET_SOFT_FLOAT)				\
+		 tree type = DECL_ARG_TYPE (parm);			\
+		 machine_mode mode = TYPE_MODE (type);			\
+		 if (mode == SFmode && ! TARGET_SOFT_FLOAT)		\
 		   fprintf (FILE, ",ARGW%d=FR", i++);			\
-		 else if (TYPE_MODE (DECL_ARG_TYPE (parm)) == DFmode	\
-			  && ! TARGET_SOFT_FLOAT)			\
+		 else if (mode == DFmode && ! TARGET_SOFT_FLOAT)	\
 		   {							\
 		     if (i <= 2)					\
 		       {						\
@@ -136,13 +135,10 @@ do {								\
 		   }							\
 		 else							\
 		   {							\
-		     int arg_size =					\
-		       FUNCTION_ARG_SIZE (TYPE_MODE (DECL_ARG_TYPE (parm)),\
-					  DECL_ARG_TYPE (parm));	\
+		     int arg_size = pa_function_arg_size (mode, type);	\
 		     /* Passing structs by invisible reference uses	\
 			one general register.  */			\
-		     if (arg_size > 2					\
-			 || TREE_ADDRESSABLE (DECL_ARG_TYPE (parm)))	\
+		     if (arg_size > 2 || TREE_ADDRESSABLE (type))	\
 		       arg_size = 1;					\
 		     if (arg_size == 2 && i <= 2)			\
 		       {						\
@@ -227,7 +223,7 @@ do {								\
        tree id;								\
 									\
        if (!function_label_operand (RTL, VOIDmode))			\
-	 hppa_encode_label (RTL);					\
+	 pa_encode_label (RTL);						\
 									\
        name = targetm.strip_name_encoding (XSTR ((RTL), 0));		\
        id = maybe_get_identifier (name);				\
@@ -269,7 +265,8 @@ do {						\
    must be removed from library prefixes to prevent binaries from depending
    on the location of the GCC tool directory.  The downside is GCC
    cannot be moved after installation using a symlink.  */
-#define ALWAYS_STRIP_DOTDOT 1
+#undef TARGET_ALWAYS_STRIP_DOTDOT
+#define TARGET_ALWAYS_STRIP_DOTDOT true
 
 /* If GAS supports weak, we can support weak when we have working linker
    support for secondary definitions and are generating code for GAS.
@@ -339,3 +336,12 @@ do {						\
 /* Shared library suffix.  Collect2 strips the version string after
    this suffix when generating constructor/destructor names.  */ 
 #define SHLIB_SUFFIX ".sl"
+
+/* We don't have named sections.  */
+#define TARGET_HAVE_NAMED_SECTIONS false
+
+#define TARGET_ASM_TM_CLONE_TABLE_SECTION pa_som_tm_clone_table_section
+
+/* Generate specially named labels to identify DWARF 2 frame unwind
+   information.  */
+#define EH_FRAME_THROUGH_COLLECT2

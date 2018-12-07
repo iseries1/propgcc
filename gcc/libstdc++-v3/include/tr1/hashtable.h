@@ -1,6 +1,6 @@
 // TR1 hashtable.h header -*- C++ -*-
 
-// Copyright (C) 2007, 2009, 2010, 2011 Free Software Foundation, Inc.
+// Copyright (C) 2007-2018 Free Software Foundation, Inc.
 //
 // This file is part of the GNU ISO C++ Library.  This library is free
 // software; you can redistribute it and/or modify it under the
@@ -37,10 +37,10 @@
 
 namespace std _GLIBCXX_VISIBILITY(default)
 {
-namespace tr1
-{
 _GLIBCXX_BEGIN_NAMESPACE_VERSION
 
+namespace tr1
+{
   // Class template _Hashtable, class definition.
 
   // Meaning of class template _Hashtable's template parameters
@@ -813,7 +813,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
     }
 
   // Find the node whose key compares equal to k, beginning the search
-  // at p (usually the head of a bucket).  Return nil if no node is found.
+  // at p (usually the head of a bucket).  Return zero if no node is found.
   template<typename _Key, typename _Value,
 	   typename _Allocator, typename _ExtractKey, typename _Equal,
 	   typename _H1, typename _H2, typename _Hash, typename _RehashPolicy,
@@ -829,7 +829,7 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
       for (; __p; __p = __p->_M_next)
 	if (this->_M_compare(__k, __code, __p))
 	  return __p;
-      return false;
+      return 0;
     }
 
   // Insert v in bucket n (assumes no element with its key already present).
@@ -1173,9 +1173,9 @@ _GLIBCXX_BEGIN_NAMESPACE_VERSION
 	  __throw_exception_again;
 	}
     }
+} // namespace tr1
 
 _GLIBCXX_END_NAMESPACE_VERSION
-} // namespace tr1
 } // namespace std
 
 #endif // _GLIBCXX_TR1_HASHTABLE_H

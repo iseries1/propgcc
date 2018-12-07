@@ -1,14 +1,14 @@
-/*							log10l.c
+/*							log10q.c
  *
- *	Common logarithm, 128-bit long double precision
+ *	Common logarithm, 128-bit __float128 precision
  *
  *
  *
  * SYNOPSIS:
  *
- * long double x, y, log10l();
+ * __float128 x, y, log10l();
  *
- * y = log10l( x );
+ * y = log10q( x );
  *
  *
  *
@@ -188,11 +188,14 @@ log10q (__float128 x)
 /* Test for domain */
   GET_FLT128_WORDS64 (hx, lx, x);
   if (((hx & 0x7fffffffffffffffLL) | lx) == 0)
-    return (-1.0Q / (x - x));
+    return (-1.0Q / fabsq (x));		/* log10l(+-0)=-inf  */
   if (hx < 0)
     return (x - x) / (x - x);
   if (hx >= 0x7fff000000000000LL)
     return (x + x);
+
+  if (x == 1.0Q)
+    return 0.0Q;
 
 /* separate mantissa from exponent */
 

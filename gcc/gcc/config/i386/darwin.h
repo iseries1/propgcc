@@ -1,6 +1,5 @@
 /* Target definitions for x86 running Darwin.
-   Copyright (C) 2001, 2002, 2004, 2005, 2006, 2007, 2008, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 2001-2018 Free Software Foundation, Inc.
    Contributed by Apple Computer Inc.
 
 This file is part of GCC.
@@ -26,10 +25,10 @@ along with GCC; see the file COPYING3.  If not see
 #undef DARWIN_X86
 #define DARWIN_X86 1
 
-#define TARGET_VERSION fprintf (stderr, " (i686 Darwin)");
-
 #undef  TARGET_64BIT
-#define TARGET_64BIT OPTION_ISA_64BIT
+#undef	TARGET_64BIT_P
+#define TARGET_64BIT TARGET_ISA_64BIT
+#define	TARGET_64BIT_P(x) TARGET_ISA_64BIT_P(x)
 
 #ifdef IN_LIBGCC2
 #undef TARGET_64BIT
@@ -39,6 +38,32 @@ along with GCC; see the file COPYING3.  If not see
 #define TARGET_64BIT 0
 #endif
 #endif
+
+/* WORKAROUND pr80556:
+   For x86_64 Darwin10 and later, the unwinder is in libunwind (redirected
+   from libSystem).  This doesn't use the keymgr (see keymgr.c) and therefore
+   the calls that libgcc makes to obtain the KEYMGR_GCC3_DW2_OBJ_LIST are not
+   updated to include new images, and might not even be valid for a single
+   image.
+   Therefore, for 64b exes at least, we must use the libunwind implementation,
+   even when static-libgcc is specified.  We put libSystem first so that
+   unwinder symbols are satisfied from there. */
+#undef REAL_LIBGCC_SPEC
+#define REAL_LIBGCC_SPEC						   \
+   "%{static-libgcc|static: 						   \
+      %{m64:%:version-compare(>= 10.6 mmacosx-version-min= -lSystem)}	   \
+        -lgcc_eh -lgcc;							   \
+      shared-libgcc|fexceptions|fgnu-runtime:				   \
+       %:version-compare(!> 10.5 mmacosx-version-min= -lgcc_s.10.4)	   \
+       %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
+       %:version-compare(!> 10.5 mmacosx-version-min= -lgcc_ext.10.4)	   \
+       %:version-compare(>= 10.5 mmacosx-version-min= -lgcc_ext.10.5)	   \
+       -lgcc ;								   \
+      :%:version-compare(>< 10.3.9 10.5 mmacosx-version-min= -lgcc_s.10.4) \
+       %:version-compare(>< 10.5 10.6 mmacosx-version-min= -lgcc_s.10.5)   \
+       %:version-compare(!> 10.5 mmacosx-version-min= -lgcc_ext.10.4)	   \
+       %:version-compare(>= 10.5 mmacosx-version-min= -lgcc_ext.10.5)	   \
+       -lgcc }"
 
 /* Size of the Obj-C jump buffer.  */
 #define OBJC_JBLEN ((TARGET_64BIT) ? ((9 * 2) + 3 + 16) : (18))
@@ -109,32 +134,23 @@ extern int darwin_emit_branch_islands;
 #undef CC1_SPEC
 #define CC1_SPEC "%(cc1_cpu) \
   %{!mkernel:%{!static:%{!mdynamic-no-pic:-fPIC}}} \
-  %{!mmacosx-version-min=*:-mmacosx-version-min=%(darwin_minversion)} \
   %{g: %{!fno-eliminate-unused-debug-symbols: -feliminate-unused-debug-symbols }} " \
   DARWIN_CC1_SPEC
 
 #undef ASM_SPEC
-#define ASM_SPEC "-arch %(darwin_arch) -force_cpusubtype_ALL \
-  %{static}"
+#define ASM_SPEC "-arch %(darwin_arch) \
+  " ASM_OPTIONS " -force_cpusubtype_ALL \
+  %{static}" ASM_MMACOSX_VERSION_MIN_SPEC
 
 #define DARWIN_ARCH_SPEC "%{m64:x86_64;:i386}"
 #define DARWIN_SUBARCH_SPEC DARWIN_ARCH_SPEC
 
-/* Determine a minimum version based on compiler options.  */
-#define DARWIN_MINVERSION_SPEC				\
- "%{!m64|fgnu-runtime:10.4;				\
-    ,objective-c|,objc-cpp-output:10.5;			\
-    ,objective-c-header:10.5;				\
-    ,objective-c++|,objective-c++-cpp-output:10.5;	\
-    ,objective-c++-header|,objc++-cpp-output:10.5;	\
-    :10.4}"
-
 #undef ENDFILE_SPEC
 #define ENDFILE_SPEC \
-  "%{ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
+  "%{Ofast|ffast-math|funsafe-math-optimizations:crtfastmath.o%s} \
    %{mpc32:crtprec32.o%s} \
    %{mpc64:crtprec64.o%s} \
-   %{mpc80:crtprec80.o%s}"
+   %{mpc80:crtprec80.o%s}" TM_DESTRUCTOR
 
 #undef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS                                   \
@@ -153,12 +169,6 @@ extern int darwin_emit_branch_islands;
    print %cl.  */
 
 #define SHIFT_DOUBLE_OMITS_COUNT 0
-
-/* Put all *tf routines in libgcc.  */
-#undef LIBGCC2_HAS_TF_MODE
-#define LIBGCC2_HAS_TF_MODE 1
-#define LIBGCC2_TF_CEXT q
-#define TF_SIZE 113
 
 #undef TARGET_ASM_FILE_END
 #define TARGET_ASM_FILE_END darwin_file_end
@@ -243,7 +253,11 @@ do {									\
    compiles default to stabs+.  darwin9+ defaults to dwarf-2.  */
 #ifndef DARWIN_PREFER_DWARF
 #undef PREFERRED_DEBUGGING_TYPE
+#ifdef HAVE_AS_STABS_DIRECTIVE
 #define PREFERRED_DEBUGGING_TYPE (TARGET_64BIT ? DWARF2_DEBUG : DBX_DEBUG)
+#else
+#define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
+#endif
 #endif
 
 /* Darwin uses the standard DWARF register numbers but the default
@@ -312,12 +326,3 @@ do {								\
     = darwin_init_cfstring_builtins ((unsigned) (IX86_BUILTIN_CFSTRING));	\
   darwin_rename_builtins ();					\
 } while(0)
-
-/* The system ___divdc3 routine in libSystem on darwin10 is not
-   accurate to 1ulp, ours is, so we avoid ever using the system name
-   for this routine and instead install a non-conflicting name that is
-   accurate.  See darwin_rename_builtins.  */
-#ifdef L_divdc3
-#define DECLARE_LIBRARY_RENAMES \
-  asm(".text; ___divdc3: jmp ___ieee_divdc3 ; .globl ___divdc3");
-#endif

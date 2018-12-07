@@ -1,4 +1,4 @@
-/* config.in.  Generated from configure.in by autoheader.  */
+/* config.in.  Generated from configure.ac by autoheader.  */
 
 /* Check that config.h is #included before system headers
    (this works only for glibc, but that should be enough).  */
@@ -36,6 +36,20 @@
 /* Default emulation. */
 #undef DEFAULT_EMULATION
 
+/* Define if you want compressed debug sections by default. */
+#undef DEFAULT_FLAG_COMPRESS_DEBUG
+
+/* Define to 1 if you want to generate GNU Build attribute notes by default,
+   if none are contained in the input. */
+#undef DEFAULT_GENERATE_BUILD_NOTES
+
+/* Define to 1 if you want to generate ELF common symbols with the STT_COMMON
+   type by default. */
+#undef DEFAULT_GENERATE_ELF_STT_COMMON
+
+/* Define to 1 if you want to generate x86 relax relocations by default. */
+#undef DEFAULT_GENERATE_X86_RELAX_RELOCATIONS
+
 /* Supported emulations. */
 #undef EMULATIONS
 
@@ -52,6 +66,10 @@
 /* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
    */
 #undef HAVE_ALLOCA_H
+
+/* Define to 1 if you have the declaration of `asprintf', and to 0 if you
+   don't. */
+#undef HAVE_DECL_ASPRINTF
 
 /* Define to 1 if you have the declaration of `free', and to 0 if you don't.
    */
@@ -130,6 +148,9 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the `strsignal' function. */
+#undef HAVE_STRSIGNAL
+
 /* Define if <sys/stat.h> has struct stat.st_mtim.tv_nsec */
 #undef HAVE_ST_MTIM_TV_NSEC
 
@@ -154,8 +175,8 @@
 /* Define to 1 if you have the `unlink' function. */
 #undef HAVE_UNLINK
 
-/* Define to 1 if you have the <zlib.h> header file. */
-#undef HAVE_ZLIB_H
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
 
 /* Using i386 COFF? */
 #undef I386COFF
@@ -163,12 +184,6 @@
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
-
-/* Using m68k COFF? */
-#undef M68KCOFF
-
-/* Using m88k COFF? */
-#undef M88KCOFF
 
 /* Default CPU for MIPS targets. */
 #undef MIPS_CPU_STRING_DEFAULT
@@ -178,6 +193,24 @@
 
 /* Choose a default ABI for MIPS targets. */
 #undef MIPS_DEFAULT_ABI
+
+/* Define value for nds32_arch_name */
+#undef NDS32_DEFAULT_ARCH_NAME
+
+/* Define default value for nds32_audio_ext */
+#undef NDS32_DEFAULT_AUDIO_EXT
+
+/* Define default value for nds32_dx_regs */
+#undef NDS32_DEFAULT_DX_REGS
+
+/* Define default value for nds32_perf_ext */
+#undef NDS32_DEFAULT_PERF_EXT
+
+/* Define default value for nds32_perf_ext2 */
+#undef NDS32_DEFAULT_PERF_EXT2
+
+/* Define default value for nds32_string_ext */
+#undef NDS32_DEFAULT_STRING_EXT
 
 /* Define if environ is not declared in system header files. */
 #undef NEED_DECLARATION_ENVIRON
@@ -202,9 +235,6 @@
 
 /* a.out support? */
 #undef OBJ_MAYBE_AOUT
-
-/* b.out support? */
-#undef OBJ_MAYBE_BOUT
 
 /* COFF support? */
 #undef OBJ_MAYBE_COFF
@@ -242,9 +272,6 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define if defaulting to ELF on SCO 5. */
-#undef SCO_ELF
-
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
    automatically deduced at runtime.
@@ -280,11 +307,11 @@
 /* Define if default target is PowerPC Solaris. */
 #undef TARGET_SOLARIS_COMMENT
 
-/* Define if target is Symbian OS. */
-#undef TARGET_SYMBIAN
-
 /* Target vendor. */
 #undef TARGET_VENDOR
+
+/* Target specific CPU. */
+#undef TARGET_WITH_CPU
 
 /* Use b modifier when opening binary files? */
 #undef USE_BINARY_FOPEN
@@ -339,6 +366,11 @@
    `char[]'. */
 #undef YYTEXT_POINTER
 
+/* Enable large inode numbers on Mac OS X 10.5.  */
+#ifndef _DARWIN_USE_64_BIT_INODE
+# define _DARWIN_USE_64_BIT_INODE 1
+#endif
+
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 
@@ -360,3 +392,6 @@
 #ifndef __cplusplus
 #undef inline
 #endif
+
+/* Define to `unsigned int' if <sys/types.h> does not define. */
+#undef size_t

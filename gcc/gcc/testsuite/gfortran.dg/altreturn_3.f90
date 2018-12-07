@@ -1,5 +1,5 @@
 ! { dg-do run }
-! { dg-options "-std=legacy" }
+! { dg-options "-std=gnu" }
 !
 ! Tests the fix for PR30236, which was due to alternate returns
 ! in generic interfaces causing a segfault.  They now work
@@ -34,12 +34,11 @@ program test
   implicit none
   integer :: i = 0
   call gen (i, *10)
-  if (i /= -2) call abort ()
+  if (i /= -2) STOP 1
   i = 2
   call gen (i, *20)
  10 continue
-  call abort()
+  STOP 2
  20 continue
-  if (i /= -1) call abort ()
+  if (i /= -1) STOP 3
 end
-! { dg-final { cleanup-modules "arswitch" } }

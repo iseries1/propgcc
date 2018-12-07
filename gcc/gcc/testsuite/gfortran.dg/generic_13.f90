@@ -31,6 +31,5 @@ PROGRAM TT
  USE TOO
  INTEGER :: I
  CALL SUB(xx,I)
- IF (I.NE.7) CALL ABORT()
+ IF (I.NE.7) STOP 1
 END PROGRAM
-! { dg-final { cleanup-modules "test too" } }

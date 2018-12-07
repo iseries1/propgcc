@@ -1,4 +1,4 @@
-/* Copyright (C) 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+/* Copyright (C) 2006-2018 Free Software Foundation, Inc.
 
    This file is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free
@@ -17,8 +17,6 @@
 
 /* Run-time Target */
 #define TARGET_CPU_CPP_BUILTINS()	spu_cpu_cpp_builtins(pfile)
-
-#define TARGET_VERSION fprintf (stderr, " (spu %s)", __DATE__);
 
 #define C_COMMON_OVERRIDE_OPTIONS spu_c_common_override_options()
 
@@ -55,8 +53,6 @@ extern GTY(()) int spu_tune;
 #define BYTES_BIG_ENDIAN 1
 
 #define WORDS_BIG_ENDIAN 1
-
-#define BITS_PER_UNIT 8
 
 /* GCC uses word_mode in many places, assuming that it is the fastest
    integer mode.  That is not the case for SPU though.  We can't use
@@ -100,7 +96,6 @@ extern GTY(()) int spu_tune;
    on the stack.  (Except a bug (?) allows some stack objects to be
    unaligned.)  */
 #define DATA_ALIGNMENT(TYPE,ALIGN) ((ALIGN) > 128 ? (ALIGN) : 128)
-#define CONSTANT_ALIGNMENT(TYPE,ALIGN) ((ALIGN) > 128 ? (ALIGN) : 128)
 #define LOCAL_ALIGNMENT(TYPE,ALIGN) ((ALIGN) > 128 ? (ALIGN) : 128)
 
 #define EMPTY_FIELD_BOUNDARY 32
@@ -175,18 +170,6 @@ extern GTY(()) int spu_tune;
 }
 
 
-/* Values in Registers */
-
-#define HARD_REGNO_NREGS(REGNO, MODE)   \
-    ((GET_MODE_BITSIZE(MODE)+MAX_FIXED_MODE_SIZE-1)/MAX_FIXED_MODE_SIZE)
-
-#define HARD_REGNO_MODE_OK(REGNO, MODE) 1
-
-#define MODES_TIEABLE_P(MODE1, MODE2) \
-  (GET_MODE_BITSIZE (MODE1) <= MAX_FIXED_MODE_SIZE \
-   && GET_MODE_BITSIZE (MODE2) <= MAX_FIXED_MODE_SIZE)
-
-
 /* Register Classes */
 
 enum reg_class { 
@@ -195,9 +178,6 @@ enum reg_class {
    ALL_REGS,
    LIM_REG_CLASSES 
 };
-
-/* SPU is simple, it really only has one class of registers.  */
-#define IRA_COVER_CLASSES { GENERAL_REGS, LIM_REG_CLASSES }
 
 #define N_REG_CLASSES (int) LIM_REG_CLASSES
 
@@ -212,7 +192,8 @@ enum reg_class {
     {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x3}, /* general regs */ \
     {0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x3}} /* all regs */
 
-#define REGNO_REG_CLASS(REGNO) (GENERAL_REGS)
+#define REGNO_REG_CLASS(REGNO) ((void)(REGNO), GENERAL_REGS)
+
 
 #define BASE_REG_CLASS GENERAL_REGS
 
@@ -229,35 +210,23 @@ enum reg_class {
 #define INT_REG_OK_FOR_BASE_P(X,STRICT) \
 	((!(STRICT) || REGNO_OK_FOR_BASE_P (REGNO (X))))
 
-#define CLASS_MAX_NREGS(CLASS, MODE)	\
-	((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
-/* GCC assumes that modes are in the lowpart of a register, which is
-   only true for SPU. */
-#define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) \
-        ((GET_MODE_SIZE (FROM) > 4 || GET_MODE_SIZE (TO) > 4) \
-	 && (GET_MODE_SIZE (FROM) < 16 || GET_MODE_SIZE (TO) < 16) \
-	 && GET_MODE_SIZE (FROM) != GET_MODE_SIZE (TO))
-
 #define REGISTER_TARGET_PRAGMAS() do {					\
 c_register_addr_space ("__ea", ADDR_SPACE_EA);				\
 targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
-}while (0);
+}while (0)
 
 
 /* Frame Layout */
 
-#define STACK_GROWS_DOWNWARD
+#define STACK_GROWS_DOWNWARD 1
 
 #define FRAME_GROWS_DOWNWARD 1
-
-#define STARTING_FRAME_OFFSET (0)
 
 #define STACK_POINTER_OFFSET 32
 
 #define FIRST_PARM_OFFSET(FNDECL) (0)
 
-#define DYNAMIC_CHAIN_ADDRESS(FP) plus_constant ((FP), -16)
+#define DYNAMIC_CHAIN_ADDRESS(FP) plus_constant (Pmode, (FP), -16)
 
 #define RETURN_ADDR_RTX(COUNT,FP) (spu_return_addr (COUNT, FP))
 
@@ -337,15 +306,6 @@ targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
 #define INIT_CUMULATIVE_ARGS(CUM,FNTYPE,LIBNAME,FNDECL,N_NAMED_ARGS) \
 		((CUM) = 0)
 
-/* The SPU ABI wants 32/64-bit types at offset 0 in the quad-word on the
-   stack.  8/16-bit types should be at offsets 3/2 respectively.  */
-#define FUNCTION_ARG_OFFSET(MODE, TYPE)					\
-(((TYPE) && INTEGRAL_TYPE_P (TYPE) && GET_MODE_SIZE (MODE) < 4)		\
- ? (4 - GET_MODE_SIZE (MODE))						\
- : 0)
-
-#define FUNCTION_ARG_PADDING(MODE,TYPE) upward
-
 #define PAD_VARARGS_DOWN 0
 
 #define FUNCTION_ARG_REGNO_P(N) ((N) >= (FIRST_ARG_REGNUM) && (N) <= (LAST_ARG_REGNUM))
@@ -397,7 +357,16 @@ targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
 
 #define MAX_REGS_PER_ADDRESS 2
 
-#define LEGITIMATE_CONSTANT_P(X) spu_legitimate_constant_p(X)
+#define LEGITIMIZE_RELOAD_ADDRESS(AD, MODE, OPNUM, TYPE, IND, WIN)	\
+do {									\
+  rtx new_rtx = spu_legitimize_reload_address (AD, MODE, OPNUM,		\
+					       (int)(TYPE));		\
+  if (new_rtx)								\
+    {									\
+      (AD) = new_rtx;							\
+      goto WIN;								\
+    }									\
+} while (0)
 
 
 /* Costs */
@@ -408,7 +377,7 @@ targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
 
 #define MOVE_RATIO(speed) ((speed)? 32 : 4)
 
-#define NO_FUNCTION_CSE
+#define NO_FUNCTION_CSE 1
 
 
 /* Sections */
@@ -508,8 +477,6 @@ targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
 
 #define MOVE_MAX 16 
 
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) ((INPREC) <= 32 && (OUTPREC) <= (INPREC))
-
 #define STORE_FLAG_VALUE -1
 
 #define Pmode SImode
@@ -517,18 +484,6 @@ targetm.resolve_overloaded_builtin = spu_resolve_overloaded_builtin;	\
 #define FUNCTION_MODE QImode
 
 #define NO_IMPLICIT_EXTERN_C 1
-
-/* Canonicalize a comparison from one we don't have to one we do have.  */
-#define CANONICALIZE_COMPARISON(CODE,OP0,OP1) \
-  do {                                                                    \
-    if (((CODE) == LE || (CODE) == LT || (CODE) == LEU || (CODE) == LTU)) \
-      {                                                                   \
-        rtx tem = (OP0);                                                  \
-        (OP0) = (OP1);                                                    \
-        (OP1) = tem;                                                      \
-        (CODE) = swap_condition (CODE);                                   \
-      }                                                                   \
-  } while (0)
 
 
 /* Address spaces.  */

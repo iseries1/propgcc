@@ -19,28 +19,53 @@ ie4:	.quad 0x56789abcdef01234
 le4:	.quad 0x6789abcdef012345
 le5:	.quad 0x789abcdef0123456
 
-	.text
+	.section ".opd","aw",@progbits
+	.p2align 3
 _start:
+	.quad	.L_start,.TOC.@tocbase,0
+
+	.text
+.L_start:
 #extern syms
 #GD
  addi 3,2,gd@got@tlsgd		#R_PPC64_GOT_TLSGD16	gd
+ .ifdef TLSMARK
+ bl __tls_get_addr(gd@tlsgd)	#R_PPC64_TLSGD		gd
+				#R_PPC64_REL24		__tls_get_addr
+ .else
  bl .__tls_get_addr		#R_PPC64_REL24		.__tls_get_addr
+ .endif
  nop
 
 #LD
  addi 3,2,ld@got@tlsld		#R_PPC64_GOT_TLSLD16	ld
+ .ifdef TLSMARK
+ bl __tls_get_addr(ld@tlsld)	#R_PPC64_TLSLD		ld
+				#R_PPC64_REL24		__tls_get_addr
+ .else
  bl .__tls_get_addr		#R_PPC64_REL24		.__tls_get_addr
+ .endif
  nop
 
 #global syms
 #GD
  addi 3,2,gd0@got@tlsgd		#R_PPC64_GOT_TLSGD16	gd0
+ .ifdef TLSMARK
+ bl __tls_get_addr(gd0@tlsgd)	#R_PPC64_TLSGD		gd0
+				#R_PPC64_REL24		__tls_get_addr
+ .else
  bl .__tls_get_addr		#R_PPC64_REL24		.__tls_get_addr
+ .endif
  nop
 
 #LD
  addi 3,2,ld0@got@tlsld		#R_PPC64_GOT_TLSLD16	ld0
+ .ifdef TLSMARK
+ bl __tls_get_addr(ld0@tlsld)	#R_PPC64_TLSLD		ld0
+				#R_PPC64_REL24		__tls_get_addr
+ .else
  bl .__tls_get_addr		#R_PPC64_REL24		.__tls_get_addr
+ .endif
  nop
 
  addi 9,3,ld0@dtprel		#R_PPC64_DTPREL16	ld0
@@ -64,12 +89,22 @@ _start:
 #local syms
 #GD
  addi 3,2,gd4@got@tlsgd		#R_PPC64_GOT_TLSGD16	gd4
+ .ifdef TLSMARK
+ bl __tls_get_addr(gd4@tlsgd)	#R_PPC64_TLSGD		gd4
+				#R_PPC64_REL24		__tls_get_addr
+ .else
  bl .__tls_get_addr		#R_PPC64_REL24		.__tls_get_addr
+ .endif
  nop
 
 #LD
  addi 3,2,ld4@got@tlsld		#R_PPC64_GOT_TLSLD16	ld4
+ .ifdef TLSMARK
+ bl __tls_get_addr(ld4@tlsld)	#R_PPC64_TLSLD		ld4
+				#R_PPC64_REL24		__tls_get_addr
+ .else
  bl .__tls_get_addr		#R_PPC64_REL24		.__tls_get_addr
+ .endif
  nop
 
  std 10,ld4@dtprel(3)		#R_PPC64_DTPREL16_DS	ld4
@@ -89,4 +124,3 @@ _start:
 
  addis 9,13,le5@tprel@ha	#R_PPC64_TPREL16_HA	le5
  lha 10,le5@tprel@l(9)		#R_PPC64_TPREL16_LO	le5
-

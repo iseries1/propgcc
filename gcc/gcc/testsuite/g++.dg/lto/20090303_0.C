@@ -1,4 +1,5 @@
 /* { dg-lto-do run } */
+/* { dg-require-effective-target fpic } */
 /* { dg-lto-options {{-flto -flto-partition=1to1 -fPIC}} } */
 /* { dg-lto-options {{-flto -flto-partition=1to1}} { target sparc*-*-* } } */
 /* { dg-suppress-ld-options {-fPIC} }  */
@@ -15,6 +16,8 @@ void Test() {
  int int_set_;
  foobar (&int_set_, &test_ints[j]);
 }
+
+int
 main()
 {
   Test();

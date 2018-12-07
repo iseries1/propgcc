@@ -1,5 +1,6 @@
 /* { dg-message "undeclared identifier is reported only once" "reminder for mmu_base" { target *-*-* } 0 } */
 typedef BYTE unsigned char;	/* { dg-error "expected" } */
+/* { dg-warning "useless type name in empty declaration" ""  { target *-*-* } .-1 } */
 typedef int item_n;
 typedef int perm_set;
 struct PENT { caddr_t v_addr; };/* { dg-error "unknown type name" } */
@@ -22,6 +23,12 @@ struct PTP {
 typedef struct PTP (u.p_tablep);/* { dg-error "expected" } */
 int pfree=0;
 int pcount=0;
+int Level1 ();
+int Level2 ();
+void enlarge_hash_table ();
+int fill_item_entry ();
+int __eprintf ();
+void build_ptables ();
 
 void
 mmu_walk_find(va)

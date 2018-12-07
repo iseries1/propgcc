@@ -4,7 +4,7 @@
 
 Disassembly of section \.text:
 
-0000000000000000 <.*>:
+0+ <.*>:
        0:	d5380587 	mrs	x7, id_aa64afr0_el1
        4:	d53805a7 	mrs	x7, id_aa64afr1_el1
        8:	d5380347 	mrs	x7, mvfr2_el1
@@ -4271,3 +4271,25 @@ Disassembly of section \.text:
     429c:	d513040f 	msr	dbgdtr_el0, x15
     42a0:	d533040f 	mrs	x15, dbgdtr_el0
     42a4:	d533050f 	mrs	x15, dbgdtrrx_el0
+    42a8:	d518c04f 	msr	rmr_el1, x15
+    42ac:	d538c04f 	mrs	x15, rmr_el1
+    42b0:	d51cc04f 	msr	rmr_el2, x15
+    42b4:	d53cc04f 	mrs	x15, rmr_el2
+    42b8:	d51ec04f 	msr	rmr_el3, x15
+    42bc:	d53ec04f 	mrs	x15, rmr_el3
+    42c0:	d518400f 	msr	spsr_el1, x15
+    42c4:	d538400f 	mrs	x15, spsr_el1
+    42c8:	d51c400f 	msr	spsr_el2, x15
+    42cc:	d53c400f 	mrs	x15, spsr_el2
+    42d0:	d51e400f 	msr	spsr_el3, x15
+    42d4:	d53e400f 	mrs	x15, spsr_el3
+    42d8:	d500000f 	msr	s0_0_c0_c0_0, x15
+    42dc:	d520000f 	mrs	x15, s0_0_c0_c0_0
+    42e0:	d50ffffb 	sys	#7, C15, C15, #7, x27
+    42e4:	d52ffffb 	sysl	x27, #7, C15, C15, #7
+    42e8:	d514680e 	msr	s2_4_c6_c8_0, x14
+    42ec:	d534680e 	mrs	x14, s2_4_c6_c8_0
+    42f0:	d50ae444 	sys	#2, C14, C4, #2, x4
+    42f4:	d52ae444 	sysl	x4, #2, C14, C4, #2
+    42f8:	d501d167 	msr	s0_1_c13_c1_3, x7
+    42fc:	d521d167 	mrs	x7, s0_1_c13_c1_3

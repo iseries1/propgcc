@@ -9,7 +9,7 @@
 SUBROUTINE S2(I)
  INTEGER :: I(4)
  !write(6,*) I
- IF (ANY(I.NE.(/3,5,7,9/))) CALL ABORT()
+ IF (ANY(I.NE.(/3,5,7,9/))) STOP 1
 END SUBROUTINE S2
 
 MODULE M1
@@ -30,4 +30,3 @@ END MODULE M1
 USE M1
 CALL S1
 END
-! { dg-final { cleanup-modules "M1" } }

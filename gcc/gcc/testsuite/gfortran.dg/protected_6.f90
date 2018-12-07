@@ -1,6 +1,6 @@
 ! { dg-do compile }
 ! { dg-shouldfail "Invalid Fortran 2003 code" }
-! { dg-options "-std=f2003 -fall-intrinsics" }
+! { dg-options "-std=f2003" }
 ! PR fortran/23994
 !
 ! Test PROTECTED attribute. Within the module everything is allowed.
@@ -47,5 +47,3 @@ contains
     real, protected :: b ! { dg-error "only allowed in specification part of a module" }
   end subroutine bar
 end module prot2
-
-! { dg-final { cleanup-modules "protmod" } }

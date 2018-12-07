@@ -1,16 +1,27 @@
 /* { dg-require-effective-target vect_int } */
+/* { dg-add-options bind_pic_locally } */
 
 #include <stdarg.h>
 #include "tree-vect.h"
 
+#if VECTOR_BITS > 128
+#define NINTS (VECTOR_BITS / 32)
+#define EXTRA (NINTS * 2)
+#else
+#define NINTS 4
+#define EXTRA 10
+#endif
+
 #define N 128
-#define RES 21888 
 
-/* unaligned store.  */
+#define RES_A (N * N / 4)
+#define RES_B (N * (N + 1) / 2 + (NINTS + 3) * (N + 1))
+#define RES_C (N * (N + 1) / 2 + (N + 1))
+#define RES (RES_A + RES_B + RES_C)
 
-int ib[N+10];
-int ia[N+10];
-int ic[N+10];
+int ib[N + EXTRA];
+int ia[N + EXTRA];
+int ic[N + EXTRA];
 
 __attribute__ ((noinline))
 int main1 ()
@@ -18,11 +29,11 @@ int main1 ()
   int i, suma = 0, sumb = 0, sumc = 0;
 
   /* ib and ic have same misalignment, we peel to align them.  */
-  for (i = 1; i <= N; i++)
+  for (i = 0; i <= N; i++)
     {
       suma += ia[i];
-      sumb += ib[i+6];
-      sumc += ic[i+2];
+      sumb += ib[i + NINTS + 1];
+      sumc += ic[i + 1];
     }
 
   /* check results:  */
@@ -38,7 +49,7 @@ int main (void)
 
   check_vect ();
 
-  for (i = 0; i < N+10; i++)
+  for (i = 0; i < N + EXTRA; i++)
     {
       asm volatile ("" : "+r" (i));
       ib[i] = i;
@@ -49,7 +60,6 @@ int main (void)
   return main1 ();
 }
 
-/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" } } */
-/* { dg-final { scan-tree-dump-times "Vectorizing an unaligned access" 1 "vect"  { xfail vect_no_align } } } */
-/* { dg-final { scan-tree-dump-times "Alignment of access forced using peeling" 1 "vect" } } */
-/* { dg-final { cleanup-tree-dump "vect" } } */
+/* { dg-final { scan-tree-dump-times "vectorized 1 loops" 1 "vect" { xfail { vect_no_align && { ! vect_hw_misalign } } } } } */
+/* { dg-final { scan-tree-dump-times "Vectorizing an unaligned access" 1 "vect"  { xfail { { ! vect_unaligned_possible } || vect_sizes_32B_16B } } } } */
+/* { dg-final { scan-tree-dump-times "Alignment of access forced using peeling" 1 "vect" { xfail { { ! vect_unaligned_possible } || vect_sizes_32B_16B } } } } */

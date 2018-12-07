@@ -1,6 +1,23 @@
 ## Process this file with automake to generate Makefile.in
+#
+#   Copyright (C) 2012-2018 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING3.  If not see
+# <http://www.gnu.org/licenses/>.
+#
 
-AUTOMAKE_OPTIONS = 1.11 foreign no-dist
+AUTOMAKE_OPTIONS = foreign no-dist
 ACLOCAL_AMFLAGS = -I .. -I ../config -I ../bfd
 
 # Build '.' first so all generated files exist.
@@ -46,7 +63,6 @@ HFILES = \
 	epiphany-desc.h epiphany-opc.h \
 	fr30-desc.h fr30-opc.h \
 	frv-desc.h frv-opc.h \
-	h8500-opc.h \
 	i386-init.h \
 	i386-opc.h \
 	i386-tbl.h \
@@ -62,12 +78,9 @@ HFILES = \
 	mep-desc.h mep-opc.h \
 	microblaze-opc.h \
 	mt-desc.h mt-opc.h \
-	openrisc-desc.h openrisc-opc.h \
 	score-opc.h \
 	sh-opc.h \
-	sh64-opc.h \
 	sysdep.h \
-	w65-opc.h \
 	xc16x-desc.h xc16x-opc.h \
 	xstormy16-desc.h xstormy16-opc.h \
 	z8k-opc.h
@@ -119,15 +132,12 @@ TARGET_LIBOPCODES_CFILES = \
 	frv-dis.c \
 	frv-ibld.c \
 	frv-opc.c \
+	ft32-dis.c \
+	ft32-opc.c \
 	h8300-dis.c \
-	h8500-dis.c \
 	hppa-dis.c \
-	i370-dis.c \
-	i370-opc.c \
 	i386-dis.c \
 	i386-opc.c \
-	i860-dis.c \
-	i960-dis.c \
 	ia64-dis.c \
 	ia64-opc.c \
 	ip2k-asm.c \
@@ -165,13 +175,14 @@ TARGET_LIBOPCODES_CFILES = \
 	m68hc11-opc.c \
 	m68k-dis.c \
 	m68k-opc.c \
-	m88k-dis.c \
+	s12z-dis.c \
 	mcore-dis.c \
 	mep-asm.c \
 	mep-desc.c \
 	mep-dis.c \
 	mep-ibld.c \
 	mep-opc.c \
+	metag-dis.c \
 	microblaze-dis.c \
 	micromips-opc.c \
 	mips-dis.c \
@@ -181,26 +192,34 @@ TARGET_LIBOPCODES_CFILES = \
 	mmix-opc.c \
 	moxie-dis.c \
 	moxie-opc.c \
+	msp430-decode.c \
 	msp430-dis.c \
 	mt-asm.c \
 	mt-desc.c \
 	mt-dis.c \
 	mt-ibld.c \
 	mt-opc.c \
+	nds32-asm.c \
+	nds32-dis.c \
+	nfp-dis.c \
+	nios2-dis.c \
+	nios2-opc.c \
 	ns32k-dis.c \
-	openrisc-asm.c \
-	openrisc-desc.c \
-	openrisc-dis.c \
-	openrisc-ibld.c \
-	openrisc-opc.c \
-	or32-dis.c \
-	or32-opc.c \
+	or1k-asm.c \
+	or1k-desc.c \
+	or1k-dis.c \
+	or1k-ibld.c \
+	or1k-opc.c \
 	pdp11-dis.c \
 	pdp11-opc.c \
 	pj-dis.c \
 	pj-opc.c \
 	ppc-dis.c \
 	ppc-opc.c \
+	pru-dis.c \
+	pru-opc.c \
+	riscv-dis.c \
+	riscv-opc.c \
 	rl78-decode.c \
 	rl78-dis.c \
 	rx-decode.c \
@@ -210,8 +229,6 @@ TARGET_LIBOPCODES_CFILES = \
 	score-dis.c \
 	score7-dis.c \
 	sh-dis.c \
-	sh64-dis.c \
-	sh64-opc.c \
 	sparc-dis.c \
 	sparc-opc.c \
 	spu-dis.c \
@@ -230,7 +247,9 @@ TARGET_LIBOPCODES_CFILES = \
 	v850-dis.c \
 	v850-opc.c \
 	vax-dis.c \
-	w65-dis.c \
+	visium-dis.c \
+	visium-opc.c \
+	wasm32-dis.c \
 	xc16x-asm.c \
 	xc16x-desc.c \
 	xc16x-dis.c \
@@ -243,7 +262,7 @@ TARGET_LIBOPCODES_CFILES = \
 	xstormy16-opc.c \
 	xtensa-dis.c \
 	xgate-dis.c \
- 	xgate-opc.c \
+	xgate-opc.c \
 	z80-dis.c \
 	z8k-dis.c
 
@@ -274,9 +293,8 @@ ALL_MACHINES = $(TARGET_LIBOPCODES_CFILES:.c=.lo)
 
 OFILES = @BFD_MACHINES@
 
-# We should reconfigure whenever bfd/configure.in changes, because
-# that's where the version number in Makefile comes from.
-CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/configure.in
+# development.sh is used to determine -Werror default.
+CONFIG_STATUS_DEPENDENCIES = $(BFDDIR)/development.sh
 
 AM_CPPFLAGS = -I. -I$(srcdir) -I../bfd -I$(INCDIR) -I$(BFDDIR) @HDEFINES@ @INCINTL@
 
@@ -332,7 +350,7 @@ po/POTFILES.in: @MAINT@ Makefile
 CLEANFILES = \
 	stamp-epiphany stamp-fr30 stamp-frv stamp-ip2k stamp-iq2000 stamp-lm32 \
 	stamp-m32c stamp-m32r stamp-mep stamp-mt \
-	stamp-openrisc stamp-xc16x stamp-xstormy16 \
+	stamp-or1k stamp-xc16x stamp-xstormy16 \
 	libopcodes.a stamp-lib
 
 
@@ -348,7 +366,7 @@ CGENDEPS = \
 	$(CGENDIR)/opc-opinst.scm \
 	cgen-asm.in cgen-dis.in cgen-ibld.in
 
-CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mep mt openrisc xc16x xstormy16
+CGEN_CPUS = epiphany fr30 frv ip2k iq2000 lm32 m32c m32r mep mt or1k xc16x xstormy16
 
 if CGEN_MAINT
 EPIPHANY_DEPS = stamp-epiphany
@@ -361,7 +379,7 @@ M32C_DEPS = stamp-m32c
 M32R_DEPS = stamp-m32r
 MEP_DEPS = stamp-mep
 MT_DEPS = stamp-mt
-OPENRISC_DEPS = stamp-openrisc
+OR1K_DEPS = stamp-or1k
 XC16X_DEPS = stamp-xc16x
 XSTORMY16_DEPS = stamp-xstormy16
 else
@@ -369,15 +387,15 @@ EPIPHANY_DEPS =
 FR30_DEPS =
 FRV_DEPS =
 IP2K_DEPS =
-IQ2000_DEPS = 
-LM32_DEPS = 
+IQ2000_DEPS =
+LM32_DEPS =
 M32C_DEPS =
 M32R_DEPS =
 MEP_DEPS =
 MT_DEPS =
-OPENRISC_DEPS = 
-XC16X_DEPS = 
-XSTORMY16_DEPS = 
+OR1K_DEPS =
+XC16X_DEPS =
+XSTORMY16_DEPS =
 endif
 
 run-cgen:
@@ -443,7 +461,7 @@ stamp-lm32: $(CGENDEPS) $(CPUDIR)/lm32.cpu $(CPUDIR)/lm32.opc
 		extrafiles=opinst
 
 $(srcdir)/m32c-desc.h $(srcdir)/m32c-desc.c $(srcdir)/m32c-opc.h $(srcdir)/m32c-opc.c $(srcdir)/m32c-ibld.c $(srcdir)/m32c-asm.c $(srcdir)/m32c-dis.c: $(M32C_DEPS)
-#	@true
+	@true
 stamp-m32c: $(CGENDEPS) $(CPUDIR)/m32c.cpu $(CPUDIR)/m32c.opc
 	$(MAKE) run-cgen arch=m32c prefix=m32c options= \
 		archfile=$(CPUDIR)/m32c.cpu \
@@ -469,11 +487,11 @@ stamp-mt: $(CGENDEPS) $(CPUDIR)/mt.cpu $(CPUDIR)/mt.opc
 		archfile=$(CPUDIR)/mt.cpu \
 		opcfile=$(CPUDIR)/mt.opc extrafiles=
 
-$(srcdir)/openrisc-desc.h $(srcdir)/openrisc-desc.c $(srcdir)/openrisc-opc.h $(srcdir)/openrisc-opc.c $(srcdir)/openrisc-ibld.c $(srcdir)/openrisc-asm.c $(srcdir)/openrisc-dis.c: $(OPENRISC_DEPS)
+$(srcdir)/or1k-desc.h $(srcdir)/or1k-desc.c $(srcdir)/or1k-opc.h $(srcdir)/or1k-opc.c $(srcdir)/or1k-ibld.c $(srcdir)/or1k-opinst.c $(srcdir)/or1k-asm.c $(srcdir)/or1k-dis.c: $(OR1K_DEPS)
 	@true
-stamp-openrisc: $(CGENDEPS) $(CPUDIR)/openrisc.cpu $(CPUDIR)/openrisc.opc
-	$(MAKE) run-cgen arch=openrisc prefix=openrisc options= \
-		archfile=$(CPUDIR)/openrisc.cpu opcfile=$(CPUDIR)/openrisc.opc extrafiles=
+stamp-or1k: $(CGENDEPS) $(CPUDIR)/or1k.cpu $(CPUDIR)/or1k.opc $(CPUDIR)/or1kcommon.cpu $(CPUDIR)/or1korbis.cpu $(CPUDIR)/or1korfpx.cpu
+	$(MAKE) run-cgen arch=or1k prefix=or1k options=opinst \
+		archfile=$(CPUDIR)/or1k.cpu opcfile=$(CPUDIR)/or1k.opc extrafiles=opinst
 
 $(srcdir)/xc16x-desc.h $(srcdir)/xc16x-desc.c $(srcdir)/xc16x-opc.h $(srcdir)/xc16x-opc.c $(srcdir)/xc16x-ibld.c $(srcdir)/xc16x-asm.c $(srcdir)/xc16x-dis.c: $(XC16X_DEPS)
 	@true
@@ -496,6 +514,7 @@ MOSTLYCLEANFILES = aarch64-gen$(EXEEXT_FOR_BUILD) i386-gen$(EXEEXT_FOR_BUILD) \
 MAINTAINERCLEANFILES = $(srcdir)/aarch64-asm-2.c $(srcdir)/aarch64-dis-2.c \
 	$(srcdir)/aarch64-opc-2.c $(srcdir)/i386-tbl.h $(srcdir)/i386-init.h \
 	$(srcdir)/ia64-asmtab.c $(srcdir)/z8k-opc.h \
+	$(srcdir)/msp430-decode.c \
 	$(srcdir)/rl78-decode.c \
 	$(srcdir)/rx-decode.c
 
@@ -522,7 +541,7 @@ i386-gen.o: i386-gen.c i386-opc.h $(srcdir)/../include/opcode/i386.h \
 	config.h i386-opc.h sysdep.h
 	$(COMPILE_FOR_BUILD) -c $(srcdir)/i386-gen.c
 
-$(srcdir)/i386-tbl.h: $(srcdir)/i386-init.h 
+$(srcdir)/i386-tbl.h: $(srcdir)/i386-init.h
 	@echo $@
 
 $(srcdir)/i386-init.h: @MAINT@ i386-gen$(EXEEXT_FOR_BUILD) i386-opc.tbl i386-reg.tbl
@@ -549,17 +568,11 @@ $(srcdir)/ia64-asmtab.c: @MAINT@ $(ia64_asmtab_deps)
 
 ia64-opc.lo: $(srcdir)/ia64-asmtab.c
 
+$(srcdir)/msp430-decode.c: @MAINT@ $(srcdir)/msp430-decode.opc opc2c$(EXEEXT_FOR_BUILD)
+	./opc2c$(EXEEXT_FOR_BUILD) $(srcdir)/msp430-decode.opc > $(srcdir)/msp430-decode.c
+
 $(srcdir)/rl78-decode.c: @MAINT@ $(srcdir)/rl78-decode.opc opc2c$(EXEEXT_FOR_BUILD)
 	./opc2c$(EXEEXT_FOR_BUILD) $(srcdir)/rl78-decode.opc > $(srcdir)/rl78-decode.c
-
-micromips-opc.lo: micromips-opc.c
-	$(LTCOMPILE) $(NO_WMISSING_FIELD_INITIALIZERS) -c -o $@ $<
-
-mips-opc.lo: mips-opc.c
-	$(LTCOMPILE) $(NO_WMISSING_FIELD_INITIALIZERS) -c -o $@ $<
-
-mips16-opc.lo: mips16-opc.c
-	$(LTCOMPILE) $(NO_WMISSING_FIELD_INITIALIZERS) -c -o $@ $<
 
 $(srcdir)/rx-decode.c: @MAINT@ $(srcdir)/rx-decode.opc opc2c$(EXEEXT_FOR_BUILD)
 	./opc2c$(EXEEXT_FOR_BUILD) $(srcdir)/rx-decode.opc > $(srcdir)/rx-decode.c
@@ -588,6 +601,19 @@ $(srcdir)/z8k-opc.h: @MAINT@ z8kgen$(EXEEXT_FOR_BUILD)
 	./z8kgen$(EXEEXT_FOR_BUILD) -a > $@
 
 z8k-dis.lo: $(srcdir)/z8k-opc.h
+
+MIPS_DEFS=`case \`cat ../bfd/ofiles\` in *elfxx-mips*) echo "-DHAVE_BFD_MIPS_ELF_GET_ABIFLAGS=1";; esac`
+mips-dis.lo: mips-dis.c
+if am__fastdepCC
+	$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $(MIPS_DEFS) $<
+	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+else
+if AMDEP
+	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
+	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+endif
+	$(LTCOMPILE) -c -o $@ $(MIPS_DEFS) $<
+endif
 
 sh-dis.lo: sh-dis.c
 if am__fastdepCC

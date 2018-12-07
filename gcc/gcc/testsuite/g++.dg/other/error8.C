@@ -5,7 +5,7 @@
 
 void foo(void)
 {
-  union { int alpha; int beta; }; // { dg-error "previous declaration" }
+  union { int alpha; int beta; }; // { dg-message "previous declaration" }
   double alpha;  // { dg-error "conflicting declaration" }
 }
 
@@ -18,5 +18,5 @@ void tfoo(void)
     int alpha;  // { dg-error "" "" { xfail *-*-* } }
     int beta; 
   }; // { dg-bogus "" "misplaced position of the declaration" { xfail *-*-* } }
-  double alpha; // { dg-error "" "" }
+  double alpha; // { dg-error "" }
 }

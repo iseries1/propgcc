@@ -1,4 +1,7 @@
 /* { dg-do run } */
+/* { dg-require-effective-target label_values } */
+/* { dg-require-effective-target trampolines } */
+/* { dg-add-options stack_size } */
 
 #ifdef STACK_SIZE
 #define DEPTH ((STACK_SIZE) / 512 + 1)
@@ -9,12 +12,11 @@
 extern void abort (void);
 extern void exit (int);
 
-#if ! defined (NO_LABEL_VALUES) && !defined (NO_TRAMPOLINES)
 int
-x(a)
+x(int a)
 {
   __label__ xlab;
-  void y(a)
+  void y(int a)
     {
       void *x = &&llab;
       if (a==-1)
@@ -28,14 +30,12 @@ x(a)
  xlab:;
   return a;
 }
-#endif
 
 int
 main ()
 {
-#if ! defined (NO_LABEL_VALUES) && !defined (NO_TRAMPOLINES)
   if (x (DEPTH) != DEPTH)
     abort ();
-#endif
+
   exit (0);
 }

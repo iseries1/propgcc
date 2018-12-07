@@ -12,7 +12,7 @@ module m1
    end interface
 contains
   subroutine one1()
-    call abort
+    STOP 1
   end subroutine one1
 end module m1
 
@@ -31,4 +31,3 @@ end module m2
   use m2
   call two
 end
-! { dg-final { cleanup-modules "m1 m2" } }

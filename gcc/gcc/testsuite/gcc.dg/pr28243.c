@@ -4,7 +4,7 @@
 /* { dg-do compile } */
 /* { dg-require-effective-target fpic } */
 /* { dg-options "-O2 -ftracer -fPIC" } */
-/* { dg-skip-if "requires unsupported run-time relocation" { spu-*-* } { "*" } { "" } } */
+/* { dg-skip-if "requires unsupported run-time relocation" { spu-*-* } } */
 
 struct displayfuncs {
   void (*init) ();
@@ -13,6 +13,8 @@ struct displayfuncs {
 struct gpsdisplay {
   struct displayfuncs *funcs;
 };
+
+void PSDoArc ();
 
 static void PSMyArc(double cx, double cy, double radx, double rady, double sa,
 		    double ta)

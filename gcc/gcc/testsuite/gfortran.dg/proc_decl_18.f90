@@ -23,7 +23,7 @@ implicit none
 
 abstract interface
   function abs_fun(x,sz)
-    integer :: x(:)
+    integer,intent(in) :: x(:)
     interface
       pure integer function sz(b)
         integer,intent(in) :: b(:)
@@ -40,7 +40,7 @@ integer :: k,j(3),i(3) = (/1,2,3/)
 j = p(i,mysize)
 
 do k=1,mysize(i)
-  if (j(k) /= 2*i(k)) call abort()
+  if (j(k) /= 2*i(k)) STOP 1
 end do
 
 end
@@ -59,5 +59,3 @@ end
       p(l) = y(l)*2
     end do
   end function
-
-! { dg-final { cleanup-modules "m" } }

@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2010, 2012
-#   Free Software Foundation, Inc.
+#   Copyright (C) 2010-2018 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -53,12 +52,12 @@ gld${EMULATION_NAME}_create_output_section_statements (void)
 
 static bfd_boolean
 gld${EMULATION_NAME}_open_dynamic_archive (const char *arch ATTRIBUTE_UNUSED,
-                                           search_dirs_type *search,
-                                           lang_input_statement_type *entry)
+					   search_dirs_type *search,
+					   lang_input_statement_type *entry)
 {
   char *string;
 
-  if (! entry->flags.maybe_archive)
+  if (! entry->flags.maybe_archive || entry->flags.full_name_provided)
     return FALSE;
 
   string = (char *) xmalloc (strlen (search->name)
@@ -102,7 +101,7 @@ vms_place_orphan (asection *s,
 
   /* We have nothing to say for anything other than a final link or an excluded
      section.  */
-  if (link_info.relocatable
+  if (bfd_link_relocatable (&link_info)
       || (s->flags & (SEC_EXCLUDE | SEC_LOAD)) != SEC_LOAD)
     return NULL;
 
@@ -199,8 +198,8 @@ gld${EMULATION_NAME}_before_allocation (void)
   if (elf_hash_table (&link_info)->dynamic_sections_created
       && bed->elf_backend_size_dynamic_sections
       && ! (*bed->elf_backend_size_dynamic_sections) (link_info.output_bfd,
-                                                      &link_info))
-    einfo ("%P%F: failed to set dynamic section sizes: %E\n");
+						      &link_info))
+    einfo (_("%F%P: failed to set dynamic section sizes: %E\n"));
 
   before_allocation_default ();
 }
@@ -208,9 +207,12 @@ gld${EMULATION_NAME}_before_allocation (void)
 static void
 gld${EMULATION_NAME}_after_allocation (void)
 {
-  bfd_boolean need_layout = bfd_elf_discard_info (link_info.output_bfd,
-						  &link_info);
-  gld${EMULATION_NAME}_map_segments (need_layout);
+  int need_layout = bfd_elf_discard_info (link_info.output_bfd, &link_info);
+
+  if (need_layout < 0)
+    einfo (_("%X%P: .eh_frame/.stab edit: %E\n"));
+  else
+    gld${EMULATION_NAME}_map_segments (need_layout);
 }
 
 static void

@@ -1,6 +1,5 @@
 /* Generic dominator tree walker
-   Copyright (C) 2003, 2004, 2005, 2007, 2008, 2010 Free Software Foundation,
-   Inc.
+   Copyright (C) 2003-2018 Free Software Foundation, Inc.
    Contributed by Diego Novillo <dnovillo@redhat.com>
 
 This file is part of GCC.
@@ -22,10 +21,10 @@ along with GCC; see the file COPYING3.  If not see
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
-#include "tm.h"
-#include "basic-block.h"
+#include "backend.h"
+#include "cfganal.h"
 #include "domwalk.h"
-#include "sbitmap.h"
+#include "dumpfile.h"
 
 /* This file implements a generic walker for dominator trees.
 
@@ -129,74 +128,260 @@ along with GCC; see the file COPYING3.  If not see
     which is currently an abstraction over walking tree statements.  Thus
     the dominator walker is currently only useful for trees.  */
 
+/* Reverse postorder index of each basic block.  */
+static int *bb_postorder;
+
+static int
+cmp_bb_postorder (const void *a, const void *b)
+{
+  basic_block bb1 = *(const basic_block *)(a);
+  basic_block bb2 = *(const basic_block *)(b);
+  /* Place higher completion number first (pop off lower number first).  */
+  return bb_postorder[bb2->index] - bb_postorder[bb1->index];
+}
+
+/* Permute array BBS of N basic blocks in postorder,
+   i.e. by descending number in BB_POSTORDER array.  */
+
+static void
+sort_bbs_postorder (basic_block *bbs, int n)
+{
+  if (__builtin_expect (n == 2, true))
+    {
+      basic_block bb0 = bbs[0], bb1 = bbs[1];
+      if (bb_postorder[bb0->index] < bb_postorder[bb1->index])
+	bbs[0] = bb1, bbs[1] = bb0;
+    }
+  else if (__builtin_expect (n == 3, true))
+    {
+      basic_block bb0 = bbs[0], bb1 = bbs[1], bb2 = bbs[2];
+      if (bb_postorder[bb0->index] < bb_postorder[bb1->index])
+	std::swap (bb0, bb1);
+      if (bb_postorder[bb1->index] < bb_postorder[bb2->index])
+	{
+	  std::swap (bb1, bb2);
+	  if (bb_postorder[bb0->index] < bb_postorder[bb1->index])
+	    std::swap (bb0, bb1);
+	}
+      bbs[0] = bb0, bbs[1] = bb1, bbs[2] = bb2;
+    }
+  else
+    qsort (bbs, n, sizeof *bbs, cmp_bb_postorder);
+}
+
+/* Set EDGE_EXECUTABLE on every edge within FN's CFG.  */
+
+void
+set_all_edges_as_executable (function *fn)
+{
+  basic_block bb;
+  FOR_ALL_BB_FN (bb, fn)
+    {
+      edge_iterator ei;
+      edge e;
+      FOR_EACH_EDGE (e, ei, bb->succs)
+	e->flags |= EDGE_EXECUTABLE;
+    }
+}
+
+/* Constructor for a dom walker.  */
+
+dom_walker::dom_walker (cdi_direction direction,
+			enum reachability reachability,
+			int *bb_index_to_rpo)
+  : m_dom_direction (direction),
+    m_skip_unreachable_blocks (reachability != ALL_BLOCKS),
+    m_user_bb_to_rpo (true),
+    m_unreachable_dom (NULL),
+    m_bb_to_rpo (bb_index_to_rpo)
+{
+  /* Set up edge flags if need be.  */
+  switch (reachability)
+    {
+    default:
+      gcc_unreachable ();
+    case ALL_BLOCKS:
+      /* No need to touch edge flags.  */
+      break;
+
+    case REACHABLE_BLOCKS:
+      set_all_edges_as_executable (cfun);
+      break;
+
+    case REACHABLE_BLOCKS_PRESERVING_FLAGS:
+      /* Preserve the edge flags.  */
+      break;
+    }
+}
+
+/* Constructor for a dom walker.  */
+
+dom_walker::dom_walker (cdi_direction direction,
+			enum reachability reachability)
+  : m_dom_direction (direction),
+    m_skip_unreachable_blocks (reachability != ALL_BLOCKS),
+    m_user_bb_to_rpo (false),
+    m_unreachable_dom (NULL),
+    m_bb_to_rpo (NULL)
+{
+  /* Compute the basic-block index to RPO mapping.  */
+  if (direction == CDI_DOMINATORS)
+    {
+      int *postorder = XNEWVEC (int, n_basic_blocks_for_fn (cfun));
+      int postorder_num = pre_and_rev_post_order_compute (NULL, postorder,
+							  true);
+      m_bb_to_rpo = XNEWVEC (int, last_basic_block_for_fn (cfun));
+      for (int i = 0; i < postorder_num; ++i)
+	m_bb_to_rpo[postorder[i]] = i;
+      free (postorder);
+    }
+
+  /* Set up edge flags if need be.  */
+  switch (reachability)
+    {
+    default:
+      gcc_unreachable ();
+    case ALL_BLOCKS:
+      /* No need to touch edge flags.  */
+      break;
+
+    case REACHABLE_BLOCKS:
+      set_all_edges_as_executable (cfun);
+      break;
+
+    case REACHABLE_BLOCKS_PRESERVING_FLAGS:
+      /* Preserve the edge flags.  */
+      break;
+    }
+}
+
+/* Destructor.  */
+
+dom_walker::~dom_walker ()
+{
+  if (! m_user_bb_to_rpo)
+    free (m_bb_to_rpo);
+}
+
+/* Return TRUE if BB is reachable, false otherwise.  */
+
+bool
+dom_walker::bb_reachable (struct function *fun, basic_block bb)
+{
+  /* If we're not skipping unreachable blocks, then assume everything
+     is reachable.  */
+  if (!m_skip_unreachable_blocks)
+    return true;
+
+  /* If any of the predecessor edges that do not come from blocks dominated
+     by us are still marked as possibly executable consider this block
+     reachable.  */
+  bool reachable = false;
+  if (!m_unreachable_dom)
+    {
+      reachable = bb == ENTRY_BLOCK_PTR_FOR_FN (fun);
+      edge_iterator ei;
+      edge e;
+      FOR_EACH_EDGE (e, ei, bb->preds)
+	if (!dominated_by_p (CDI_DOMINATORS, e->src, bb))
+	  reachable |= (e->flags & EDGE_EXECUTABLE);
+    }
+
+  return reachable;
+}
+
+/* BB has been determined to be unreachable.  Propagate that property
+   to incoming and outgoing edges of BB as appropriate.  */
+
+void
+dom_walker::propagate_unreachable_to_edges (basic_block bb,
+					    FILE *dump_file,
+					    dump_flags_t dump_flags)
+{
+  if (dump_file && (dump_flags & TDF_DETAILS))
+    fprintf (dump_file, "Marking all outgoing edges of unreachable "
+	     "BB %d as not executable\n", bb->index);
+
+  edge_iterator ei;
+  edge e;
+  FOR_EACH_EDGE (e, ei, bb->succs)
+    e->flags &= ~EDGE_EXECUTABLE;
+
+  FOR_EACH_EDGE (e, ei, bb->preds)
+    {
+      if (dominated_by_p (CDI_DOMINATORS, e->src, bb))
+	{
+	  if (dump_file && (dump_flags & TDF_DETAILS))
+	    fprintf (dump_file, "Marking backedge from BB %d into "
+		     "unreachable BB %d as not executable\n",
+		     e->src->index, bb->index);
+	  e->flags &= ~EDGE_EXECUTABLE;
+	}
+    }
+
+  if (!m_unreachable_dom)
+    m_unreachable_dom = bb;
+}
+
+const edge dom_walker::STOP = (edge)-1;
+
 /* Recursively walk the dominator tree.
-
-   WALK_DATA contains a set of callbacks to perform pass-specific
-   actions during the dominator walk as well as a stack of block local
-   data maintained during the dominator walk.
-
    BB is the basic block we are currently visiting.  */
 
 void
-walk_dominator_tree (struct dom_walk_data *walk_data, basic_block bb)
+dom_walker::walk (basic_block bb)
 {
-  void *bd = NULL;
   basic_block dest;
-  basic_block *worklist = XNEWVEC (basic_block, n_basic_blocks * 2);
+  basic_block *worklist = XNEWVEC (basic_block,
+				   n_basic_blocks_for_fn (cfun) * 2);
   int sp = 0;
-  sbitmap visited = sbitmap_alloc (last_basic_block + 1);
-  sbitmap_zero (visited);
-  SET_BIT (visited, ENTRY_BLOCK_PTR->index);
+  bb_postorder = m_bb_to_rpo;
 
   while (true)
     {
       /* Don't worry about unreachable blocks.  */
       if (EDGE_COUNT (bb->preds) > 0
-	  || bb == ENTRY_BLOCK_PTR
-	  || bb == EXIT_BLOCK_PTR)
+	  || bb == ENTRY_BLOCK_PTR_FOR_FN (cfun)
+	  || bb == EXIT_BLOCK_PTR_FOR_FN (cfun))
 	{
-	  /* Callback to initialize the local data structure.  */
-	  if (walk_data->initialize_block_local_data)
+	  edge taken_edge = NULL;
+
+	  /* Callback for subclasses to do custom things before we have walked
+	     the dominator children, but before we walk statements.  */
+	  if (this->bb_reachable (cfun, bb))
 	    {
-	      bool recycled;
-
-	      /* First get some local data, reusing any local data
-		 pointer we may have saved.  */
-	      if (VEC_length (void_p, walk_data->free_block_data) > 0)
+	      taken_edge = before_dom_children (bb);
+	      if (taken_edge && taken_edge != STOP)
 		{
-		  bd = VEC_pop (void_p, walk_data->free_block_data);
-		  recycled = 1;
+		  edge_iterator ei;
+		  edge e;
+		  FOR_EACH_EDGE (e, ei, bb->succs)
+		    if (e != taken_edge)
+		      e->flags &= ~EDGE_EXECUTABLE;
 		}
-	      else
-		{
-		  bd = xcalloc (1, walk_data->block_local_data_size);
-		  recycled = 0;
-		}
-
-	      /* Push the local data into the local data stack.  */
-	      VEC_safe_push (void_p, heap, walk_data->block_data_stack, bd);
-
-	      /* Call the initializer.  */
-	      walk_data->initialize_block_local_data (walk_data, bb,
-						      recycled);
-
 	    }
-
-	  /* Callback for operations to execute before we have walked the
-	     dominator children, but before we walk statements.  */
-	  if (walk_data->before_dom_children)
-	    (*walk_data->before_dom_children) (walk_data, bb);
-
-	  SET_BIT (visited, bb->index);
+	  else
+	    propagate_unreachable_to_edges (bb, dump_file, dump_flags);
 
 	  /* Mark the current BB to be popped out of the recursion stack
 	     once children are processed.  */
 	  worklist[sp++] = bb;
 	  worklist[sp++] = NULL;
 
-	  for (dest = first_dom_son (walk_data->dom_direction, bb);
-	       dest; dest = next_dom_son (walk_data->dom_direction, dest))
-	    worklist[sp++] = dest;
+	  /* If the callback returned NONE then we are supposed to
+	     stop and not even propagate EDGE_EXECUTABLE further.  */
+	  if (taken_edge != STOP)
+	    {
+	      int saved_sp = sp;
+	      for (dest = first_dom_son (m_dom_direction, bb);
+		   dest; dest = next_dom_son (m_dom_direction, dest))
+		worklist[sp++] = dest;
+	      /* Sort worklist after RPO order if requested.  */
+	      if (sp - saved_sp > 1
+		  && m_dom_direction == CDI_DOMINATORS
+		  && m_bb_to_rpo)
+		sort_bbs_postorder (&worklist[saved_sp], sp - saved_sp);
+	    }
 	}
       /* NULL is used to mark pop operations in the recursion stack.  */
       while (sp > 0 && !worklist[sp - 1])
@@ -204,76 +389,18 @@ walk_dominator_tree (struct dom_walk_data *walk_data, basic_block bb)
 	  --sp;
 	  bb = worklist[--sp];
 
-	  /* Callback for operations to execute after we have walked the
-	     dominator children, but before we walk statements.  */
-	  if (walk_data->after_dom_children)
-	    (*walk_data->after_dom_children) (walk_data, bb);
-
-	  if (walk_data->initialize_block_local_data)
-	    {
-	      /* And finally pop the record off the block local data stack.  */
-	      bd = VEC_pop (void_p, walk_data->block_data_stack);
-	      /* And save the block data so that we can re-use it.  */
-	      VEC_safe_push (void_p, heap, walk_data->free_block_data, bd);
-	    }
+	  /* Callback allowing subclasses to do custom things after we have
+	     walked dominator children, but before we walk statements.  */
+	  if (bb_reachable (cfun, bb))
+	    after_dom_children (bb);
+	  else if (m_unreachable_dom == bb)
+	    m_unreachable_dom = NULL;
 	}
       if (sp)
-	{
-	  int spp;
-	  spp = sp - 1;
-	  if (walk_data->dom_direction == CDI_DOMINATORS)
-	    /* Find the dominator son that has all its predecessors
-	       visited and continue with that.  */
-	    while (1)
-	      {
-		edge_iterator ei;
-		edge e;
-		bool found = true;
-		bb = worklist[spp];
-		FOR_EACH_EDGE (e, ei, bb->preds)
-		  {
-		    if (!dominated_by_p (CDI_DOMINATORS, e->src, e->dest)
-			&& !TEST_BIT (visited, e->src->index))
-		      {
-			found = false;
-			break;
-		      }
-		  }
-		if (found)
-		  break;
-		/* If we didn't find a dom child with all visited
-		   predecessors just use the candidate we were checking.
-		   This happens for candidates in irreducible loops.  */
-		if (!worklist[spp - 1])
-		  break;
-		--spp;
-	      }
-	  bb = worklist[spp];
-	  worklist[spp] = worklist[--sp];
-	}
+	bb = worklist[--sp];
       else
 	break;
     }
+  bb_postorder = NULL;
   free (worklist);
-  sbitmap_free (visited);
-}
-
-void
-init_walk_dominator_tree (struct dom_walk_data *walk_data)
-{
-  walk_data->free_block_data = NULL;
-  walk_data->block_data_stack = NULL;
-}
-
-void
-fini_walk_dominator_tree (struct dom_walk_data *walk_data)
-{
-  if (walk_data->initialize_block_local_data)
-    {
-      while (VEC_length (void_p, walk_data->free_block_data) > 0)
-	free (VEC_pop (void_p, walk_data->free_block_data));
-    }
-
-  VEC_free (void_p, heap, walk_data->free_block_data);
-  VEC_free (void_p, heap, walk_data->block_data_stack);
 }

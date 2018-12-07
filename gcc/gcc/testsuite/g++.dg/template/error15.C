@@ -9,16 +9,16 @@ template <class T>
 class B {
 protected:
     
-  A<T> a; // { dg-error "" }
+  A<T> a; // { dg-message "" }
     
-  void f(const A<T> * a1 = &a); // { dg-error "this location" }
+  void f(const A<T> * a1 = &a); // { dg-error "non-static" }
     
   void g(void);
 };
 
 template <class T>
 void B<T>::g(void) {
-  f(); // { dg-error "default argument" }
+  f();
 }
 
 template class B<long>;

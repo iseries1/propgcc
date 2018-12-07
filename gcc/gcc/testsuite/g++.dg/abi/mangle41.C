@@ -3,5 +3,6 @@
 // { dg-options "-mavx -fabi-version=2" }
 
 #include <x86intrin.h>
-void f(__m128) { }		// { dg-error "previous" }
-void f(__m256) { }		// { dg-message "declaration|mangling" }
+void f(__m128) { }	// { dg-message "previous mangling" }
+void f(__m256) { }	// { dg-error "conflicts with a previous mangle" }
+// { dg-message "mangling" "" { target *-*-* } .-1 }

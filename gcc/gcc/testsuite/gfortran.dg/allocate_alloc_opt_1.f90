@@ -22,9 +22,9 @@ program a
   allocate(i(2))) ! { dg-error "Syntax error in ALLOCATE" }
   allocate(i(2), errmsg=err, errmsg=err) ! { dg-error "Redundant ERRMSG" }
   allocate(i(2), errmsg=err) ! { dg-warning "useless without a STAT" }
-  allocate(i(2), stat=j, errmsg=x) ! { dg-error "must be a scalar CHARACTER" }
+  allocate(i(2), stat=j, errmsg=x) ! { dg-error "shall be a scalar default CHARACTER" }
 
-  allocate(err) ! { dg-error "nonprocedure pointer or an allocatable" }
+  allocate(err) ! { dg-error "neither a data pointer nor an allocatable" }
 
   allocate(error(2),stat=j,errmsg=error(1)) ! { dg-error "shall not be ALLOCATEd within" }
   allocate(i(2), stat = i(1))  ! { dg-error "shall not be ALLOCATEd within" }

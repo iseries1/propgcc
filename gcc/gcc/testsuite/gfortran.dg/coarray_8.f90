@@ -112,7 +112,7 @@ contains
     type(t),allocatable :: x[:]
     type(t) :: y
     x = y
-    x[1] = y ! { dg-error "must not be have an allocatable ultimate component" }
+    x[1] = y ! { dg-error "must not have an allocatable ultimate component" }
   end subroutine assign2
 end module mmm3
 
@@ -145,15 +145,15 @@ end module mmm4
 
 subroutine tfgh()
   integer :: i(2)
-  DATA i/(i, i=1,2)/ ! { dg-error "Expected PARAMETER symbol" }
-  do i = 1, 5 ! { dg-error "cannot be a sub-component" }
+  DATA i/(i, i=1,2)/ ! { dg-error "Syntax error in DATA" }
+  do i = 1, 5 ! { dg-error "cannot be an array" }
   end do ! { dg-error "Expecting END SUBROUTINE" }
 end subroutine tfgh
 
 subroutine tfgh2()
   integer, save :: x[*]
   integer :: i(2)
-  DATA i/(x, x=1,2)/ ! { dg-error "Expected PARAMETER symbol" }
+  DATA i/(x, x=1,2)/ ! { dg-error "Syntax error in DATA" }
   do x = 1, 5 ! { dg-error "cannot be a coarray" }
   end do ! { dg-error "Expecting END SUBROUTINE" }
 end subroutine tfgh2
@@ -187,5 +187,3 @@ subroutine assign42()
   integer, allocatable :: z(:)[:]
   z(:)[1] = z
 end subroutine assign42
-
-! { dg-final { cleanup-modules "mod2 m mmm3 mmm4" } }

@@ -12,9 +12,9 @@
 /*
   Long double expansions are
   Copyright (C) 2001 Stephen L. Moshier <moshier@na-net.ornl.gov>
-  and are incorporated herein by permission of the author.  The author 
+  and are incorporated herein by permission of the author.  The author
   reserves the right to distribute this material elsewhere under different
-  copying permissions.  These modifications are distributed here under 
+  copying permissions.  These modifications are distributed here under
   the following terms:
 
     This library is free software; you can redistribute it and/or
@@ -99,8 +99,13 @@ __quadmath_kernel_tanq (__float128 x, __float128 y, int iy)
 	  if ((ix | u.words32.w1 | u.words32.w2 | u.words32.w3
 	       | (iy + 1)) == 0)
 	    return one / fabsq (x);
+	  else if (iy == 1)
+	    {
+	      math_check_force_underflow (x);
+	      return x;
+	    }
 	  else
-	    return (iy == 1) ? x : -one / x;
+	    return -one / x;
 	}
     }
   if (ix >= 0x3ffe5942) /* |x| >= 0.6743316650390625 */
@@ -160,10 +165,10 @@ __quadmath_kernel_tanq (__float128 x, __float128 y, int iy)
 
 
 
-/* s_tanl.c -- long double version of s_tan.c.
+/* tanq.c -- __float128 version of s_tan.c.
  * Conversion to IEEE quad long double by Jakub Jelinek, jj@ultra.linux.cz.
  */
-  
+
 /* @(#)s_tan.c 5.1 93/09/24 */
 /*
  * ====================================================
@@ -180,8 +185,8 @@ __quadmath_kernel_tanq (__float128 x, __float128 y, int iy)
  * Return tangent function of x.
  *
  * kernel function:
- *	__kernel_tanq		... tangent function on [-pi/4,pi/4]
- *	__ieee754_rem_pio2q	... argument reduction routine
+ *	__quadmath_kernel_tanq	... tangent function on [-pi/4,pi/4]
+ *	__quadmath_rem_pio2q	... argument reduction routine
  *
  * Method.
  *      Let S,C and T denote the sin, cos and tan respectively on

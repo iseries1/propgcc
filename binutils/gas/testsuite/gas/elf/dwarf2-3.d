@@ -1,6 +1,6 @@
 #readelf: -wl
 #name: DWARF2 3
-#not-target: ia64-*-* h8300-*-*
+#not-target: ft32*-* ia64-*-* h8300-*-*
 
 Raw dump of debug contents of section \.z?debug_line:
 
@@ -16,23 +16,23 @@ Raw dump of debug contents of section \.z?debug_line:
 
  Opcodes:
   Opcode 1 has 0 args
-  Opcode 2 has 1 args
-  Opcode 3 has 1 args
-  Opcode 4 has 1 args
-  Opcode 5 has 1 args
+  Opcode 2 has 1 arg
+  Opcode 3 has 1 arg
+  Opcode 4 has 1 arg
+  Opcode 5 has 1 arg
   Opcode 6 has 0 args
   Opcode 7 has 0 args
   Opcode 8 has 0 args
-  Opcode 9 has 1 args
+  Opcode 9 has 1 arg
   Opcode 10 has 0 args
   Opcode 11 has 0 args
-  Opcode 12 has 1 args
+  Opcode 12 has 1 arg
 
  The Directory Table is empty.
 
- The File Name Table:
+ The File Name Table \(offset 0x.*\):
   Entry	Dir	Time	Size	Name
   1	0	0	0	/beginwarn.c
 
- Line Number Statements:
+ No Line Number Statements.
 

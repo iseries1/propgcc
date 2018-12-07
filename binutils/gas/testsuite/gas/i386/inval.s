@@ -1,4 +1,5 @@
 	.text
+	.allow_index_reg
 # All the following should be illegal
 	mov	(%dx),%al
 	mov	(%eax,%esp,2),%al
@@ -58,6 +59,11 @@ foo:	jaw	foo
 movnti %ax, (%eax)
 movntiw %ax, (%eax)
 
+	add (%si,%esi), %eax
+	add (%esi,%si), %eax
+	add (%eiz), %eax
+	add (%eax), %eiz
+
 	.intel_syntax noprefix
 	cvtsi2ss xmm1,QWORD PTR [eax]
 	cvtsi2sd xmm1,QWORD PTR [eax]
@@ -82,3 +88,7 @@ movzx ax, [eax]
 movzx eax, [eax]
 
 movnti word ptr [eax], ax
+
+	shl [eax], 1
+	rol [ecx], 2
+	rcl [edx], cl

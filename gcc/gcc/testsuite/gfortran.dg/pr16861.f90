@@ -12,7 +12,7 @@ contains
     integer :: n
 
     do n = 1, i
-      if (j(n) /= n**2) call abort
+      if (j(n) /= n**2) STOP 1
     end do
   end subroutine baz
 end module bar
@@ -30,5 +30,3 @@ end subroutine quus
 program test
   call quus
 end program test
-
-! { dg-final { cleanup-modules "foo bar" } }

@@ -1,7 +1,6 @@
 /* Definitions of target machine for GNU compiler.
    Matsushita MN10300 series
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+   Copyright (C) 1996-2018 Free Software Foundation, Inc.
    Contributed by Jeff Law (law@cygnus.com).
 
    This file is part of GCC.
@@ -24,7 +23,7 @@
 #undef LIB_SPEC
 #undef ENDFILE_SPEC
 #undef  LINK_SPEC
-#define LINK_SPEC "%{mrelax:--relax}"
+#define LINK_SPEC "%{mrelax:%{!r:--relax}}"
 #undef  STARTFILE_SPEC
 #define STARTFILE_SPEC "%{!mno-crt0:%{!shared:%{pg:gcrt0%O%s}%{!pg:%{p:mcrt0%O%s}%{!p:crt0%O%s}}}}"
 
@@ -54,18 +53,15 @@
       builtin_define (TARGET_ALLOW_LIW ?	\
 		      "__LIW__" : "__NO_LIW__");\
 						\
+      builtin_define (TARGET_ALLOW_SETLB  ?	\
+		      "__SETLB__" : "__NO_SETLB__");\
     }						\
   while (0)
 
-enum processor_type
-{
-  PROCESSOR_MN10300,
-  PROCESSOR_AM33,
-  PROCESSOR_AM33_2,
-  PROCESSOR_AM34
-};
+#ifndef MN10300_OPTS_H
+#include "config/mn10300/mn10300-opts.h"
+#endif
 
-extern enum processor_type mn10300_processor;
 extern enum processor_type mn10300_tune_cpu;
 
 #define TARGET_AM33	(mn10300_processor >= PROCESSOR_AM33)
@@ -75,10 +71,6 @@ extern enum processor_type mn10300_tune_cpu;
 #ifndef PROCESSOR_DEFAULT
 #define PROCESSOR_DEFAULT PROCESSOR_MN10300
 #endif
-
-/* Print subsidiary information on the compiler version in use.  */
-
-#define TARGET_VERSION fprintf (stderr, " (MN10300)");
 
 
 /* Target machine storage layout */
@@ -232,27 +224,6 @@ extern enum processor_type mn10300_tune_cpu;
   , 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 50, 51 \
   }
 
-/* Return number of consecutive hard regs needed starting at reg REGNO
-   to hold something of mode MODE.
-
-   This is ordinarily the length in words of a value of mode MODE
-   but can be less for certain modes in special long registers.  */
-
-#define HARD_REGNO_NREGS(REGNO, MODE)   \
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
-/* Value is 1 if hard register REGNO can hold a value of machine-mode
-   MODE.  */
-#define HARD_REGNO_MODE_OK(REGNO, MODE) \
-  mn10300_hard_regno_mode_ok ((REGNO), (MODE))
-
-/* Value is 1 if it is a good idea to tie two pseudo registers
-   when one has mode MODE1 and one has mode MODE2.
-   If HARD_REGNO_MODE_OK could produce different values for MODE1 and MODE2,
-   for any hard reg, then this must be 0 for correct output.  */
-#define MODES_TIEABLE_P(MODE1, MODE2) \
-  mn10300_modes_tieable ((MODE1), (MODE2))
-
 /* 4 data, and effectively 3 address registers is small as far as I'm
    concerned.  */
 #define TARGET_SMALL_REGISTER_CLASSES_FOR_MODE_P hook_bool_mode_true
@@ -314,19 +285,6 @@ enum reg_class
   { 0xffffffff, 0xfffff } /* ALL_REGS */			\
 }
 
-/* The following macro defines cover classes for Integrated Register
-   Allocator.  Cover classes is a set of non-intersected register
-   classes covering all hard registers used for register allocation
-   purpose.  Any move between two registers of a cover class should be
-   cheaper than load or store of the registers.  The macro value is
-   array of register classes with LIM_REG_CLASSES used as the end
-   marker.  */
-
-#define IRA_COVER_CLASSES					\
-{								\
-  GENERAL_REGS, FP_REGS, MDR_REGS, LIM_REG_CLASSES		\
-}
-
 /* The same information, inverted:
    Return the class number of the smallest class containing
    reg number REGNO.  This could be a conditional expression
@@ -367,7 +325,8 @@ enum reg_class
    They give nonzero only if REGNO is a hard reg of the suitable class
    or a pseudo reg currently allocated to a suitable hard reg.
    Since they use reg_renumber, they are safe only once reg_renumber
-   has been allocated, which happens in local-alloc.c.  */
+   has been allocated, which happens in reginfo.c during register
+   allocation.  */
 
 #ifndef REG_OK_STRICT
 # define REG_STRICT 0
@@ -408,12 +367,6 @@ enum reg_class
 #define LIMIT_RELOAD_CLASS(MODE, CLASS) \
   (!TARGET_AM33 && (MODE == QImode || MODE == HImode) ? DATA_REGS : CLASS)
 
-/* Return the maximum number of consecutive registers
-   needed to represent mode MODE in a register of class CLASS.  */
-
-#define CLASS_MAX_NREGS(CLASS, MODE)	\
-  ((GET_MODE_SIZE (MODE) + UNITS_PER_WORD - 1) / UNITS_PER_WORD)
-
 /* A class that contains registers which the compiler must always
    access in a mode that is the same size as the mode in which it
    loaded the register.  */
@@ -430,7 +383,7 @@ enum reg_class
 /* Define this if pushing a word on the stack
    makes the stack pointer a smaller address.  */
 
-#define STACK_GROWS_DOWNWARD
+#define STACK_GROWS_DOWNWARD 1
 
 /* Define this to nonzero if the nominal address of the stack frame
    is at the high-address end of the local variables;
@@ -438,13 +391,6 @@ enum reg_class
    goes at a more negative offset in the frame.  */
 
 #define FRAME_GROWS_DOWNWARD 1
-
-/* Offset within stack frame to start allocating local variables at.
-   If FRAME_GROWS_DOWNWARD, this is the offset to the END of the
-   first local allocated.  Otherwise, it is the offset to the BEGINNING
-   of the first local allocated.  */
-
-#define STARTING_FRAME_OFFSET 0
 
 /* Offset of first parameter from the argument pointer register value.  */
 /* Is equal to the size of the saved fp + pc, even if an fp isn't
@@ -542,7 +488,7 @@ struct cum_arg
 /* The return address is saved both in the stack and in MDR.  Using
    the stack location is handiest for what unwinding needs.  */
 #define INCOMING_RETURN_ADDR_RTX \
-  gen_rtx_MEM (VOIDmode, gen_rtx_REG (VOIDmode, STACK_POINTER_REGNUM))
+  gen_rtx_MEM (Pmode, gen_rtx_REG (Pmode, STACK_POINTER_REGNUM))
 
 /* Maximum number of registers that can appear in a valid memory address.  */
 
@@ -579,10 +525,6 @@ do {									     \
 } while (0)
 
 
-/* Nonzero if the constant value X is a legitimate general operand.
-   It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
-#define LEGITIMATE_CONSTANT_P(X) mn10300_legitimate_constant_p (X)
-
 /* Zero if this needs fixing up to become PIC.  */
 
 #define LEGITIMATE_PIC_OPERAND_P(X) \
@@ -609,7 +551,7 @@ do {									     \
    than accessing full words.  */
 #define SLOW_BYTE_ACCESS 1
 
-#define NO_FUNCTION_CSE
+#define NO_FUNCTION_CSE 1
 
 /* According expr.c, a value of around 6 should minimize code size, and
    for the MN10300 series, that's our primary concern.  */
@@ -729,13 +671,9 @@ do {									     \
 
 /* Define if operations between registers always perform the operation
    on the full register even if a narrower mode is specified.  */
-#define WORD_REGISTER_OPERATIONS
+#define WORD_REGISTER_OPERATIONS 1
 
 #define LOAD_EXTEND_OP(MODE) ZERO_EXTEND
-
-/* This flag, if defined, says the same insns that convert to a signed fixnum
-   also convert validly to an unsigned one.  */
-#define FIXUNS_TRUNC_LIKE_FIX_TRUNC
 
 /* Max number of bytes we can move from memory to memory
    in one reasonably fast instruction.  */
@@ -745,10 +683,6 @@ do {									     \
    which implies one can omit a sign-extension or zero-extension
    of a shift count.  */
 #define SHIFT_COUNT_TRUNCATED 1
-
-/* Value is 1 if truncating an integer of INPREC bits to OUTPREC bits
-   is done just by pretending it is already truncated.  */
-#define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC) 1
 
 /* Specify the machine mode that pointers have.
    After generation of rtl, the compiler makes no further distinction

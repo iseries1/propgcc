@@ -1,4 +1,4 @@
-! { dg-options "-O3 -fgraphite-identity -floop-interchange " }
+! { dg-options "-O3 -fgraphite-identity -floop-nest-optimize " }
 
 module mqc_m
 
@@ -67,5 +67,3 @@ contains
       end subroutine mutual_ind_quad_cir_coil
 
 end module mqc_m
-! { dg-final { cleanup-modules "mqc_m" } }
-

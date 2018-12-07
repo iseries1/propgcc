@@ -40,7 +40,7 @@ subroutine writenml (astring)
   write (10, '(A)') "/"
   rewind (10)
   read (10, nml = mynml, iostat=ierror, iomsg=errmessage)
-  if (ierror == 0) call abort
+  if (ierror == 0) STOP 1
   print '(a)', trim(errmessage)
   close (10)
 
@@ -51,4 +51,3 @@ end program namelist_40
 ! { dg-output "Missing colon in substring qualifier for namelist variable x%m%ch(\n|\r\n|\r)" }
 ! { dg-output "Substring out of range for namelist variable x%m%ch(\n|\r\n|\r)" }
 ! { dg-output "Bad character in substring qualifier for namelist variable x%m%ch(\n|\r\n|\r)" }
-! { dg-final { cleanup-modules "global" } }

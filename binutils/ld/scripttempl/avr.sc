@@ -1,15 +1,47 @@
+# Copyright (C) 2014-2018 Free Software Foundation, Inc.
+#
+# Copying and distribution of this file, with or without modification,
+# are permitted in any medium without royalty provided the copyright
+# notice and this notice are preserved.
+
+# RODATA_PM_OFFSET
+#         If empty, .rodata sections will be part of .data.  This is for
+#         devices where it is not possible to use LD* instructions to read
+#         from flash.
+#
+#         If non-empty, .rodata is not part of .data and the .rodata
+#         objects are assigned addresses at an offest of RODATA_PM_OFFSET.
+#         This is for devices that feature reading from flash by means of
+#         LD* instructions, provided the addresses are offset by
+#         __RODATA_PM_OFFSET__ (which defaults to RODATA_PM_OFFSET).
+
 cat <<EOF
+/* Copyright (C) 2014-2018 Free Software Foundation, Inc.
+
+   Copying and distribution of this script, with or without modification,
+   are permitted in any medium without royalty provided the copyright
+   notice and this notice are preserved.  */
+
 OUTPUT_FORMAT("${OUTPUT_FORMAT}","${OUTPUT_FORMAT}","${OUTPUT_FORMAT}")
 OUTPUT_ARCH(${ARCH})
 
+__TEXT_REGION_LENGTH__ = DEFINED(__TEXT_REGION_LENGTH__) ? __TEXT_REGION_LENGTH__ : $TEXT_LENGTH;
+__DATA_REGION_LENGTH__ = DEFINED(__DATA_REGION_LENGTH__) ? __DATA_REGION_LENGTH__ : $DATA_LENGTH;
+${EEPROM_LENGTH+__EEPROM_REGION_LENGTH__ = DEFINED(__EEPROM_REGION_LENGTH__) ? __EEPROM_REGION_LENGTH__ : $EEPROM_LENGTH;}
+__FUSE_REGION_LENGTH__ = DEFINED(__FUSE_REGION_LENGTH__) ? __FUSE_REGION_LENGTH__ : $FUSE_LENGTH;
+__LOCK_REGION_LENGTH__ = DEFINED(__LOCK_REGION_LENGTH__) ? __LOCK_REGION_LENGTH__ : $LOCK_LENGTH;
+__SIGNATURE_REGION_LENGTH__ = DEFINED(__SIGNATURE_REGION_LENGTH__) ? __SIGNATURE_REGION_LENGTH__ : $SIGNATURE_LENGTH;
+${USER_SIGNATURE_LENGTH+__USER_SIGNATURE_REGION_LENGTH__ = DEFINED(__USER_SIGNATURE_REGION_LENGTH__) ? __USER_SIGNATURE_REGION_LENGTH__ : $USER_SIGNATURE_LENGTH;}
+${RODATA_PM_OFFSET+__RODATA_PM_OFFSET__ = DEFINED(__RODATA_PM_OFFSET__) ? __RODATA_PM_OFFSET__ : $RODATA_PM_OFFSET;}
 MEMORY
 {
-  text   (rx)   : ORIGIN = 0, LENGTH = $TEXT_LENGTH
-  data   (rw!x) : ORIGIN = $DATA_ORIGIN, LENGTH = $DATA_LENGTH
-  eeprom (rw!x) : ORIGIN = 0x810000, LENGTH = 64K
-  fuse      (rw!x) : ORIGIN = 0x820000, LENGTH = 1K
-  lock      (rw!x) : ORIGIN = 0x830000, LENGTH = 1K
-  signature (rw!x) : ORIGIN = 0x840000, LENGTH = 1K
+  text   (rx)   : ORIGIN = 0, LENGTH = __TEXT_REGION_LENGTH__
+  data   (rw!x) : ORIGIN = $DATA_ORIGIN, LENGTH = __DATA_REGION_LENGTH__
+${EEPROM_LENGTH+  eeprom (rw!x) : ORIGIN = 0x810000, LENGTH = __EEPROM_REGION_LENGTH__}
+  $FUSE_NAME      (rw!x) : ORIGIN = 0x820000, LENGTH = __FUSE_REGION_LENGTH__
+  lock      (rw!x) : ORIGIN = 0x830000, LENGTH = __LOCK_REGION_LENGTH__
+  signature (rw!x) : ORIGIN = 0x840000, LENGTH = __SIGNATURE_REGION_LENGTH__
+${USER_SIGNATURE_LENGTH+  user_signatures (rw!x) : ORIGIN = 0x850000, LENGTH = __USER_SIGNATURE_REGION_LENGTH__}
 }
 
 SECTIONS
@@ -81,24 +113,28 @@ SECTIONS
     KEEP(*(.vectors))
 
     /* For data that needs to reside in the lower 64k of progmem.  */
-    *(.progmem.gcc*)
-    *(.progmem*)
-    ${RELOCATING+. = ALIGN(2);}
+    ${RELOCATING+ *(.progmem.gcc*)}
 
+    /* PR 13812: Placing the trampolines here gives a better chance
+       that they will be in range of the code that uses them.  */
+    ${RELOCATING+. = ALIGN(2);}
     ${CONSTRUCTING+ __trampolines_start = . ; }
     /* The jump trampolines for the 16-bit limited relocs will reside here.  */
     *(.trampolines)
-    *(.trampolines*)
+    ${RELOCATING+ *(.trampolines*)}
     ${CONSTRUCTING+ __trampolines_end = . ; }
 
-    /* For future tablejump instruction arrays for 3 byte pc devices.
-       We don't relax jump/call instructions within these sections.  */
-    *(.jumptables) 
-    *(.jumptables*) 
+    /* avr-libc expects these data to reside in lower 64K. */
+    ${RELOCATING+ *libprintf_flt.a:*(.progmem.data)}
+    ${RELOCATING+ *libc.a:*(.progmem.data)}
+
+    ${RELOCATING+ *(.progmem.*)}
+
+    ${RELOCATING+. = ALIGN(2);}
 
     /* For code that needs to reside in the lower 128k progmem.  */
     *(.lowtext)
-    *(.lowtext*)
+    ${RELOCATING+ *(.lowtext*)}
 
     ${CONSTRUCTING+ __ctors_start = . ; }
     ${CONSTRUCTING+ *(.ctors) }
@@ -133,7 +169,7 @@ SECTIONS
     KEEP (*(.init9))
     *(.text)
     ${RELOCATING+. = ALIGN(2);}
-    *(.text.*)
+    ${RELOCATING+ *(.text.*)}
     ${RELOCATING+. = ALIGN(2);}
     *(.fini9)  /* _exit() starts here.  */
     KEEP (*(.fini9))
@@ -155,30 +191,71 @@ SECTIONS
     KEEP (*(.fini1))
     *(.fini0)  /* Infinite loop after program termination.  */
     KEEP (*(.fini0))
+
+    /* For code that needs not to reside in the lower progmem.  */
+    *(.hightext)
+    ${RELOCATING+ *(.hightext*)}
+
+    ${RELOCATING+ *(.progmemx.*)}
+
+    ${RELOCATING+. = ALIGN(2);}
+
+    /* For tablejump instruction arrays.  We don't relax
+       JMP / CALL instructions within these sections.  */
+    *(.jumptables)
+    ${RELOCATING+ *(.jumptables*)}
+
     ${RELOCATING+ _etext = . ; }
   } ${RELOCATING+ > text}
+EOF
 
-  .data	${RELOCATING-0} : ${RELOCATING+AT (ADDR (.text) + SIZEOF (.text))}
+# Devices like ATtiny816 allow to read from flash memory by means of LD*
+# instructions provided we add an offset of __RODATA_PM_OFFSET__ to the
+# flash addresses.
+
+if test -n "$RODATA_PM_OFFSET"; then
+    cat <<EOF
+  .rodata ${RELOCATING+ ADDR(.text) + SIZEOF (.text) + __RODATA_PM_OFFSET__ } ${RELOCATING-0} :
+  {
+    *(.rodata)
+    ${RELOCATING+ *(.rodata*)}
+    *(.gnu.linkonce.r*)
+  } ${RELOCATING+AT> text}
+EOF
+fi
+
+cat <<EOF
+  .data        ${RELOCATING-0} :
   {
     ${RELOCATING+ PROVIDE (__data_start = .) ; }
-    /* --gc-sections will delete empty .data. This leads to wrong start
-       addresses for subsequent sections because -Tdata= from the command
-       line will have no effect, see PR13697.  Thus, keep .data  */
-    KEEP (*(.data))    
-    *(.data*)
-    *(.rodata)  /* We need to include .rodata here if gcc is used */
-    *(.rodata*) /* with -fdata-sections.  */
+    *(.data)
+    ${RELOCATING+ *(.data*)}
     *(.gnu.linkonce.d*)
+EOF
+
+# Classical devices that don't show flash memory in the SRAM address space
+# need .rodata to be part of .data because the compiler will use LD*
+# instructions and LD* cannot access flash.
+
+if test -z "$RODATA_PM_OFFSET"; then
+    cat <<EOF
+    *(.rodata)  /* We need to include .rodata here if gcc is used */
+    ${RELOCATING+ *(.rodata*)} /* with -fdata-sections.  */
+    *(.gnu.linkonce.r*)
+EOF
+fi
+
+cat <<EOF
     ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ _edata = . ; }
     ${RELOCATING+ PROVIDE (__data_end = .) ; }
-  } ${RELOCATING+ > data}
+  } ${RELOCATING+ > data ${RELOCATING+AT> text}}
 
-  .bss ${RELOCATING-0} :${RELOCATING+ AT (ADDR (.bss))}
+  .bss ${RELOCATING+ ADDR(.data) + SIZEOF (.data)} ${RELOCATING-0} :${RELOCATING+ AT (ADDR (.bss))}
   {
     ${RELOCATING+ PROVIDE (__bss_start = .) ; }
     *(.bss)
-    *(.bss*)
+    ${RELOCATING+ *(.bss*)}
     *(COMMON)
     ${RELOCATING+ PROVIDE (__bss_end = .) ; }
   } ${RELOCATING+ > data}
@@ -187,7 +264,7 @@ SECTIONS
   ${RELOCATING+ __data_load_end = __data_load_start + SIZEOF(.data); }
 
   /* Global data not cleared after reset.  */
-  .noinit ${RELOCATING-0}:
+  .noinit ${RELOCATING+ ADDR(.bss) + SIZEOF (.bss)} ${RELOCATING-0}: ${RELOCATING+ AT (ADDR (.noinit))}
   {
     ${RELOCATING+ PROVIDE (__noinit_start = .) ; }
     *(.noinit*)
@@ -195,12 +272,22 @@ SECTIONS
     ${RELOCATING+ _end = . ;  }
     ${RELOCATING+ PROVIDE (__heap_start = .) ; }
   } ${RELOCATING+ > data}
+EOF
+
+if test -n "${EEPROM_LENGTH}"; then
+cat <<EOF
 
   .eeprom ${RELOCATING-0}:
   {
-    *(.eeprom*)
+    /* See .data above...  */
+    KEEP(*(.eeprom*))
     ${RELOCATING+ __eeprom_end = . ; }
   } ${RELOCATING+ > eeprom}
+EOF
+fi
+
+if test "$FUSE_NAME" = "fuse" ; then
+cat <<EOF
 
   .fuse ${RELOCATING-0}:
   {
@@ -209,6 +296,10 @@ SECTIONS
     KEEP(*(.hfuse))
     KEEP(*(.efuse))
   } ${RELOCATING+ > fuse}
+EOF
+fi
+
+cat <<EOF
 
   .lock ${RELOCATING-0}:
   {
@@ -219,6 +310,19 @@ SECTIONS
   {
     KEEP(*(.signature*))
   } ${RELOCATING+ > signature}
+EOF
+
+if test "$FUSE_NAME" = "config" ; then
+cat <<EOF
+
+  .config ${RELOCATING-0}:
+  {
+    KEEP(*(.config*))
+  } ${RELOCATING+ > config}
+EOF
+fi
+
+cat <<EOF
 
   /* Stabs debugging sections.  */
   .stab 0 : { *(.stab) }
@@ -228,38 +332,11 @@ SECTIONS
   .stab.index 0 : { *(.stab.index) }
   .stab.indexstr 0 : { *(.stab.indexstr) }
   .comment 0 : { *(.comment) }
- 
-  /* DWARF debug sections.
-     Symbols in the DWARF debugging sections are relative to the beginning
-     of the section so we begin them at 0.  */
-
-  /* DWARF 1 */
-  .debug          0 : { *(.debug) }
-  .line           0 : { *(.line) }
-
-  /* GNU DWARF 1 extensions */
-  .debug_srcinfo  0 : { *(.debug_srcinfo) }
-  .debug_sfnames  0 : { *(.debug_sfnames) }
-
-  /* DWARF 1.1 and DWARF 2 */
-  .debug_aranges  0 : { *(.debug_aranges) }
-  .debug_pubnames 0 : { *(.debug_pubnames) }
-
-  /* DWARF 2 */
-  .debug_info     0 : { *(.debug_info) *(.gnu.linkonce.wi.*) }
-  .debug_abbrev   0 : { *(.debug_abbrev) }
-  .debug_line     0 : { *(.debug_line) }
-  .debug_frame    0 : { *(.debug_frame) }
-  .debug_str      0 : { *(.debug_str) }
-  .debug_loc      0 : { *(.debug_loc) }
-  .debug_macinfo  0 : { *(.debug_macinfo) }
-
-  /* DWARF 3 */
-  .debug_pubtypes 0 : { *(.debug_pubtypes) }
-  .debug_ranges   0 : { *(.debug_ranges) }
-
-  /* DWARF Extension.  */
-  .debug_macro    0 : { *(.debug_macro) } 
-}
+  .note.gnu.build-id : { *(.note.gnu.build-id) }
 EOF
 
+. $srcdir/scripttempl/DWARF.sc
+
+cat <<EOF
+}
+EOF

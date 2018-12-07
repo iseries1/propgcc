@@ -1,7 +1,5 @@
 /* chew
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
-   2002, 2003, 2005, 2007, 2009, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2018 Free Software Foundation, Inc.
    Contributed by steve chamberlain @cygnus
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -172,7 +170,9 @@ static void
 delete_string (buffer)
      string_type *buffer;
 {
-  free (buffer->ptr);
+  if (buffer->ptr)
+    free (buffer->ptr);
+  buffer->ptr = NULL;
 }
 
 static char *
@@ -264,6 +264,19 @@ skip_white_and_stars (src, idx)
 	     && at (src, idx +1) != '/'
 	     && at (src, idx -1) != '\n'))
     idx++;
+  return idx;
+}
+
+static unsigned int
+skip_past_newline_1 (ptr, idx)
+     string_type *ptr;
+     unsigned int idx;
+{
+  while (at (ptr, idx)
+	 && at (ptr, idx) != '\n')
+    idx++;
+  if (at (ptr, idx) == '\n')
+    return idx + 1;
   return idx;
 }
 
@@ -476,8 +489,10 @@ remove_noncomments (src, dst)
 static void
 print_stack_level ()
 {
-  fprintf (stderr, "current string stack depth = %ld, ", tos - stack);
-  fprintf (stderr, "current integer stack depth = %ld\n", isp - istack);
+  fprintf (stderr, "current string stack depth = %ld, ",
+	   (long) (tos - stack));
+  fprintf (stderr, "current integer stack depth = %ld\n",
+	   (long) (isp - istack));
   pc++;
 }
 
@@ -603,10 +618,12 @@ outputdots ()
 
   while (at (tos, idx))
     {
-      if (at (tos, idx) == '\n' && at (tos, idx + 1) == '.')
+      /* Every iteration begins at the start of a line.  */
+      if (at (tos, idx) == '.')
 	{
 	  char c;
-	  idx += 2;
+
+	  idx++;
 
 	  while ((c = at (tos, idx)) && c != '\n')
 	    {
@@ -626,11 +643,13 @@ outputdots ()
 		  idx++;
 		}
 	    }
+	  if (c == '\n')
+	    idx++;
 	  catchar (&out, '\n');
 	}
       else
 	{
-	  idx++;
+	  idx = skip_past_newline_1 (tos, idx);
 	}
     }
 
@@ -1071,6 +1090,7 @@ drop ()
 {
   tos--;
   check_range ();
+  delete_string (tos + 1);
   pc++;
 }
 
@@ -1095,10 +1115,7 @@ icatstr ()
 static void
 skip_past_newline ()
 {
-  while (at (ptr, idx)
-	 && at (ptr, idx) != '\n')
-    idx++;
-  idx++;
+  idx = skip_past_newline_1 (ptr, idx);
   pc++;
 }
 
@@ -1230,6 +1247,35 @@ lookup_word (word)
 }
 
 static void
+free_words (void)
+{
+  dict_type *ptr = root;
+
+  while (ptr)
+    {
+      dict_type *next;
+
+      if (ptr->word)
+	free (ptr->word);
+      if (ptr->code)
+	{
+	  int i;
+	  for (i = 0; i < ptr->code_length; i ++)
+	    if (ptr->code[i] == push_text
+		&& ptr->code[i + 1])
+	      {
+		free (ptr->code[i + 1] - 1);
+		++ i;
+	      }
+	  free (ptr->code);
+	}
+      next = ptr->next;
+      free (ptr);
+      ptr = next;
+    }
+}
+
+static void
 perform ()
 {
   tos = stack;
@@ -1256,7 +1302,7 @@ perform ()
 		fprintf (stderr, "warning, %s is not recognised\n", next);
 	      skip_past_newline ();
 	    }
-
+	  free (next);
 	}
       else
 	skip_past_newline ();
@@ -1299,7 +1345,7 @@ add_intrinsic (name, func)
      char *name;
      void (*func) ();
 {
-  dict_type *new_d = newentry (name);
+  dict_type *new_d = newentry (strdup (name));
   add_to_definition (new_d, func);
   add_to_definition (new_d, 0);
 }
@@ -1320,24 +1366,27 @@ compile (string)
 {
   /* Add words to the dictionary.  */
   char *word;
+
   string = nextword (string, &word);
   while (string && *string && word[0])
     {
       if (strcmp (word, "var") == 0)
 	{
+	  free (word);
 	  string = nextword (string, &word);
-
 	  add_var (word);
 	  string = nextword (string, &word);
 	}
       else if (word[0] == ':')
 	{
 	  dict_type *ptr;
-	  /* Compile a word and add to dictionary.  */
-	  string = nextword (string, &word);
 
+	  /* Compile a word and add to dictionary.  */
+	  free (word);
+	  string = nextword (string, &word);
 	  ptr = newentry (word);
 	  string = nextword (string, &word);
+	  
 	  while (word[0] != ';')
 	    {
 	      switch (word[0])
@@ -1362,15 +1411,19 @@ compile (string)
 		     function */
 		  add_to_definition (ptr, push_number);
 		  add_to_definition (ptr, (stinst_type) atol (word));
+		  free (word);
 		  break;
 		default:
 		  add_to_definition (ptr, call);
 		  add_to_definition (ptr, (stinst_type) lookup_word (word));
+		  free (word);
 		}
 
 	      string = nextword (string, &word);
 	    }
 	  add_to_definition (ptr, 0);
+	  free (word);
+	  word = NULL;
 	  string = nextword (string, &word);
 	}
       else
@@ -1378,6 +1431,8 @@ compile (string)
 	  fprintf (stderr, "syntax error at %s\n", string - 1);
 	}
     }
+  if (word)
+    free (word);
 }
 
 static void
@@ -1547,6 +1602,7 @@ main (ac, av)
 	      read_in (&b, f);
 	      compile (b.ptr);
 	      perform ();
+	      delete_string (&b);
 	    }
 	  else if (av[i][1] == 'i')
 	    {
@@ -1561,10 +1617,13 @@ main (ac, av)
 	}
     }
   write_buffer (stack + 0, stdout);
+  free_words ();
+  delete_string (&pptr);
+  delete_string (&buffer);
   if (tos != stack)
     {
       fprintf (stderr, "finishing with current stack level %ld\n",
-	       tos - stack);
+	       (long) (tos - stack));
       return 1;
     }
   return 0;

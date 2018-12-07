@@ -1,6 +1,8 @@
 /* PR tree-optimization/46966 */
 /* { dg-do compile } */
-/* { dg-options "-O -floop-interchange -ffast-math -fno-tree-copy-prop -fno-tree-loop-im" } */
+/* This test is too big for small targets.  */
+/* { dg-require-effective-target size32plus } */
+/* { dg-options "-O -floop-nest-optimize -ffast-math -fno-tree-copy-prop -fno-tree-loop-im" } */
 
 int a[1000][1000];
 

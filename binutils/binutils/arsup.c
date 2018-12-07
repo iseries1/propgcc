@@ -1,6 +1,5 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright 1992, 1994, 1995, 1996, 1997, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005, 2007, 2008 Free Software Foundation, Inc.
+   Copyright (C) 1992-2018 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -39,6 +38,7 @@ static void ar_directory_doer (bfd *, bfd *);
 static void ar_addlib_doer (bfd *, bfd *);
 
 extern int verbose;
+extern int deterministic;
 
 static bfd *obfd;
 static char *real_name;
@@ -96,7 +96,7 @@ map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
 static void
 ar_directory_doer (bfd *abfd, bfd *ignore ATTRIBUTE_UNUSED)
 {
-  print_arelt_descr(outfile, abfd, verbose);
+  print_arelt_descr(outfile, abfd, verbose, FALSE);
 }
 
 void
@@ -254,8 +254,13 @@ ar_addmod (struct list *list)
     {
       while (list)
 	{
-	  bfd *abfd = bfd_openr (list->name, NULL);
+	  bfd *abfd;
 
+#if BFD_SUPPORTS_PLUGINS	  
+	  abfd = bfd_openr (list->name, "plugin");
+#else
+	  abfd = bfd_openr (list->name, NULL);
+#endif
 	  if (!abfd)
 	    {
 	      fprintf (stderr, _("%s: can't open file %s\n"),
@@ -334,6 +339,9 @@ ar_save (void)
     {
       char *ofilename = xstrdup (bfd_get_filename (obfd));
 
+      if (deterministic > 0)
+        obfd->flags |= BFD_DETERMINISTIC_OUTPUT;
+
       bfd_close (obfd);
 
       smart_rename (ofilename, real_name, 0);
@@ -364,7 +372,7 @@ ar_replace (struct list *list)
 	      if (FILENAME_CMP (member->filename, list->name) == 0)
 		{
 		  /* Found the one to replace.  */
-		  bfd *abfd = bfd_openr (list->name, 0);
+		  bfd *abfd = bfd_openr (list->name, NULL);
 
 		  if (!abfd)
 		    {
@@ -388,7 +396,7 @@ ar_replace (struct list *list)
 
 	  if (!found)
 	    {
-	      bfd *abfd = bfd_openr (list->name, 0);
+	      bfd *abfd = bfd_openr (list->name, NULL);
 
 	      fprintf (stderr,_("%s: can't find module file %s\n"),
 		       program_name, list->name);
@@ -470,7 +478,7 @@ ar_extract (struct list *list)
 
 	  if (!found)
 	    {
-	      bfd_openr (list->name, 0);
+	      bfd_openr (list->name, NULL);
 	      fprintf (stderr, _("%s: can't find module file %s\n"),
 		       program_name, list->name);
 	    }

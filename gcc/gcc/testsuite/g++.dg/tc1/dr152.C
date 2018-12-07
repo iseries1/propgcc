@@ -7,12 +7,12 @@ namespace N1 {
     X();			// { dg-message "note" }
     explicit X(const X&);
   };
-  void f(X);			// { dg-error "initializing" }
+  void f(X);			// { dg-message "initializing" }
   int foo() 
   { 
     X x; 
     f(x);     // { dg-error "matching" "matching" }
-    // { dg-message "candidate" "candidate note" { target *-*-* } 14 }
+    return 0;
   }
 }
 
@@ -24,15 +24,15 @@ namespace N2 {
   };
 
   template <class T>
-  void f(T ) {}			// { dg-error "initializing" }
+  void f(T) {}			// { dg-message "initializing" }
   
   template <class T>
   int foo() 
   { 
     X<T> x; 
     N2::f(x);   // { dg-error "matching" "matching" }
-    // { dg-message "candidate" "candidate note" { target *-*-* } 33 }
+    return 0;
   }
 
-  template int foo<float>();  // { dg-message "instantiated from here" }
+  template int foo<float>();  // { dg-message "required from here" }
 }
