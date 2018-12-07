@@ -78,6 +78,7 @@ CPU_DOCS = \
 	c-pdp11.texi \
 	c-pj.texi \
 	c-ppc.texi \
+	c-propeller.texi \
 	c-pru.texi \
 	c-rl78.texi \
 	c-riscv.texi \

@@ -628,6 +628,9 @@ powerpc-*-aix*)		targ_emul=aixppc ;;
 powerpc-*-beos*)	targ_emul=aixppc ;;
 powerpc-*-windiss*)	targ_emul=elf32ppcwindiss ;;
 powerpc-*-lynxos*)	targ_emul=ppclynx ;;
+propeller*)		targ_emul=propeller
+			targ_extra_emuls="propeller2 propeller_cog propeller_xmm propeller_xmm_single propeller_xmm_split propeller_xmmc propeller2_xmm propeller2_xmmc propeller2_xmm_single propeller2_xmm_split"
+			;;
 pru*-*-*)		targ_emul=pruelf ;;
 riscv32*-*-linux*)	targ_emul=elf32lriscv
 			targ_extra_emuls="elf32lriscv_ilp32f elf32lriscv_ilp32 elf64lriscv elf64lriscv_lp64f elf64lriscv_lp64"

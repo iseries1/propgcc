@@ -750,6 +750,7 @@ case $basic_machine in
 	| orion-* \
 	| pdp10-* | pdp11-* | pj-* | pjl-* | pn-* | power-* \
 	| powerpc-* | powerpc64-* | powerpc64le-* | powerpcle-* \
+	| propeller-* \
 	| pru-* \
 	| pyramid-* \
 	| riscv-* | riscv32-* | riscv64-* \
@@ -1262,6 +1263,9 @@ case $basic_machine in
 		;;
 	pmac | pmac-mpw)
 		basic_machine=powerpc-apple
+		;;
+	propeller)
+	    basic_machine=propeller-parallax
 		;;
 	*-unknown)
 		# Make sure to match an already-canonicalized machine name.

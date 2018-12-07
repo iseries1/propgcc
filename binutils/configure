@@ -3814,6 +3814,10 @@ case "${target}" in
   powerpc-*-beos*)
     noconfigdirs="$noconfigdirs gdb"
     ;;
+  propeller-*-*)
+    noconfigdirs="$noconfigdirs target-libffi target-boehm-gc libgloss"
+    unsupported_languages="$unsupported_languages fortran"
+    ;;
   rs6000-*-lynxos*)
     noconfigdirs="$noconfigdirs gprof"
     ;;
@@ -15571,7 +15575,7 @@ cat >>$CONFIG_STATUS <<_ACEOF || ac_write_fail=1
 _ACAWK
 cat >>"\$ac_tmp/subs1.awk" <<_ACAWK &&
   for (key in S) S_is_set[key] = 1
-  FS = ""
+  FS = " "
   \$ac_cs_awk_pipe_init
 }
 {

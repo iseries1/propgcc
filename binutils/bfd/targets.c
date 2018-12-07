@@ -765,6 +765,7 @@ extern const bfd_target powerpc_pe_le_vec;
 extern const bfd_target powerpc_pei_vec;
 extern const bfd_target powerpc_pei_le_vec;
 extern const bfd_target powerpc_xcoff_vec;
+extern const bfd_target propeller_elf32_vec;
 extern const bfd_target pru_elf32_vec;
 extern const bfd_target riscv_elf32_vec;
 extern const bfd_target riscv_elf64_vec;
@@ -1145,6 +1146,7 @@ static const bfd_target * const _bfd_target_vector[] =
 	&powerpc_elf32_le_vec,
 	&powerpc_elf32_fbsd_vec,
 	&powerpc_elf32_vxworks_vec,
+	&propeller_elf32_vec,
 #ifdef BFD64
 	&powerpc_elf64_vec,
 	&powerpc_elf64_le_vec,
