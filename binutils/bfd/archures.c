@@ -502,6 +502,9 @@ DESCRIPTION
 .#define bfd_mach_tilegx32	2
 .  bfd_arch_aarch64,   {* AArch64.  *}
 .#define bfd_mach_aarch64 0
+.  bfd_arch_propeller,	{* Parallax Propeller *}
+.#define bfd_mach_prop1		1
+.#define bfd_mach_prop2		2
 .#define bfd_mach_aarch64_ilp32	32
 .  bfd_arch_nios2,     {* Nios II.  *}
 .#define bfd_mach_nios2		0
@@ -616,6 +619,7 @@ extern const bfd_arch_info_type bfd_pj_arch;
 extern const bfd_arch_info_type bfd_plugin_arch;
 extern const bfd_arch_info_type bfd_powerpc_archs[];
 #define bfd_powerpc_arch bfd_powerpc_archs[0]
+extern const bfd_arch_info_type bfd_propeller_arch;
 extern const bfd_arch_info_type bfd_pru_arch;
 extern const bfd_arch_info_type bfd_riscv_arch;
 extern const bfd_arch_info_type bfd_rs6000_arch;
@@ -703,6 +707,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_or1k_arch,
     &bfd_pdp11_arch,
     &bfd_powerpc_arch,
+    &bfd_propeller_arch,
     &bfd_pru_arch,
     &bfd_riscv_arch,
     &bfd_rl78_arch,

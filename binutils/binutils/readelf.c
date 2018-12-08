@@ -138,6 +138,7 @@
 #include "elf/pj.h"
 #include "elf/ppc.h"
 #include "elf/ppc64.h"
+#include "elf/propeller.h"
 #include "elf/pru.h"
 #include "elf/riscv.h"
 #include "elf/rl78.h"
@@ -831,6 +832,7 @@ guess_is_rela (unsigned int e_machine)
     case EM_OR1K:
     case EM_PPC64:
     case EM_PPC:
+    case EM_PROPELLER:
     case EM_TI_PRU:
     case EM_RISCV:
     case EM_RL78:
@@ -1385,6 +1387,10 @@ dump_relocations (Filedata *          filedata,
 
 	case EM_PPC64:
 	  rtype = elf_ppc64_reloc_type (type);
+	  break;
+
+	case EM_PROPELLER:
+	  rtype = elf_propeller_reloc_type (type);
 	  break;
 
 	case EM_MIPS:
@@ -2501,6 +2507,7 @@ get_machine_name (unsigned e_machine)
     case EM_ADAPTEVA_EPIPHANY:	return "Adapteva EPIPHANY";
     case EM_CYGNUS_FRV:		return "Fujitsu FR-V";
     case EM_S12Z:               return "Freescale S12Z";
+    case EM_PROPELLER:		return "Parallax Propeller";
 
     default:
       snprintf (buff, sizeof (buff), _("<unknown>: 0x%x"), e_machine);
@@ -12423,6 +12430,8 @@ is_32bit_abs_reloc (Filedata * filedata, unsigned int reloc_type)
     case EM_XTENSA_OLD:
     case EM_XTENSA:
       return reloc_type == 1; /* R_XTENSA_32.  */
+    case EM_PROPELLER:
+      return reloc_type == 1;
     default:
       {
 	static unsigned int prev_warn = 0;

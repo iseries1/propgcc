@@ -71,6 +71,7 @@
 #define ARCH_pdp11
 #define ARCH_pj
 #define ARCH_powerpc
+#define ARCH_propeller
 #define ARCH_pru
 #define ARCH_riscv
 #define ARCH_rs6000
@@ -365,6 +366,11 @@ disassembler (enum bfd_architecture a,
 	disassemble = print_insn_little_powerpc;
       break;
 #endif
+#ifdef ARCH_propeller
+    case bfd_arch_propeller:
+      disassemble = print_insn_propeller;
+      break;
+#endif
 #ifdef ARCH_pru
     case bfd_arch_pru:
       disassemble = print_insn_pru;
@@ -640,6 +646,11 @@ disassemble_init_for_target (struct disassemble_info * info)
 #if defined (ARCH_powerpc) || defined (ARCH_rs6000)
       disassemble_init_powerpc (info);
       break;
+#endif
+#ifdef ARCH_propeller
+    case bfd_arch_propeller:
+	    info->disassembler_needs_relocs = TRUE;
+		break;
 #endif
 #ifdef ARCH_wasm32
     case bfd_arch_wasm32:
