@@ -1142,7 +1142,7 @@ propeller_elf_gc_keep (struct bfd_link_info *info)
 #define ELF_MACHINE_CODE	EM_PROPELLER
 #define ELF_MAXPAGESIZE		0x1
 
-#define TARGET_LITTLE_SYM          bfd_elf32_propeller_vec
+#define TARGET_LITTLE_SYM          propeller_elf32_vec
 #define TARGET_LITTLE_NAME		"elf32-propeller"
 
 #define elf_info_to_howto_rel			NULL

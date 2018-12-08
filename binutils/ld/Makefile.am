@@ -346,6 +346,17 @@ ALL_EMULATION_SOURCES = \
 	eppclynx.c \
 	eppcmacos.c \
 	eppcpe.c \
+	epropeller.c \
+	epropeller2.c \
+	epropeller_cog.c \
+	epropeller_xmm.c \
+	epropeller_xmm_single.c \
+	epropeller_xmm_split.c \
+	epropeller_xmmc.c \
+	epropeller2_xmm.c \
+	epropeller2_xmm_single.c \
+	epropeller2_xmm_split.c \
+	epropeller2_xmmc.c \
 	epruelf.c \
 	escore3_elf.c \
 	escore7_elf.c \
@@ -1562,6 +1573,28 @@ eppcmacos.c:	$(srcdir)/emulparams/ppcmacos.sh \
 
 eppcpe.c: $(srcdir)/emulparams/ppcpe.sh \
   $(srcdir)/emultempl/pe.em $(srcdir)/scripttempl/ppcpe.sc ${GEN_DEPENDS}
+epropeller.c: $(srcdir)/emulparams/propeller.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller2.c: $(srcdir)/emulparams/propeller2.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller_cog.c: $(srcdir)/emulparams/propeller_cog.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller_xmm.c: $(srcdir)/emulparams/propeller_xmm.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller_xmm_single.c: $(srcdir)/emulparams/propeller_xmm_single.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller_xmm_split.c: $(srcdir)/emulparams/propeller_xmm_split.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller_xmmc.c: $(srcdir)/emulparams/propeller_xmmc.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller2_xmm.c: $(srcdir)/emulparams/propeller2_xmm.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller2_xmm_single.c: $(srcdir)/emulparams/propeller2_xmm_single.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller2_xmm_split.c: $(srcdir)/emulparams/propeller2_xmm_split.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
+epropeller2_xmmc.c: $(srcdir)/emulparams/propeller2_xmmc.sh \
+  $(srcdir)/emultempl/propeller.em $(srcdir)/scripttempl/propeller.sc ${GEN_DEPENDS}
 
 epruelf.c: $(srcdir)/emulparams/pruelf.sh \
   $(ELF_DEPS) $(srcdir)/scripttempl/pru.sc \
